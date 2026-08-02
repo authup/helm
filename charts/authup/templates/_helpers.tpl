@@ -30,8 +30,8 @@ component onto one identical name.
 {{- printf "%s-server" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
 {{- end -}}
 
-{{- define "authup.ui.fullname" -}}
-{{- printf "%s-ui" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- define "authup.adminConsole.fullname" -}}
+{{- printf "%s-admin-console" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
 {{- end -}}
 
 {{- define "authup.postgresql.fullname" -}}

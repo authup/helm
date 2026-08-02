@@ -406,9 +406,9 @@ server:
   # origin can obtain full-permission tokens via the per-realm web client.
   # List or comma-separated string; tpl-rendered.
   trustedOrigins: []
-  # -- Automatically append the client-console UI origin to TRUSTED_ORIGINS (removes the
+  # -- Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the
   # most common dead-login misconfiguration)
-  trustedOriginsAppendUI: true
+  trustedOriginsAppendAdminConsole: true
   # -- TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress),
   # not authup's spoofable trust-everything default
   trustProxy: "1"
@@ -757,14 +757,14 @@ server:
     # -- Extra egress rules
     extraEgress: []
 
-## @section client-console (admin UI)
+## @section client-admin-console (admin UI)
 
-ui:
-  # -- Deploy the client-console admin UI (false = headless IdP)
+adminConsole:
+  # -- Deploy the client-admin-console admin UI (false = headless IdP)
   enabled: true
   # -- Number of UI replicas (fully stateless, scale freely)
   replicaCount: 1
-  # -- Public URL of the UI (NUXT_PUBLIC_PUBLIC_URL). "" = derived from ui.ingress
+  # -- Public URL of the UI (NUXT_PUBLIC_PUBLIC_URL). "" = derived from adminConsole.ingress
   publicUrl: ""
   # -- Browser-facing server-core URL (NUXT_PUBLIC_API_URL). "" = the server public URL.
   # Must be reachable from the user's browser, never a cluster-internal DNS name
@@ -982,7 +982,7 @@ ui:
   route:
     # -- Create a Gateway API HTTPRoute for the UI
     enabled: false
-    # -- Route hostnames ([] = derived from ui.publicUrl / ingress hostname)
+    # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname)
     hostnames: []
     # -- Gateway parentRefs
     parentRefs: []

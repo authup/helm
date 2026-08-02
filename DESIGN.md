@@ -23,7 +23,7 @@ repo; every decision below cites its evidence.
    vendored locally (Apache-2.0-clean, bitnami-compatible key names).
 2. **Two workloads, one chart, one image.** `authup/authup` is a single image whose
    entrypoint dispatches on args: `server/core start` (server-core, the IdP/API) and
-   `client/console start` (client-console, the Nuxt admin UI). The `authup` CLI supervisor is
+   `client/admin-console start` (client-admin-console, the Nuxt admin UI). The `authup` CLI supervisor is
    **not routable through the container entrypoint** and the monorepo docs pin
    "containers with one service each" as the production topology — so the chart
    ships two Deployments and never a combined pod.
@@ -58,7 +58,7 @@ authup/helm
 │   │   ├── mysql-values.yaml            # bundled mysql
 │   │   ├── external-db-values.yaml      # externalDatabase + existingSecret fixture
 │   │   ├── redis-values.yaml            # bundled valkey + replicas 2
-│   │   └── server-only-values.yaml      # ui.enabled=false (headless deployment)
+│   │   └── server-only-values.yaml      # adminConsole.enabled=false (headless deployment)
 │   ├── ci/manifests/           # fixtures pre-applied before ct install
 │   └── templates/
 │       ├── _helpers.tpl        # names, labels, images (vendored bitnami-compatible)
@@ -76,7 +76,7 @@ authup/helm
 │       ├── server/             # server-core: deployment, service, ingress,
 │       │                       # httproute, configmap-env, migration-job, hpa,
 │       │                       # pdb, networkpolicy, servicemonitor
-│       ├── ui/                 # client-console: deployment, service, ingress,
+│       ├── ui/                 # client-admin-console: deployment, service, ingress,
 │       │                       # httproute, configmap-env, hpa, pdb, networkpolicy
 │       ├── postgresql/         # optional built-in dev instance (statefulset,
 │       │                       # service, secret) — docker-official image
@@ -100,15 +100,15 @@ charts (e.g. an `authup-remote` RBAC chart, authentik-style).
 
 ### 3.1 Workloads
 
-| | `server` (server-core) | `ui` (client-console) |
+| | `server` (server-core) | `ui` (client-admin-console) |
 |---|---|---|
-| args | `["server/core", "start"]` | `["client/console", "start"]` |
+| args | `["server/core", "start"]` | `["client/admin-console", "start"]` |
 | containerPort | 3000 (pinned) | 3000 (pinned) |
 | role | OAuth2/OIDC IdP origin + SSR auth pages | admin console, ordinary OAuth2 RP |
 | state | stateless w/ external DB+redis | fully stateless |
 | probes | httpGet `/` (status endpoint); generous startupProbe (boot = migrate + provision) | httpGet `/` |
 | scaling | replicas > 1 **requires redis** (hard template fail) | free |
-| default | enabled | enabled (`ui.enabled: false` = headless IdP) |
+| default | enabled | enabled (`adminConsole.enabled: false` = headless IdP) |
 
 Per-role template directories, ~85% duplication between the two deployment
 templates **accepted deliberately** — authentik tried the DRY role-loop and
@@ -124,7 +124,7 @@ Vendored helpers (bitnami-compatible semantics, local implementation):
 
 - `authup.fullname` — release-scoped, honors `fullnameOverride` (bitnami key name,
   not Authelia's confusing nameOverride-acts-as-fullname variant), 63-char safe.
-- `authup.server.fullname` / `authup.ui.fullname` — `<fullname>-server` / `<fullname>-ui`.
+- `authup.server.fullname` / `authup.adminConsole.fullname` — `<fullname>-server` / `<fullname>-ui`.
 - `authup.labels.standard` / `authup.labels.matchLabels` — the five
   `app.kubernetes.io/*` labels; selectors carry ONLY name+instance+component
   (user `commonLabels` never leak into immutable selectors — the bitnami `pick`
@@ -274,7 +274,7 @@ externalRedis:
 ### 3.7 Ingress and topology
 
 Two-host model as the default (server-core is the IdP origin serving the SSR auth
-pages; client-console is an ordinary RP; **cookie-domain sharing between the two is
+pages; client-admin-console is an ordinary RP; **cookie-domain sharing between the two is
 unsupported by authup** — the chart never sets `NUXT_PUBLIC_COOKIE_DOMAIN` and
 validates against foot-guns):
 
@@ -296,7 +296,7 @@ publicUrl drift):
 - `PUBLIC_URL` ← `server.publicUrl` | derived `http(s)://<server.ingress.hostname><path>`
 - `NUXT_PUBLIC_API_URL` ← the same value (browser-reachable, never the cluster
   Service DNS; the optional private `NUXT_API_URL` may point in-cluster for SSR)
-- `NUXT_PUBLIC_PUBLIC_URL` ← `ui.publicUrl` | derived from `ui.ingress`
+- `NUXT_PUBLIC_PUBLIC_URL` ← `adminConsole.publicUrl` | derived from `adminConsole.ingress`
 - `TRUSTED_ORIGINS` ← user list ∪ the UI origin (auto-appended unless disabled)
 - `TRUST_PROXY` defaults to `"1"` (one ingress hop), not authup's spoofable
   `true`-every-hop default.
@@ -386,7 +386,7 @@ Cross-field rules the JSON schema cannot express, one render-nothing template:
 3. `mfa.required` without `mfa.enabled`; `loginThrottle` without event log
    (mirrors authup's boot validations — fail at render, not at CrashLoopBackOff).
 4. `auth.existingSecret` combined with inline passwords.
-5. `ui.enabled` with neither ingress nor explicit `ui.publicUrl` when server
+5. `adminConsole.enabled` with neither ingress nor explicit `adminConsole.publicUrl` when server
    ingress is on (dead-login trap), and any config that would point the UI cookie
    domain at the server host.
 6. Tombstones for renamed values (grows over time).

@@ -9,7 +9,7 @@ auth server).
 
 | Their piece | This repo |
 |---|---|
-| Per-role template directories, duplication accepted (they built and REVERTED the DRY role-loop in #163: "takes DRY maybe a bit too far") | `templates/server/` + `templates/ui/` |
+| Per-role template directories, duplication accepted (they built and REVERTED the DRY role-loop in #163: "takes DRY maybe a bit too far") | `templates/server/` + `templates/admin-console/` |
 | Self-contained chart, no library dependency (their k8s-at-home common era died upstream) | zero `dependencies:` in Chart.yaml |
 | ct lint + kind `ct install` gated by `ct list-changed`, `ci/*-values.yaml` scenario matrix, `ci/manifests/` fixtures | `.github/workflows/lint-test.yaml` |
 | helm-docs drift gate (`git diff` fail step) | hardened variant in CI |

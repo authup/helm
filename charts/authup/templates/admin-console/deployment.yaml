@@ -1,0 +1,159 @@
+{{- if .Values.adminConsole.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "authup.adminConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if not .Values.adminConsole.autoscaling.hpa.enabled }}
+  replicas: {{ .Values.adminConsole.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.adminConsole.revisionHistoryLimit }}
+  {{- if .Values.adminConsole.updateStrategy }}
+  strategy: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.updateStrategy "context" $) | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "admin-console") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 8 }}
+        {{- if .Values.adminConsole.podLabels }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if not .Values.adminConsole.disableRestartOnChanges }}
+        checksum/env: {{ include "authup.adminConsole.configEnv" . | sha256sum }}
+        {{- end }}
+        {{- if .Values.adminConsole.podAnnotations }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.podAnnotations "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "authup.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.adminConsole.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.adminConsole.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.adminConsole.priorityClassName }}
+      priorityClassName: {{ .Values.adminConsole.priorityClassName }}
+      {{- end }}
+      {{- if .Values.adminConsole.schedulerName }}
+      schedulerName: {{ .Values.adminConsole.schedulerName }}
+      {{- end }}
+      {{- if .Values.adminConsole.hostAliases }}
+      hostAliases: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.hostAliases "context" $) | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.adminConsole.terminationGracePeriodSeconds }}
+      {{- if .Values.adminConsole.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.affinity "context" $) | nindent 8 }}
+      {{- else if .Values.adminConsole.podAntiAffinityPreset }}
+      affinity: {{- include "authup.podAntiAffinity" (dict "context" $ "component" "admin-console" "preset" .Values.adminConsole.podAntiAffinityPreset) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.adminConsole.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.adminConsole.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.adminConsole.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- include "authup.topologySpreadConstraints" (dict "context" $ "component" "admin-console" "constraints" .Values.adminConsole.topologySpreadConstraints) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.adminConsole.initContainers }}
+      initContainers: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.initContainers "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: ui
+          image: {{ include "authup.appImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.adminConsole.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.adminConsole.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- if .Values.adminConsole.command }}
+          command: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.command "context" $) | nindent 12 }}
+          {{- end }}
+          {{- if .Values.adminConsole.args }}
+          args: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.args "context" $) | nindent 12 }}
+          {{- else }}
+          args:
+            - client/admin-console
+            - start
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ printf "%s-env" (include "authup.adminConsole.fullname" .) }}
+            {{- if .Values.adminConsole.extraEnvVarsCM }}
+            - configMapRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraEnvVarsCM "context" $) }}
+            {{- end }}
+            {{- if .Values.adminConsole.extraEnvVarsSecret }}
+            - secretRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraEnvVarsSecret "context" $) }}
+            {{- end }}
+          env:
+            - name: npm_config_cache
+              value: /tmp/.npm-cache
+            {{- if .Values.adminConsole.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          {{- if not .Values.diagnosticMode.enabled }}
+          {{- if .Values.adminConsole.customStartupProbe }}
+          startupProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.customStartupProbe "context" $) | nindent 12 }}
+          {{- else if .Values.adminConsole.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.adminConsole.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.adminConsole.customLivenessProbe }}
+          livenessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.customLivenessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.adminConsole.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.adminConsole.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.adminConsole.customReadinessProbe }}
+          readinessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.customReadinessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.adminConsole.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.adminConsole.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.adminConsole.resources }}
+          resources: {{- toYaml .Values.adminConsole.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.adminConsole.lifecycleHooks }}
+          lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.lifecycleHooks "context" $) | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.adminConsole.extraVolumeMounts }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraVolumeMounts "context" $) | nindent 12 }}
+            {{- end }}
+        {{- if .Values.adminConsole.sidecars }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.sidecars "context" $) | nindent 8 }}
+        {{- end }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.adminConsole.extraVolumes }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraVolumes "context" $) | nindent 8 }}
+        {{- end }}
+{{- end }}

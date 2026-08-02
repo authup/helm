@@ -74,9 +74,9 @@ editing templates or values.
 15. **URL derivation is the chart's core UX.** `PUBLIC_URL`,
     `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_PUBLIC_URL` derive from the two
     ingress blocks; the UI origin is auto-appended to `TRUSTED_ORIGINS`
-    (`server.trustedOriginsAppendUI`). A missing trusted origin is the #1
+    (`server.trustedOriginsAppendAdminConsole`). A missing trusted origin is the #1
     dead-login misconfiguration. The chart never sets
-    `NUXT_PUBLIC_COOKIE_DOMAIN`: sharing a cookie domain between client-console
+    `NUXT_PUBLIC_COOKIE_DOMAIN`: sharing a cookie domain between client-admin-console
     and the hosted auth pages is unsupported by authup.
 16. **Every list/map passthrough is tpl-rendered** via
     `authup.tplvalues.render`, so umbrella charts can inject template

@@ -27,7 +27,7 @@ on Kubernetes.
 ## Highlights
 
 - 🔐 **Complete deployment** - the server-core IdP/API (OAuth2 / OpenID Connect,
-  hosted login & consent pages) and the client-console admin UI, from one chart
+  hosted login & consent pages) and the client-admin-console admin UI, from one chart
 - 🗄️ **Hybrid database model** - built-in PostgreSQL **or** MySQL for a
   one-command start, or bring your own external database
 - ⚡ **Optional Valkey cache** - built-in instance or external Redis; required
@@ -100,7 +100,7 @@ key).
 
 | Chart | Description |
 |---|---|
-| [authup](./charts/authup) | server-core (IdP/API) + client-console (admin UI), optional built-in PostgreSQL / MySQL / Valkey |
+| [authup](./charts/authup) | server-core (IdP/API) + client-admin-console (admin UI), optional built-in PostgreSQL / MySQL / Valkey |
 
 ## Documentation
 

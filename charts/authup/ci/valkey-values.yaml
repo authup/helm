@@ -12,7 +12,7 @@ server:
     requests:
       cpu: 50m
       memory: 256Mi
-ui:
+adminConsole:
   resources:
     requests:
       cpu: 25m

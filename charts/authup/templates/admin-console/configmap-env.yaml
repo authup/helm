@@ -1,0 +1,10 @@
+{{- if .Values.adminConsole.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-env" (include "authup.adminConsole.fullname" .) }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+data: {{- include "authup.adminConsole.configEnv" . | nindent 2 }}
+{{- end }}

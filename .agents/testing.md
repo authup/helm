@@ -23,7 +23,7 @@ helm template test charts/authup                                   # defaults (b
 helm template test charts/authup -f charts/authup/ci/valkey-values.yaml
 helm template test charts/authup --set server.ingress.enabled=true \
   --set server.ingress.hostname=auth.example.com --set server.ingress.tls=true \
-  --set ui.ingress.enabled=true --set ui.ingress.hostname=app.example.com --set ui.ingress.tls=true
+  --set adminConsole.ingress.enabled=true --set adminConsole.ingress.hostname=app.example.com --set adminConsole.ingress.tls=true
 ```
 
 When verifying env wiring, grep the rendered ConfigMaps/Deployments for

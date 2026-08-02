@@ -9,7 +9,7 @@ v1.0.0-beta.58 line (chart `appVersion`).
 
 | Fact | authup source | Chart counterpart |
 |---|---|---|
-| One image `authup/authup`, arg-dispatched entrypoint (`server/core start`, `client/console start`, `server/core migration run`, `server/core healthcheck`) | `Dockerfile`, `entrypoint.sh` (repo root) | `args` in `templates/{server,ui}/deployment.yaml`, `server/migration-job.yaml` |
+| One image `authup/authup`, arg-dispatched entrypoint (`server/core start`, `client/admin-console start`, `server/core migration run`, `server/core healthcheck`) | `Dockerfile`, `entrypoint.sh` (repo root) | `args` in `templates/{server,admin-console}/deployment.yaml`, `server/migration-job.yaml` |
 | Entrypoint force-exports `PORT=3000` / `NUXT_PORT=3000` (chart-set PORT is dead) | `entrypoint.sh` | containerPort pinned 3000 everywhere |
 | Image runs as root; writable paths `/usr/src/app/writable` + npm cache | `Dockerfile` (`WRITABLE_DIRECTORY_PATH`, no `USER`) | emptyDir mounts + `npm_config_cache=/tmp/.npm-cache`; root securityContext default |
 | `latest`/`<version>`/`beta`/`next` tags | `.github/workflows/release.yml`, `docker-nightly.yml` | `image.tag` defaults to `Chart.AppVersion` |
@@ -39,22 +39,22 @@ Config file: `authup.server.core.conf` in the process cwd
 `<writable>/provisioning/*` scanned at boot, fail-closed
 (`app/modules/provisioning/module.ts`) -> `server.provisioning.*` mount.
 
-## client-console env surface
+## client-admin-console env surface
 
 Runtime config only (prebuilt Nitro bundle; bare `API_URL` etc. are build-time
-and dead): `apps/client-console/nuxt.config.ts`,
-`docs/src/guide/deployment/configuration-client-console.md`.
+and dead): `apps/client-admin-console/nuxt.config.ts`,
+`docs/src/guide/deployment/configuration-client-admin-console.md`.
 `NUXT_PUBLIC_API_URL` (browser-reachable server URL), `NUXT_PUBLIC_PUBLIC_URL`,
 `NUXT_API_URL` (SSR-side override), `NUXT_PUBLIC_COOKIE_DOMAIN` (deliberately
 never set by the chart: sharing a cookie domain with the server origin is
 unsupported per `.agents/architecture.md` in the monorepo). Chart counterpart:
-`_ui-env.tpl`.
+`_admin-console-env.tpl`.
 
 ## Operational contract
 
 - `GET /` = anonymous status endpoint `{version, date, features}`
   (`adapters/http/controllers/workflows/status/`) -> liveness/readiness for
-  server-core; client-console uses its SSR `/`.
+  server-core; client-admin-console uses its SSR `/`.
 - server-core auto-runs migrations + provisioning at boot
   (`app/modules/database/module.ts`; no off-switch) -> generous startupProbe;
   optional pre-upgrade migration Job for multi-replica DDL serialization.

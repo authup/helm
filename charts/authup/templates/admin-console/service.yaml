@@ -1,0 +1,47 @@
+{{- if .Values.adminConsole.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "authup.adminConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- if .Values.adminConsole.service.annotations }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.service.annotations "context" $) | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.adminConsole.service.type }}
+  {{- if and .Values.adminConsole.service.clusterIP (eq .Values.adminConsole.service.type "ClusterIP") }}
+  clusterIP: {{ .Values.adminConsole.service.clusterIP }}
+  {{- end }}
+  {{- if eq .Values.adminConsole.service.type "LoadBalancer" }}
+  {{- if .Values.adminConsole.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.adminConsole.service.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.adminConsole.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml .Values.adminConsole.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- if or (eq .Values.adminConsole.service.type "LoadBalancer") (eq .Values.adminConsole.service.type "NodePort") }}
+  externalTrafficPolicy: {{ .Values.adminConsole.service.externalTrafficPolicy | quote }}
+  {{- end }}
+  {{- if .Values.adminConsole.service.sessionAffinity }}
+  sessionAffinity: {{ .Values.adminConsole.service.sessionAffinity }}
+  {{- end }}
+  {{- if .Values.adminConsole.service.sessionAffinityConfig }}
+  sessionAffinityConfig: {{- toYaml .Values.adminConsole.service.sessionAffinityConfig | nindent 4 }}
+  {{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.adminConsole.service.ports.http }}
+      targetPort: http
+      protocol: TCP
+      {{- if and (or (eq .Values.adminConsole.service.type "NodePort") (eq .Values.adminConsole.service.type "LoadBalancer")) .Values.adminConsole.service.nodePorts.http }}
+      nodePort: {{ .Values.adminConsole.service.nodePorts.http }}
+      {{- end }}
+    {{- if .Values.adminConsole.service.extraPorts }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.service.extraPorts "context" $) | nindent 4 }}
+    {{- end }}
+  selector: {{- include "authup.matchLabels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+{{- end }}

@@ -1,0 +1,20 @@
+{{- if and .Values.adminConsole.enabled .Values.adminConsole.pdb.create }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "authup.adminConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if .Values.adminConsole.pdb.minAvailable }}
+  minAvailable: {{ .Values.adminConsole.pdb.minAvailable }}
+  {{- end }}
+  {{- if .Values.adminConsole.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.adminConsole.pdb.maxUnavailable }}
+  {{- else if not .Values.adminConsole.pdb.minAvailable }}
+  maxUnavailable: 1
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "admin-console") | nindent 6 }}
+{{- end }}
