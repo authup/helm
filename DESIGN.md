@@ -491,3 +491,10 @@ weakened to best-effort accordingly); an `ingress.blockMetrics` convenience;
 `resourcesPreset`/`kubeVersion`/`apiVersions`/`clusterDomain` chrome (dropped
 as dead values); the checksum-of-secret preimage caveat (cohort-standard
 behavior, documented); and chart signing.
+
+**Publishing tool**: chart-releaser today; migration to hevi (tada5hi's own
+versioner/releaser, already powering PrivateAIM/helm) is planned once
+tada5hi/hevi#52 — the chart-releaser parity checklist (stable
+`<chart>-<version>` tags, idempotent skip-existing publish, custom-domain
+index merge with CNAME preservation, release notes + OCI push) — is green.
+This repo is hevi's designated second consumer.

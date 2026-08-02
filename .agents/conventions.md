@@ -27,6 +27,10 @@
 - chart-releaser detects "changed charts" by diffing against the latest
   `authup-*` tag (falling back to the root commit), so a release only triggers
   when a commit touches `charts/`.
+- Migration to hevi (tada5hi's own releaser) is planned and tracked by
+  tada5hi/hevi#52, a chart-releaser parity checklist. Do not switch the
+  publish tooling before that issue is closed; when working on it, keep the
+  `authup-<version>` tag format stable (release-please's baseline).
 - Breaking value changes: document the migration in `charts/authup/BREAKING.md`
   AND add a fail-loud tripwire for the old key in `templates/validations.yaml`.
 
