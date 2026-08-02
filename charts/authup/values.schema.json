@@ -2311,7 +2311,7 @@
         },
         "trustedOriginsAppendUI": {
           "default": true,
-          "description": "Automatically append the client-web UI origin to TRUSTED_ORIGINS (removes the\nmost common dead-login misconfiguration)",
+          "description": "Automatically append the client-console UI origin to TRUSTED_ORIGINS (removes the\nmost common dead-login misconfiguration)",
           "required": [],
           "title": "trustedOriginsAppendUI",
           "type": "boolean"
@@ -2665,7 +2665,7 @@
         },
         "enabled": {
           "default": true,
-          "description": "Deploy the client-web admin UI (false = headless IdP)",
+          "description": "Deploy the client-console admin UI (false = headless IdP)",
           "required": [],
           "title": "enabled",
           "type": "boolean"
