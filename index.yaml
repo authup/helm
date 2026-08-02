@@ -1,0 +1,42 @@
+apiVersion: v1
+entries:
+  authup:
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: added
+          description: Initial chart scaffold
+      artifacthub.io/license: MIT
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.58
+    created: "2026-08-02T11:06:27.020519289Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      the server-core IdP/API service and the client-web admin UI, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: 9e5382d5385b4e1a6c4d83e8ff8bd9e91f4e0c1eb7bdebb5d17df016cdb6999a
+    home: https://authup.org
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-08-02T11:06:27.020691411Z"
