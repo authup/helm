@@ -31,4 +31,4 @@ chart-releaser to the `gh-pages` index and to GHCR (OCI).
 
 ## License
 
-MIT
+Apache-2.0
