@@ -8,12 +8,12 @@
 
 ![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.58](https://img.shields.io/badge/AppVersion-1.0.0--beta.58-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-web admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
+Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-console admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
 
 - **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
   surface plus the server-rendered auth pages (login, consent, registration,
   password recovery). This is the identity origin.
-- **client-web** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
+- **client-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
   (optional; disable with `ui.enabled=false` for a headless IdP).
 - optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
   instances on docker-official images — a convenience for dev and small
@@ -313,7 +313,7 @@ Kubernetes: `>=1.25.0-0`
 | server.topologySpreadConstraints | list | `[]` | Topology spread constraints (a missing labelSelector is filled with the pod's selector labels) |
 | server.trustProxy | string | `"1"` | TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress), not authup's spoofable trust-everything default |
 | server.trustedOrigins | list | `[]` | Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed origin can obtain full-permission tokens via the per-realm web client. List or comma-separated string; tpl-rendered. |
-| server.trustedOriginsAppendUI | bool | `true` | Automatically append the client-web UI origin to TRUSTED_ORIGINS (removes the most common dead-login misconfiguration) |
+| server.trustedOriginsAppendUI | bool | `true` | Automatically append the client-console UI origin to TRUSTED_ORIGINS (removes the most common dead-login misconfiguration) |
 | server.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | serviceAccount.annotations | object | `{}` | ServiceAccount annotations (tpl-rendered) |
 | serviceAccount.automountServiceAccountToken | bool | `false` | Automount the service account token |
@@ -337,7 +337,7 @@ Kubernetes: `>=1.25.0-0`
 | ui.customReadinessProbe | object | `{}` | Custom readiness probe |
 | ui.customStartupProbe | object | `{}` | Custom startup probe |
 | ui.disableRestartOnChanges | bool | `false` | Disable the checksum annotations that roll pods on config changes |
-| ui.enabled | bool | `true` | Deploy the client-web admin UI (false = headless IdP) |
+| ui.enabled | bool | `true` | Deploy the client-console admin UI (false = headless IdP) |
 | ui.extraEnvVars | list | `[]` | Extra environment variables for the UI container |
 | ui.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
 | ui.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |

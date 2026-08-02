@@ -406,7 +406,7 @@ server:
   # origin can obtain full-permission tokens via the per-realm web client.
   # List or comma-separated string; tpl-rendered.
   trustedOrigins: []
-  # -- Automatically append the client-web UI origin to TRUSTED_ORIGINS (removes the
+  # -- Automatically append the client-console UI origin to TRUSTED_ORIGINS (removes the
   # most common dead-login misconfiguration)
   trustedOriginsAppendUI: true
   # -- TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress),
@@ -757,10 +757,10 @@ server:
     # -- Extra egress rules
     extraEgress: []
 
-## @section client-web (admin UI)
+## @section client-console (admin UI)
 
 ui:
-  # -- Deploy the client-web admin UI (false = headless IdP)
+  # -- Deploy the client-console admin UI (false = headless IdP)
   enabled: true
   # -- Number of UI replicas (fully stateless, scale freely)
   replicaCount: 1

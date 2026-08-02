@@ -27,7 +27,7 @@ server-core (IdP / API):
 
 {{- if .Values.ui.enabled }}
 
-client-web (admin UI):
+client-console (admin UI):
 {{- if $uiUrl }}
   URL: {{ $uiUrl }}
 {{- else }}

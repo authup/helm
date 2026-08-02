@@ -5,7 +5,7 @@
 Helm charts for [Authup](https://authup.org), an authentication & authorization
 system. One application chart today: `charts/authup` deploys the two runtime
 services of the [authup monorepo](https://github.com/authup/authup) (server-core
-IdP/API and the client-web admin UI) plus optional built-in PostgreSQL, MySQL
+IdP/API and the client-console admin UI) plus optional built-in PostgreSQL, MySQL
 and Valkey instances.
 
 `DESIGN.md` at the repo root is the authoritative design record: every major

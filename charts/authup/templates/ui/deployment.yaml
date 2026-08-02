@@ -81,7 +81,7 @@ spec:
           args: {{- include "authup.tplvalues.render" (dict "value" .Values.ui.args "context" $) | nindent 12 }}
           {{- else }}
           args:
-            - client/web
+            - client/console
             - start
           {{- end }}
           {{- end }}

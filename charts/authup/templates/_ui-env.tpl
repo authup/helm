@@ -1,9 +1,9 @@
 {{/*
-client-web environment as a YAML map. The published UI bundle only honors Nuxt
+client-console environment as a YAML map. The published UI bundle only honors Nuxt
 runtime-config names (NUXT_*); the API URL must be the BROWSER-reachable
 server-core URL, never a cluster-internal service name.
 The chart deliberately never sets NUXT_PUBLIC_COOKIE_DOMAIN: sharing a cookie
-domain between client-web and the hosted auth pages is unsupported by authup.
+domain between client-console and the hosted auth pages is unsupported by authup.
 */}}
 {{- define "authup.ui.configEnv" -}}
 {{- $apiUrl := include "authup.ui.apiUrl" . }}

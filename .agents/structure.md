@@ -47,7 +47,7 @@ authup/helm
         ├── server/              # server-core: deployment, service, ingress, httproute,
         │                        # configmap-env, configmap-configuration, configmap-provisioning,
         │                        # migration-job, hpa, pdb, networkpolicy, servicemonitor
-        ├── ui/                  # client-web: deployment, service, ingress, httproute,
+        ├── ui/                  # client-console: deployment, service, ingress, httproute,
         │                        # configmap-env, hpa, pdb, networkpolicy
         ├── postgresql/          # built-in instance: statefulset, service, secret
         ├── mysql/               # built-in instance: statefulset, service, secret
@@ -57,14 +57,14 @@ authup/helm
 ## Two components, per-role template directories
 
 `server/` (server-core, the IdP: OAuth2/OIDC surface + SSR auth pages) and
-`ui/` (client-web admin console) are separate template directories with ~85%
+`ui/` (client-console admin console) are separate template directories with ~85%
 similar deployment templates. This duplication is DELIBERATE: authentik built
 the DRY role-loop and reverted it ("takes DRY maybe a bit too far", their
 PR #163). Do not introduce a role loop. A future authup server/worker split
 becomes a third directory with the same skeleton.
 
 Both services run the SAME image (`authup/authup`) with different args
-(`server/core start` vs `client/web start`). The image entrypoint force-exports
+(`server/core start` vs `client/console start`). The image entrypoint force-exports
 `PORT=3000` for both, so `containerPort` is pinned to 3000 everywhere and only
 Service ports are values.
 

@@ -76,7 +76,7 @@ editing templates or values.
     ingress blocks; the UI origin is auto-appended to `TRUSTED_ORIGINS`
     (`server.trustedOriginsAppendUI`). A missing trusted origin is the #1
     dead-login misconfiguration. The chart never sets
-    `NUXT_PUBLIC_COOKIE_DOMAIN`: sharing a cookie domain between client-web
+    `NUXT_PUBLIC_COOKIE_DOMAIN`: sharing a cookie domain between client-console
     and the hosted auth pages is unsupported by authup.
 16. **Every list/map passthrough is tpl-rendered** via
     `authup.tplvalues.render`, so umbrella charts can inject template

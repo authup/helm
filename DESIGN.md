@@ -23,7 +23,7 @@ repo; every decision below cites its evidence.
    vendored locally (Apache-2.0-clean, bitnami-compatible key names).
 2. **Two workloads, one chart, one image.** `authup/authup` is a single image whose
    entrypoint dispatches on args: `server/core start` (server-core, the IdP/API) and
-   `client/web start` (client-web, the Nuxt admin UI). The `authup` CLI supervisor is
+   `client/console start` (client-console, the Nuxt admin UI). The `authup` CLI supervisor is
    **not routable through the container entrypoint** and the monorepo docs pin
    "containers with one service each" as the production topology — so the chart
    ships two Deployments and never a combined pod.
@@ -76,7 +76,7 @@ authup/helm
 │       ├── server/             # server-core: deployment, service, ingress,
 │       │                       # httproute, configmap-env, migration-job, hpa,
 │       │                       # pdb, networkpolicy, servicemonitor
-│       ├── ui/                 # client-web: deployment, service, ingress,
+│       ├── ui/                 # client-console: deployment, service, ingress,
 │       │                       # httproute, configmap-env, hpa, pdb, networkpolicy
 │       ├── postgresql/         # optional built-in dev instance (statefulset,
 │       │                       # service, secret) — docker-official image
@@ -100,9 +100,9 @@ charts (e.g. an `authup-remote` RBAC chart, authentik-style).
 
 ### 3.1 Workloads
 
-| | `server` (server-core) | `ui` (client-web) |
+| | `server` (server-core) | `ui` (client-console) |
 |---|---|---|
-| args | `["server/core", "start"]` | `["client/web", "start"]` |
+| args | `["server/core", "start"]` | `["client/console", "start"]` |
 | containerPort | 3000 (pinned) | 3000 (pinned) |
 | role | OAuth2/OIDC IdP origin + SSR auth pages | admin console, ordinary OAuth2 RP |
 | state | stateless w/ external DB+redis | fully stateless |
@@ -274,7 +274,7 @@ externalRedis:
 ### 3.7 Ingress and topology
 
 Two-host model as the default (server-core is the IdP origin serving the SSR auth
-pages; client-web is an ordinary RP; **cookie-domain sharing between the two is
+pages; client-console is an ordinary RP; **cookie-domain sharing between the two is
 unsupported by authup** — the chart never sets `NUXT_PUBLIC_COOKIE_DOMAIN` and
 validates against foot-guns):
 
