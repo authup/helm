@@ -409,7 +409,7 @@ warnings.
   maintains CHANGELOG.md from conventional commits — the PrivateAIM-proven spine,
   matching the monorepo's culture.
 - **Publish on release**: `helm/chart-releaser-action` (`CR_SKIP_EXISTING`) →
-  GitHub Releases + gh-pages `index.yaml` (`https://authup.github.io/helm`,
+  GitHub Releases + gh-pages `index.yaml` (`https://helm.authup.org`,
   CNAME-able later), then the 6-line loop `helm push … oci://ghcr.io/authup/helm-charts`
   — dual classic + OCI, the authentik/authelia-converged shape.
   `skip-github-release` on the chart component so release-please and

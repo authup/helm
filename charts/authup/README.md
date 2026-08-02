@@ -19,7 +19,7 @@ Authup is an authentication & authorization system. This chart deploys the serve
 ## Installing
 
 ```bash
-helm repo add authup https://authup.github.io/helm
+helm repo add authup https://helm.authup.org
 helm install authup authup/authup
 
 # or via OCI

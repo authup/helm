@@ -6,7 +6,7 @@ authorization system.
 ## Usage
 
 ```bash
-helm repo add authup https://authup.github.io/helm
+helm repo add authup https://helm.authup.org
 helm repo update
 helm install authup authup/authup
 ```
