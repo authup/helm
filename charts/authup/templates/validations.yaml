@@ -1,0 +1,68 @@
+{{/*
+Render-nothing fail-fast guards for cross-field rules the JSON schema cannot
+express. Keep every check cheap: this file renders on all helm operations.
+*/}}
+
+{{/* A database is mandatory: the published image bakes NODE_ENV=production, which forbids sqlite. */}}
+{{- if and .Values.server.enabled (not .Values.postgresql.enabled) (not .Values.mysql.enabled) (not .Values.externalDatabase.host) }}
+{{- fail "authup: no database configured. Enable postgresql.enabled or mysql.enabled, or set externalDatabase.host — the authup image cannot boot without a database (sqlite is not available in production images)." }}
+{{- end }}
+
+{{- if and .Values.postgresql.enabled .Values.mysql.enabled }}
+{{- fail "authup: postgresql.enabled and mysql.enabled are mutually exclusive — pick one built-in database engine." }}
+{{- end }}
+
+{{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host (not (has .Values.database.type (list "postgres" "mysql"))) }}
+{{- fail (printf "authup: unknown database.type %q — must be 'postgres' or 'mysql'." .Values.database.type) }}
+{{- end }}
+
+{{/*
+Replicas > 1 without a shared cache silently break logins (the authorization-code
+store, token blocklist and MFA challenges fall back to a per-process memory cache).
+*/}}
+{{- if and .Values.server.enabled (not (include "authup.redis.enabled" .)) }}
+{{- if or (gt (int .Values.server.replicaCount) 1) .Values.server.autoscaling.hpa.enabled }}
+{{- fail "authup: server.replicaCount > 1 (or server HPA) requires a shared cache. Enable valkey.enabled or configure externalRedis — without it, logins and MFA challenges break across replicas." }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.server.mfa.required (not .Values.server.mfa.enabled) }}
+{{- fail "authup: server.mfa.required needs server.mfa.enabled=true (authup itself refuses to boot otherwise)." }}
+{{- end }}
+
+{{- if and .Values.auth.existingSecret (or .Values.auth.adminPassword .Values.auth.systemClientSecret .Values.auth.secretsEncryptionKey) }}
+{{- fail "authup: auth.existingSecret and inline auth values are mutually exclusive — when an existing secret is referenced, the inline adminPassword / systemClientSecret / secretsEncryptionKey values are unused; remove them to avoid a false sense of configuration." }}
+{{- end }}
+
+{{- if and .Values.ui.enabled (not .Values.server.enabled) (not .Values.ui.apiUrl) }}
+{{- fail "authup: ui.enabled without server.enabled requires ui.apiUrl (the browser-reachable URL of an external authup server-core)." }}
+{{- end }}
+
+{{/* An external database password must be deliberate — never silently generated for a database the chart does not own. */}}
+{{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host (not .Values.externalDatabase.password) (not .Values.externalDatabase.existingSecret) }}
+{{- fail "authup: externalDatabase.host is set but neither externalDatabase.password nor externalDatabase.existingSecret is — the chart will not invent a password for a database it does not manage." }}
+{{- end }}
+
+{{- if and .Values.server.ingress.enabled (not .Values.server.ingress.hostname) (not .Values.server.ingress.extraHosts) (not .Values.server.ingress.extraRules) }}
+{{- fail "authup: server.ingress.enabled requires server.ingress.hostname (or extraHosts / extraRules)." }}
+{{- end }}
+{{- if and .Values.ui.enabled .Values.ui.ingress.enabled (not .Values.ui.ingress.hostname) (not .Values.ui.ingress.extraHosts) (not .Values.ui.ingress.extraRules) }}
+{{- fail "authup: ui.ingress.enabled requires ui.ingress.hostname (or extraHosts / extraRules)." }}
+{{- end }}
+
+{{/* URL values must carry a scheme — a scheme-less value would derive a broken "://" origin into TRUSTED_ORIGINS and crash-loop server-core. */}}
+{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl "ui.publicUrl" .Values.ui.publicUrl "ui.apiUrl" .Values.ui.apiUrl "ui.internalApiUrl" .Values.ui.internalApiUrl }}
+{{- if and $value (not (contains "{{" $value)) (not (regexMatch "^https?://" $value)) }}
+{{- fail (printf "authup: %s must be a full URL including the http(s):// scheme (got %q)." $key $value) }}
+{{- end }}
+{{- end }}
+
+{{- if and .Values.auth.secretsEncryptionKeyEnabled (not .Values.auth.existingSecret) (not .Values.auth.secretsEncryptionKey) }}
+{{- fail "authup: auth.secretsEncryptionKeyEnabled requires the key to come from somewhere — set auth.secretsEncryptionKey or reference it via auth.existingSecret." }}
+{{- end }}
+
+{{/*
+Deprecation tripwires: when a value moves, add a guard here that names the new
+location, e.g.
+  if .Values.<oldKey> -> fail "authup: `<oldKey>` moved to `server.<newKey>` in chart 0.X. See BREAKING.md."
+*/}}

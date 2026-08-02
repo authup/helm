@@ -1,0 +1,64 @@
+name: release
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Runs on every master push. chart-releaser compares Chart.yaml's version
+  # against the published releases (CR_SKIP_EXISTING), so this is an idempotent
+  # no-op until the release-please PR carrying a version bump is merged. Do NOT
+  # gate this on release-please outputs: the chart package uses
+  # skip-github-release (chart-releaser owns tags + releases), so
+  # releases_created never fires for it.
+  publish:
+    runs-on: ubuntu-latest
+    needs: release-please
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1
+        env:
+          CR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CR_SKIP_EXISTING: "true"
+          CR_GENERATE_RELEASE_NOTES: "true"
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push charts to GHCR (OCI)
+        run: |
+          shopt -s nullglob
+          for pkg in .cr-release-packages/*.tgz; do
+            helm push "$pkg" "oci://ghcr.io/${GITHUB_REPOSITORY_OWNER}/helm-charts"
+          done

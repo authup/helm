@@ -1,0 +1,9 @@
+{{- if and .Values.ui.enabled .Values.ui.ingress.enabled }}
+{{- include "authup.ingress" (dict
+  "context" $
+  "component" "ui"
+  "name" (include "authup.ui.fullname" .)
+  "ingress" .Values.ui.ingress
+  "serviceName" (include "authup.ui.fullname" .)
+) }}
+{{- end }}

@@ -1,0 +1,12 @@
+{{- if and .Values.server.enabled .Values.server.configuration (not .Values.server.existingConfigmap) }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-configuration" (include "authup.server.fullname" .) }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "server") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+data:
+  authup.server.core.conf: |-
+    {{- include "authup.tplvalues.render" (dict "value" .Values.server.configuration "context" $) | nindent 4 }}
+{{- end }}

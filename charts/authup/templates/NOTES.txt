@@ -1,0 +1,95 @@
+** Authup {{ .Chart.AppVersion }} has been installed as release {{ .Release.Name }}. **
+
+{{- $serverUrl := include "authup.server.publicUrl" . }}
+{{- $uiUrl := include "authup.ui.publicUrl" . }}
+
+{{- if .Values.server.enabled }}
+
+server-core (IdP / API):
+{{- if $serverUrl }}
+  Public URL / OIDC issuer: {{ $serverUrl }}
+  OIDC discovery:           {{ $serverUrl }}/.well-known/openid-configuration
+{{- else }}
+  In-cluster URL: http://{{ include "authup.server.fullname" . }}.{{ include "authup.namespace" . }}.svc:{{ .Values.server.service.ports.http }}
+  (port-forward: kubectl -n {{ include "authup.namespace" . }} port-forward svc/{{ include "authup.server.fullname" . }} 3001:{{ .Values.server.service.ports.http }})
+  NOTE: no public URL is configured. Set server.publicUrl or enable
+  server.ingress — without a stable PUBLIC_URL, OIDC redirect URIs and
+  WebAuthn credentials bind to a placeholder origin, and UI logins only work
+  through the port-forward pair above (the UI defaults to
+  http://localhost:3001 as its API URL).
+{{- end }}
+{{- if .Values.server.ingress.enabled }}
+  NOTE: the ingress also exposes the unauthenticated /metrics endpoint —
+  block it at the ingress controller or disable it via server.configuration
+  when it is not scraped.
+{{- end }}
+{{- end }}
+
+{{- if .Values.ui.enabled }}
+
+client-web (admin UI):
+{{- if $uiUrl }}
+  URL: {{ $uiUrl }}
+{{- else }}
+  In-cluster URL: http://{{ include "authup.ui.fullname" . }}.{{ include "authup.namespace" . }}.svc:{{ .Values.ui.service.ports.http }}
+  (port-forward: kubectl -n {{ include "authup.namespace" . }} port-forward svc/{{ include "authup.ui.fullname" . }} 3000:{{ .Values.ui.service.ports.http }})
+{{- end }}
+{{- end }}
+
+Credentials:
+  Username: admin
+{{- if .Values.auth.existingSecret }}
+  Password: stored in your secret "{{ include "authup.auth.secretName" . }}" (key: {{ .Values.auth.secretKeys.adminPasswordKey }})
+{{- else }}
+  Password: kubectl -n {{ include "authup.namespace" . }} get secret {{ include "authup.auth.secretName" . }} -o jsonpath='{.data.{{ .Values.auth.secretKeys.adminPasswordKey }}}' | base64 -d
+{{- end }}
+{{- if .Values.auth.systemClientEnabled }}
+  System client secret ("system" client, for machine-to-machine consumers):
+    kubectl -n {{ include "authup.namespace" . }} get secret {{ include "authup.auth.secretName" . }} -o jsonpath='{.data.{{ .Values.auth.secretKeys.systemClientSecretKey }}}' | base64 -d
+{{- end }}
+
+{{- if include "authup.auth.hasSecretsEncryptionKey" . }}
+
+!! SECRETS_ENCRYPTION_KEY is configured. BACK IT UP: losing or rotating this
+   key makes wrapped MFA seeds and signing keys unrecoverable.
+{{- end }}
+
+{{- if not .Values.auth.existingSecret }}
+{{- if not .Values.auth.adminPassword }}
+
+NOTE: credentials were generated via lookup. This is NOT compatible with pure
+GitOps renders (helm template / ArgoCD): every sync would apply a new random
+value. In GitOps setups, set explicit auth values or auth.existingSecret.
+{{- end }}
+{{- end }}
+
+{{- if and .Values.ui.enabled (not $uiUrl) $serverUrl }}
+
+WARNING: the UI has no resolvable public URL (ui.publicUrl / ui.ingress). Its
+origin cannot be appended to TRUSTED_ORIGINS, and logins from the UI will fail
+after the OAuth2 redirect. Set ui.ingress.hostname or ui.publicUrl.
+{{- end }}
+
+{{- if and (gt (int .Values.server.replicaCount) 1) .Values.server.migration.enabled }}
+
+NOTE: multi-replica server with the migration hook enabled — upgrades run
+`migration run` as a pre-upgrade Job before pods roll.
+{{- else if gt (int .Values.server.replicaCount) 1 }}
+
+TIP: with server.replicaCount > 1, consider server.migration.enabled=true so
+schema migrations are serialized in a pre-upgrade Job instead of racing at
+pod boot.
+{{- end }}
+
+{{- if or .Values.postgresql.enabled .Values.mysql.enabled }}
+
+The built-in {{ ternary "PostgreSQL" "MySQL" .Values.postgresql.enabled }} instance is a single-node convenience for dev and
+small deployments. For production, consider an external database
+(externalDatabase.*) or an operator (e.g. CloudNativePG).
+{{- end }}
+
+{{- if $serverUrl }}
+
+Changing PUBLIC_URL later breaks enrolled WebAuthn credentials (the rpId binds
+to the origin) and changes the OIDC issuer — treat {{ $serverUrl }} as permanent.
+{{- end }}

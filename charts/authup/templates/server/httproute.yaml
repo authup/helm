@@ -1,0 +1,11 @@
+{{- if and .Values.server.enabled .Values.server.route.enabled }}
+{{- include "authup.httproute" (dict
+  "context" $
+  "component" "server"
+  "name" (include "authup.server.fullname" .)
+  "route" .Values.server.route
+  "serviceName" (include "authup.server.fullname" .)
+  "servicePort" .Values.server.service.ports.http
+  "publicUrl" (include "authup.server.publicUrl" .)
+) }}
+{{- end }}

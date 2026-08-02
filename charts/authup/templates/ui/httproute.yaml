@@ -1,0 +1,11 @@
+{{- if and .Values.ui.enabled .Values.ui.route.enabled }}
+{{- include "authup.httproute" (dict
+  "context" $
+  "component" "ui"
+  "name" (include "authup.ui.fullname" .)
+  "route" .Values.ui.route
+  "serviceName" (include "authup.ui.fullname" .)
+  "servicePort" .Values.ui.service.ports.http
+  "publicUrl" (include "authup.ui.publicUrl" .)
+) }}
+{{- end }}

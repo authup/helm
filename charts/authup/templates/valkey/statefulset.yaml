@@ -1,0 +1,106 @@
+{{- if .Values.valkey.enabled }}
+{{/*
+Built-in single-instance Valkey (Redis-compatible) on the docker-official image.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "authup.valkey.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "valkey") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  serviceName: {{ include "authup.valkey.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "valkey") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "valkey") | nindent 8 }}
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/valkey/secret.yaml") . | sha256sum }}
+    spec:
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.valkey.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.valkey.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.valkey.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.valkey.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.valkey.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.valkey.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.valkey.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.valkey.affinity "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: valkey
+          image: {{ include "authup.image" (dict "imageRoot" .Values.valkey.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.valkey.image.pullPolicy }}
+          {{- if .Values.valkey.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.valkey.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          args:
+            - --requirepass
+            - $(VALKEY_PASSWORD)
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "authup.valkey.fullname" . }}
+                  key: password
+          ports:
+            - name: tcp-valkey
+              containerPort: 6379
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 12
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - REDISCLI_AUTH="$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- if .Values.valkey.resources }}
+          resources: {{- toYaml .Values.valkey.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      {{- if not .Values.valkey.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.valkey.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.valkey.persistence.size | quote }}
+        {{- include "authup.storageClass" (dict "persistence" .Values.valkey.persistence "global" .Values.global) | nindent 8 }}
+  {{- end }}
+{{- end }}

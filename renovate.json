@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    ":dependencyDashboard"
+  ],
+  "enabledManagers": ["helm-values", "github-actions"],
+  "helm-values": {
+    "managerFilePatterns": ["/charts\\/.+\\/values\\.yaml$/"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["helm-values"],
+      "semanticCommitType": "fix",
+      "semanticCommitScope": "deps"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "semanticCommitType": "chore",
+      "semanticCommitScope": "ci"
+    }
+  ]
+}

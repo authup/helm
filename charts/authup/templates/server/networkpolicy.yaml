@@ -1,0 +1,54 @@
+{{- if and .Values.server.enabled .Values.server.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "authup.server.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "server") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "server") | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - port: 3000
+          protocol: TCP
+      {{- if not .Values.server.networkPolicy.allowExternal }}
+      from:
+        - podSelector:
+            matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "ui") | nindent 14 }}
+        {{- if .Values.server.networkPolicy.ingressPodMatchLabels }}
+        - podSelector:
+            matchLabels: {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.ingressPodMatchLabels "context" $) | nindent 14 }}
+        {{- end }}
+        {{- if .Values.server.networkPolicy.ingressNSMatchLabels }}
+        - namespaceSelector:
+            matchLabels: {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.ingressNSMatchLabels "context" $) | nindent 14 }}
+        {{- end }}
+      {{- end }}
+    {{- if .Values.server.networkPolicy.extraIngress }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.extraIngress "context" $) | nindent 4 }}
+    {{- end }}
+  egress:
+    {{- if .Values.server.networkPolicy.allowExternalEgress }}
+    - {}
+    {{- else }}
+    # DNS
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # database / cache within the release
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- end }}
+    {{- if .Values.server.networkPolicy.extraEgress }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.extraEgress "context" $) | nindent 4 }}
+    {{- end }}
+{{- end }}

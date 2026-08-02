@@ -1,0 +1,17 @@
+{{- if .Values.mysql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "authup.mysql.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "mysql") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-mysql
+      port: 3306
+      targetPort: tcp-mysql
+      protocol: TCP
+  selector: {{- include "authup.matchLabels" (dict "context" $ "component" "mysql") | nindent 4 }}
+{{- end }}

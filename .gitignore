@@ -1,0 +1,8 @@
+.DS_Store
+.idea/
+.vscode/
+*.tgz
+.cr-release-packages/
+.cr-index/
+charts/*/values.local.yaml
+charts/*/values.personal.yaml

@@ -1,0 +1,117 @@
+{{- if .Values.postgresql.enabled }}
+{{/*
+Built-in single-instance PostgreSQL on the docker-official image: a convenience
+for dev and small production. For serious deployments bring an external
+database or an operator such as CloudNativePG.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "authup.postgresql.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "postgresql") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  serviceName: {{ include "authup.postgresql.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "postgresql") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "postgresql") | nindent 8 }}
+    spec:
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.postgresql.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.postgresql.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.postgresql.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.postgresql.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.postgresql.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.postgresql.affinity "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgresql
+          image: {{ include "authup.image" (dict "imageRoot" .Values.postgresql.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          {{- if .Values.postgresql.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.postgresql.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresql.auth.username | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresql.auth.database | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "authup.postgresql.fullname" . }}
+                  key: password
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+            {{- if .Values.postgresql.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.postgresql.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: tcp-postgresql
+              containerPort: 5432
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" -h 127.0.0.1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- if .Values.postgresql.resources }}
+          resources: {{- toYaml .Values.postgresql.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      {{- if or (not .Values.postgresql.persistence.enabled) .Values.postgresql.persistence.existingClaim }}
+      volumes:
+        - name: data
+          {{- if .Values.postgresql.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ include "authup.tplvalues.render" (dict "value" .Values.postgresql.persistence.existingClaim "context" $) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- end }}
+  {{- if and .Values.postgresql.persistence.enabled (not .Values.postgresql.persistence.existingClaim) }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size | quote }}
+        {{- include "authup.storageClass" (dict "persistence" .Values.postgresql.persistence "global" .Values.global) | nindent 8 }}
+  {{- end }}
+{{- end }}

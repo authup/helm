@@ -1,0 +1,11 @@
+# Headless IdP: server-core without the admin UI.
+postgresql:
+  persistence:
+    enabled: false
+ui:
+  enabled: false
+server:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi

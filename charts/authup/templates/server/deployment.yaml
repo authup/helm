@@ -1,0 +1,171 @@
+{{- if .Values.server.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "authup.server.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "server") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if not .Values.server.autoscaling.hpa.enabled }}
+  replicas: {{ .Values.server.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.server.revisionHistoryLimit }}
+  {{- if .Values.server.updateStrategy }}
+  strategy: {{- include "authup.tplvalues.render" (dict "value" .Values.server.updateStrategy "context" $) | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "server") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "server") | nindent 8 }}
+        {{- if .Values.server.podLabels }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.server.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if not .Values.server.disableRestartOnChanges }}
+        checksum/env: {{ include "authup.server.configEnv" . | sha256sum }}
+        {{- if include "authup.auth.createSecret" . }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host .Values.externalDatabase.password (not .Values.externalDatabase.existingSecret) }}
+        checksum/secret-db: {{ include (print $.Template.BasePath "/secret-db.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and (not .Values.valkey.enabled) (not .Values.externalRedis.existingSecret) (or .Values.externalRedis.url .Values.externalRedis.host) }}
+        checksum/secret-redis: {{ include (print $.Template.BasePath "/secret-redis.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and .Values.smtp.connectionString (not .Values.smtp.existingSecret) }}
+        checksum/secret-smtp: {{ include (print $.Template.BasePath "/secret-smtp.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and .Values.server.provisioning.enabled .Values.server.provisioning.files }}
+        checksum/provisioning: {{ include (print $.Template.BasePath "/server/configmap-provisioning.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.server.configuration }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.server.podAnnotations }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.server.podAnnotations "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "authup.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.server.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.server.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.server.priorityClassName }}
+      priorityClassName: {{ .Values.server.priorityClassName }}
+      {{- end }}
+      {{- if .Values.server.schedulerName }}
+      schedulerName: {{ .Values.server.schedulerName }}
+      {{- end }}
+      {{- if .Values.server.hostAliases }}
+      hostAliases: {{- include "authup.tplvalues.render" (dict "value" .Values.server.hostAliases "context" $) | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.server.terminationGracePeriodSeconds }}
+      {{- if .Values.server.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.server.affinity "context" $) | nindent 8 }}
+      {{- else if .Values.server.podAntiAffinityPreset }}
+      affinity: {{- include "authup.podAntiAffinity" (dict "context" $ "component" "server" "preset" .Values.server.podAntiAffinityPreset) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.server.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.server.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.server.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.server.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.server.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- include "authup.topologySpreadConstraints" (dict "context" $ "component" "server" "constraints" .Values.server.topologySpreadConstraints) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.server.initContainers }}
+      initContainers: {{- include "authup.tplvalues.render" (dict "value" .Values.server.initContainers "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: server
+          image: {{ include "authup.appImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.server.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- if .Values.server.command }}
+          command: {{- include "authup.tplvalues.render" (dict "value" .Values.server.command "context" $) | nindent 12 }}
+          {{- end }}
+          {{- if .Values.server.args }}
+          args: {{- include "authup.tplvalues.render" (dict "value" .Values.server.args "context" $) | nindent 12 }}
+          {{- else }}
+          args:
+            - server/core
+            - start
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ printf "%s-env" (include "authup.server.fullname" .) }}
+            {{- if .Values.server.extraEnvVarsCM }}
+            - configMapRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVarsCM "context" $) }}
+            {{- end }}
+            {{- if .Values.server.extraEnvVarsSecret }}
+            - secretRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVarsSecret "context" $) }}
+            {{- end }}
+          env: {{- include "authup.server.secretEnv" . | nindent 12 }}
+            {{- if .Values.server.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          {{- if not .Values.diagnosticMode.enabled }}
+          {{- if .Values.server.customStartupProbe }}
+          startupProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.server.customStartupProbe "context" $) | nindent 12 }}
+          {{- else if .Values.server.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.server.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.server.customLivenessProbe }}
+          livenessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.server.customLivenessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.server.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.server.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.server.customReadinessProbe }}
+          readinessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.server.customReadinessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.server.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.server.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.server.resources }}
+          resources: {{- toYaml .Values.server.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.server.lifecycleHooks }}
+          lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.server.lifecycleHooks "context" $) | nindent 12 }}
+          {{- end }}
+          volumeMounts: {{- include "authup.server.volumeMounts" . | nindent 12 }}
+            {{- if .Values.server.extraVolumeMounts }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
+            {{- end }}
+        {{- if .Values.server.sidecars }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.server.sidecars "context" $) | nindent 8 }}
+        {{- end }}
+      volumes: {{- include "authup.server.volumes" . | nindent 8 }}
+        {{- if .Values.server.extraVolumes }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
+        {{- end }}
+{{- end }}

@@ -1,0 +1,100 @@
+{{ template "chart.header" . }}
+
+{{ template "chart.deprecationWarning" . }}
+
+{{ template "chart.badgesSection" . }}
+
+{{ template "chart.description" . }} It deploys:
+
+- **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
+  surface plus the server-rendered auth pages (login, consent, registration,
+  password recovery). This is the identity origin.
+- **client-web** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
+  (optional; disable with `ui.enabled=false` for a headless IdP).
+- optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
+  instances on docker-official images — a convenience for dev and small
+  deployments, not the production database story.
+
+> This chart is pre-1.0: breaking changes land on the middle version digit and
+> are documented in [BREAKING.md](./BREAKING.md). Pin your chart version.
+
+## Installing
+
+```bash
+helm repo add authup https://authup.github.io/helm
+helm install authup authup/authup
+
+# or via OCI
+helm install authup oci://ghcr.io/authup/helm-charts/authup
+```
+
+The default install brings up server-core, the admin UI and a built-in
+PostgreSQL. Retrieve the generated admin password:
+
+```bash
+kubectl get secret authup -o jsonpath='{.data.admin-password}' | base64 -d
+```
+
+## Typical production values
+
+```yaml
+server:
+  ingress:
+    enabled: true
+    hostname: auth.example.com
+    tls: true
+ui:
+  ingress:
+    enabled: true
+    hostname: authup.example.com
+    tls: true
+
+postgresql:
+  enabled: false
+externalDatabase:
+  host: postgres.example.internal
+  user: authup
+  database: authup
+  existingSecret: my-db-secret
+
+valkey:
+  enabled: true
+
+auth:
+  existingSecret: my-authup-secret   # admin-password (+ optional system-client-secret, secrets-encryption-key)
+```
+
+`PUBLIC_URL`, `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_PUBLIC_URL` and
+`TRUSTED_ORIGINS` are derived from the two ingress hostnames automatically —
+the UI origin is appended to the trusted origins so logins work out of the box.
+
+Notable operational facts (enforced or warned about by the chart):
+
+- **A database is mandatory.** The published image cannot fall back to sqlite.
+- **`server.replicaCount > 1` requires a cache** (built-in Valkey or
+  `externalRedis`): authorization codes, token revocations and MFA challenges
+  are cache-backed and break across replicas otherwise.
+- **`PUBLIC_URL` is permanent.** Changing it breaks enrolled WebAuthn
+  credentials and the OIDC issuer.
+- **`auth.secretsEncryptionKey` is write-once.** The chart never generates it;
+  set it deliberately and back it up.
+- The long tail of Authup options is available via `server.config` (plain
+  env name/value pairs), `server.extraEnvVars`, or a mounted
+  `server.configuration` file. See the
+  [Authup configuration reference](https://authup.org).
+
+## GitOps / ArgoCD
+
+The generate-once-keep-forever behavior of empty passwords relies on helm's
+`lookup`, which is inert under `helm template` and ArgoCD-style renders: every
+sync would apply a fresh random value, roll the pods through the checksum
+annotations, and desync the stored Secret from the live credential. When
+deploying via GitOps, always set explicit credential values or reference
+`*.existingSecret` — the chart prints a NOTES warning whenever generated
+credentials are in play.
+
+{{ template "chart.maintainersSection" . }}
+
+{{ template "chart.requirementsSection" . }}
+
+{{ template "chart.valuesSection" . }}

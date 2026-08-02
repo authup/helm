@@ -1,0 +1,14 @@
+# Baseline: built-in PostgreSQL, both services.
+postgresql:
+  persistence:
+    enabled: false
+server:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+ui:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi

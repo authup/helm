@@ -1,0 +1,17 @@
+{{- if .Values.valkey.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "authup.valkey.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "valkey") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: tcp-valkey
+      port: 6379
+      targetPort: tcp-valkey
+      protocol: TCP
+  selector: {{- include "authup.matchLabels" (dict "context" $ "component" "valkey") | nindent 4 }}
+{{- end }}

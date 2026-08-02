@@ -1,0 +1,19 @@
+# Built-in Valkey + multi-replica server + migration hook.
+postgresql:
+  persistence:
+    enabled: false
+valkey:
+  enabled: true
+server:
+  replicaCount: 2
+  migration:
+    enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+ui:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi

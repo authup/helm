@@ -1,0 +1,55 @@
+# Fixture for the external-db scenario: a throwaway postgres + its secret +
+# an auth secret exercising the existingSecret path.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authup-ci-postgres
+type: Opaque
+stringData:
+  password: ci-postgres-password
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: authup-ci-auth
+type: Opaque
+stringData:
+  admin-password: ci-admin-password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: authup-ci-postgres
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+  selector:
+    app: authup-ci-postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: authup-ci-postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: authup-ci-postgres
+  template:
+    metadata:
+      labels:
+        app: authup-ci-postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17
+          env:
+            - name: POSTGRES_USER
+              value: authup
+            - name: POSTGRES_PASSWORD
+              value: ci-postgres-password
+            - name: POSTGRES_DB
+              value: authup
+          ports:
+            - containerPort: 5432

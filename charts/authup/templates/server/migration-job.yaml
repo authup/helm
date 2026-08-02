@@ -1,0 +1,88 @@
+{{- if and .Values.server.enabled .Values.server.migration.enabled }}
+{{/*
+Pre-upgrade-only hook: on fresh installs the database backing service does not
+exist before hooks run (hooks precede regular resources), and server-core
+migrates at boot anyway. On upgrades the Job serializes DDL before new pods
+roll, which matters for multi-replica deployments (MySQL DDL is not
+transactional). The env ConfigMap content is INLINED so the hook never runs
+against the previous release's ConfigMap.
+*/}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ printf "%s-migration" (include "authup.server.fullname" .) }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "migration") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- if .Values.useHelmHooks }}
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "0"
+    {{- else }}
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    {{- end }}
+spec:
+  backoffLimit: {{ .Values.server.migration.backoffLimit }}
+  {{- if .Values.server.migration.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ .Values.server.migration.ttlSecondsAfterFinished }}
+  {{- end }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "migration") | nindent 8 }}
+      {{- if .Values.server.migration.podAnnotations }}
+      annotations: {{- include "authup.tplvalues.render" (dict "value" .Values.server.migration.podAnnotations "context" $) | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "authup.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.server.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.server.podSecurityContext | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: migration
+          image: {{ include "authup.appImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.server.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.server.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          args:
+            - server/core
+            - migration
+            - run
+          {{- if or .Values.server.extraEnvVarsCM .Values.server.extraEnvVarsSecret }}
+          envFrom:
+            {{- if .Values.server.extraEnvVarsCM }}
+            - configMapRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVarsCM "context" $) }}
+            {{- end }}
+            {{- if .Values.server.extraEnvVarsSecret }}
+            - secretRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVarsSecret "context" $) }}
+            {{- end }}
+          {{- end }}
+          env:
+            {{- range $key, $value := (include "authup.server.configEnv" . | fromYaml) }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- include "authup.server.secretEnv" . | nindent 12 }}
+            {{- if .Values.server.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          {{- $resources := .Values.server.migration.resources | default .Values.server.resources }}
+          {{- if $resources }}
+          resources: {{- toYaml $resources | nindent 12 }}
+          {{- end }}
+          volumeMounts: {{- include "authup.server.volumeMounts" . | nindent 12 }}
+            {{- if .Values.server.extraVolumeMounts }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
+            {{- end }}
+      volumes: {{- include "authup.server.volumes" . | nindent 8 }}
+        {{- if .Values.server.extraVolumes }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
+        {{- end }}
+{{- end }}

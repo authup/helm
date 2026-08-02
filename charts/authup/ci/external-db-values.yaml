@@ -1,0 +1,20 @@
+# External database + existingSecret path, against the fixture postgres in
+# ci/manifests/. ct installs into a per-run namespace where the fixtures are
+# pre-applied.
+postgresql:
+  enabled: false
+externalDatabase:
+  host: authup-ci-postgres
+  user: authup
+  database: authup
+  existingSecret: authup-ci-postgres
+  existingSecretPasswordKey: password
+auth:
+  existingSecret: authup-ci-auth
+server:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+ui:
+  enabled: false

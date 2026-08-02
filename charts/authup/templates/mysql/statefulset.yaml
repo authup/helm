@@ -1,0 +1,120 @@
+{{- if .Values.mysql.enabled }}
+{{/*
+Built-in single-instance MySQL on the docker-official image: a convenience for
+dev and small production. For serious deployments bring an external database
+or an operator.
+*/}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "authup.mysql.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "mysql") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  serviceName: {{ include "authup.mysql.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "mysql") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "mysql") | nindent 8 }}
+    spec:
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.mysql.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.mysql.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.mysql.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.mysql.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.mysql.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.mysql.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.mysql.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.mysql.affinity "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: mysql
+          image: {{ include "authup.image" (dict "imageRoot" .Values.mysql.image "global" .Values.global "chart" .Chart) }}
+          imagePullPolicy: {{ .Values.mysql.image.pullPolicy }}
+          {{- if .Values.mysql.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.mysql.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          env:
+            - name: MYSQL_USER
+              value: {{ .Values.mysql.auth.username | quote }}
+            - name: MYSQL_DATABASE
+              value: {{ .Values.mysql.auth.database | quote }}
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "authup.mysql.fullname" . }}
+                  key: password
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "authup.mysql.fullname" . }}
+                  key: root-password
+            {{- if .Values.mysql.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.mysql.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: tcp-mysql
+              containerPort: 3306
+              protocol: TCP
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 36
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - mysqladmin ping -h 127.0.0.1
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          {{- if .Values.mysql.resources }}
+          resources: {{- toYaml .Values.mysql.resources | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+      {{- if or (not .Values.mysql.persistence.enabled) .Values.mysql.persistence.existingClaim }}
+      volumes:
+        - name: data
+          {{- if .Values.mysql.persistence.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ include "authup.tplvalues.render" (dict "value" .Values.mysql.persistence.existingClaim "context" $) }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- end }}
+  {{- if and .Values.mysql.persistence.enabled (not .Values.mysql.persistence.existingClaim) }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.mysql.persistence.size | quote }}
+        {{- include "authup.storageClass" (dict "persistence" .Values.mysql.persistence "global" .Values.global) | nindent 8 }}
+  {{- end }}
+{{- end }}

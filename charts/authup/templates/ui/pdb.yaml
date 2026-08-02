@@ -1,0 +1,20 @@
+{{- if and .Values.ui.enabled .Values.ui.pdb.create }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "authup.ui.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "ui") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if .Values.ui.pdb.minAvailable }}
+  minAvailable: {{ .Values.ui.pdb.minAvailable }}
+  {{- end }}
+  {{- if .Values.ui.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.ui.pdb.maxUnavailable }}
+  {{- else if not .Values.ui.pdb.minAvailable }}
+  maxUnavailable: 1
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "ui") | nindent 6 }}
+{{- end }}
