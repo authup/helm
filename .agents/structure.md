@@ -1,0 +1,77 @@
+# Project Structure
+
+Standard chart-releaser / chart-testing repository shape: charts under
+`charts/`, per-chart tooling, repo-level CI and release automation.
+
+```
+authup/helm
+├── DESIGN.md                    # authoritative design record (read first)
+├── Makefile                     # docs / schema / lint / template / coverage; identical locally and in CI
+├── scripts/check-values-coverage.py   # .Values.* path audit (see architecture.md)
+├── release-please-config.json   # release-type: helm, component authup, bootstrap-sha pinned
+├── .release-please-manifest.json
+├── renovate.json                # helm-values + github-actions managers, conventional commits
+├── .github/
+│   ├── configs/{ct.yaml, lintconf.yaml}
+│   └── workflows/{lint-test.yaml, release.yaml}
+└── charts/authup/
+    ├── Chart.yaml               # version owned by release-please; appVersion tracks authup
+    ├── values.yaml              # single source: "# --" helm-docs comments + "# @schema" blocks
+    ├── values.schema.json       # GENERATED (dadav/helm-schema)
+    ├── README.md                # GENERATED (helm-docs) from README.md.gotmpl + values comments
+    ├── README.md.gotmpl
+    ├── BREAKING.md              # value-migration ledger for the 0.x line
+    ├── ci/                     # ct install scenario matrix, one install per *-values.yaml
+    │   ├── default-values.yaml          # built-in postgres, both services
+    │   ├── mysql-values.yaml
+    │   ├── external-db-values.yaml      # externalDatabase + existingSecret, against ci/manifests fixture
+    │   ├── valkey-values.yaml           # cache + 2 replicas + migration hook
+    │   ├── server-only-values.yaml      # headless IdP (ui.enabled=false)
+    │   └── manifests/postgres.yaml      # fixtures pre-applied before ct install
+    └── templates/
+        ├── _helpers.tpl         # names, labels, images, tplvalues, affinity, securityContext
+        ├── _secrets.tpl         # lookup-or-generate + auth/smtp secret resolution
+        ├── _database.tpl        # engine dispatch (postgres/mysql/external) + redis helpers
+        ├── _urls.tpl            # publicUrl/apiUrl/origin derivation + post-render scheme asserts
+        ├── _ingress.tpl         # shared Ingress + HTTPRoute renderers (server and ui call them)
+        ├── _server-env.tpl      # configEnv map, secretEnv list, shared volumes (deployment + job)
+        ├── _ui-env.tpl          # ui configEnv map
+        ├── validations.yaml     # render-nothing fail-fast guards (cross-field rules)
+        ├── secret.yaml          # chart-managed auth secret (admin password, system client, KEK)
+        ├── secret-db.yaml       # external-db password secret (no generation fallback)
+        ├── secret-redis.yaml    # external redis connection-string secret
+        ├── secret-smtp.yaml
+        ├── serviceaccount.yaml  # one SA shared by both services
+        ├── extra-list.yaml      # extraDeploy passthrough
+        ├── NOTES.txt            # computed URLs, credential retrieval, operational warnings
+        ├── server/              # server-core: deployment, service, ingress, httproute,
+        │                        # configmap-env, configmap-configuration, configmap-provisioning,
+        │                        # migration-job, hpa, pdb, networkpolicy, servicemonitor
+        ├── ui/                  # client-web: deployment, service, ingress, httproute,
+        │                        # configmap-env, hpa, pdb, networkpolicy
+        ├── postgresql/          # built-in instance: statefulset, service, secret
+        ├── mysql/               # built-in instance: statefulset, service, secret
+        └── valkey/              # built-in instance: statefulset, service, secret
+```
+
+## Two components, per-role template directories
+
+`server/` (server-core, the IdP: OAuth2/OIDC surface + SSR auth pages) and
+`ui/` (client-web admin console) are separate template directories with ~85%
+similar deployment templates. This duplication is DELIBERATE: authentik built
+the DRY role-loop and reverted it ("takes DRY maybe a bit too far", their
+PR #163). Do not introduce a role loop. A future authup server/worker split
+becomes a third directory with the same skeleton.
+
+Both services run the SAME image (`authup/authup`) with different args
+(`server/core start` vs `client/web start`). The image entrypoint force-exports
+`PORT=3000` for both, so `containerPort` is pinned to 3000 everywhere and only
+Service ports are values.
+
+## Built-in backing services
+
+`postgresql/`, `mysql/`, `valkey/` are vendored minimal single-instance
+StatefulSets on docker-official images, NOT subcharts. They are a dev /
+small-production convenience; production users bring `externalDatabase` /
+`externalRedis` or an operator. See DESIGN.md for why no bitnami (or any)
+subchart dependency exists.
