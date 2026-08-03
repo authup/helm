@@ -4,5 +4,6 @@
 *.tgz
 .cr-release-packages/
 .cr-index/
+.hevi/
 charts/*/values.local.yaml
 charts/*/values.personal.yaml
