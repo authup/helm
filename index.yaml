@@ -3,6 +3,47 @@ entries:
   authup:
   - annotations:
       artifacthub.io/changes: |
+        - kind: fixed
+          description: Chart license corrected to Apache-2.0
+        - kind: added
+          description: Chart icon
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.58
+    created: "2026-08-04T19:03:24.973145234Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      the server-core IdP/API service and the client-admin-console admin UI, with
+      optional built-in PostgreSQL, MySQL and Valkey instances.
+    digest: 7455aae002ecffb81df893e43368cf22878f613d028919a1e42a9b88e2552d59
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.2.0/authup-0.2.0.tgz
+    version: 0.2.0
+  - annotations:
+      artifacthub.io/changes: |
         - kind: added
           description: Initial chart scaffold
       artifacthub.io/license: MIT
@@ -39,4 +80,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-02T11:06:27.020691411Z"
+generated: "2026-08-04T19:03:24.973158578Z"
