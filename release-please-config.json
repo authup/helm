@@ -8,7 +8,10 @@
     "charts/authup": {
       "component": "authup",
       "release-type": "helm",
-      "skip-github-release": true
+      "skip-github-release": true,
+      "extra-files": [
+        "README.md"
+      ]
     }
   }
 }

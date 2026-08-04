@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - master
+  # Re-run the publish step for whatever Chart.yaml currently holds, without a new
+  # commit: the recovery path when a publish failed on its own (a broken releaser,
+  # an API hiccup) after release-please already merged the version bump.
+  workflow_dispatch:
+
+concurrency: ${{ github.workflow }}-${{ github.ref }}
 
 permissions:
   contents: write
@@ -13,6 +19,7 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     steps:
       - uses: googleapis/release-please-action@v4
         id: release
@@ -28,6 +35,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     needs: release-please
+    # release-please is skipped on workflow_dispatch, and a skipped dependency
+    # would skip this job too without an explicit condition.
+    if: ${{ !cancelled() && needs.release-please.result != 'failure' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

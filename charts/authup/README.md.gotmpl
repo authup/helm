@@ -8,7 +8,19 @@
 
 {{ template "chart.deprecationWarning" . }}
 
-{{ template "chart.badgesSection" . }}
+{{/*
+  The version badge is hand-rolled instead of using chart.badgesSection, because
+  release-please has to keep it in sync with Chart.yaml (it is listed as an
+  extra-file). Two constraints come from its generic updater, which rewrites only
+  the FIRST semver on an annotated line:
+    1. the version may appear exactly once here, so the appVersion badge has to
+       live on a separate line
+    2. the version has to be terminated by "?", not by the usual "-informational"
+       color segment, which the updater would otherwise swallow as a semver
+       prerelease suffix and drop
+*/}}
+![Version](https://img.shields.io/badge/Version-{{ template "chart.version" . }}?style=flat-square&color=informational) <!-- x-release-please-version -->
+{{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
 
 {{ template "chart.description" . }} It deploys:
 
