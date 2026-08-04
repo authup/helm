@@ -24,7 +24,11 @@ spec:
         {{- end }}
       annotations:
         {{- if not .Values.server.disableRestartOnChanges }}
-        checksum/env: {{ include "authup.server.configEnv" . | sha256sum }}
+        {{- /* Both halves of the env ConfigMap: themeEnv lives outside
+               configEnv (the migration Job must not inherit it), so hashing
+               configEnv alone would leave a fragmentsEnabled flip invisible
+               to the running pods. */}}
+        checksum/env: {{ printf "%s%s" (include "authup.server.configEnv" .) (include "authup.server.themeEnv" .) | sha256sum }}
         {{- if include "authup.auth.createSecret" . }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
