@@ -1,0 +1,11 @@
+{{- if and .Values.adminConsole.enabled .Values.adminConsole.route.enabled }}
+{{- include "authup.httproute" (dict
+  "context" $
+  "component" "admin-console"
+  "name" (include "authup.adminConsole.fullname" .)
+  "route" .Values.adminConsole.route
+  "serviceName" (include "authup.adminConsole.fullname" .)
+  "servicePort" .Values.adminConsole.service.ports.http
+  "publicUrl" (include "authup.adminConsole.publicUrl" .)
+) }}
+{{- end }}

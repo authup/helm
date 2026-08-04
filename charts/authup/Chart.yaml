@@ -1,6 +1,6 @@
 apiVersion: v2
 name: authup
-description: Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-web admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances.
+description: Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-admin-console admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.1.0
 appVersion: "1.0.0-beta.58"

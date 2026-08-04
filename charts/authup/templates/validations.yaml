@@ -34,8 +34,8 @@ store, token blocklist and MFA challenges fall back to a per-process memory cach
 {{- fail "authup: auth.existingSecret and inline auth values are mutually exclusive — when an existing secret is referenced, the inline adminPassword / systemClientSecret / secretsEncryptionKey values are unused; remove them to avoid a false sense of configuration." }}
 {{- end }}
 
-{{- if and .Values.ui.enabled (not .Values.server.enabled) (not .Values.ui.apiUrl) }}
-{{- fail "authup: ui.enabled without server.enabled requires ui.apiUrl (the browser-reachable URL of an external authup server-core)." }}
+{{- if and .Values.adminConsole.enabled (not .Values.server.enabled) (not .Values.adminConsole.apiUrl) }}
+{{- fail "authup: adminConsole.enabled without server.enabled requires adminConsole.apiUrl (the browser-reachable URL of an external authup server-core)." }}
 {{- end }}
 
 {{/* An external database password must be deliberate — never silently generated for a database the chart does not own. */}}
@@ -46,12 +46,12 @@ store, token blocklist and MFA challenges fall back to a per-process memory cach
 {{- if and .Values.server.ingress.enabled (not .Values.server.ingress.hostname) (not .Values.server.ingress.extraHosts) (not .Values.server.ingress.extraRules) }}
 {{- fail "authup: server.ingress.enabled requires server.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
-{{- if and .Values.ui.enabled .Values.ui.ingress.enabled (not .Values.ui.ingress.hostname) (not .Values.ui.ingress.extraHosts) (not .Values.ui.ingress.extraRules) }}
-{{- fail "authup: ui.ingress.enabled requires ui.ingress.hostname (or extraHosts / extraRules)." }}
+{{- if and .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.adminConsole.ingress.extraHosts) (not .Values.adminConsole.ingress.extraRules) }}
+{{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
 
 {{/* URL values must carry a scheme — a scheme-less value would derive a broken "://" origin into TRUSTED_ORIGINS and crash-loop server-core. */}}
-{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl "ui.publicUrl" .Values.ui.publicUrl "ui.apiUrl" .Values.ui.apiUrl "ui.internalApiUrl" .Values.ui.internalApiUrl }}
+{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl "adminConsole.publicUrl" .Values.adminConsole.publicUrl "adminConsole.apiUrl" .Values.adminConsole.apiUrl "adminConsole.internalApiUrl" .Values.adminConsole.internalApiUrl }}
 {{- if and $value (not (contains "{{" $value)) (not (regexMatch "^https?://" $value)) }}
 {{- fail (printf "authup: %s must be a full URL including the http(s):// scheme (got %q)." $key $value) }}
 {{- end }}

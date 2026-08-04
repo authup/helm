@@ -2,7 +2,7 @@
 postgresql:
   persistence:
     enabled: false
-ui:
+adminConsole:
   enabled: false
 server:
   resources:

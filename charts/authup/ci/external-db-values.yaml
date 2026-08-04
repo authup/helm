@@ -16,5 +16,5 @@ server:
     requests:
       cpu: 50m
       memory: 256Mi
-ui:
+adminConsole:
   enabled: false

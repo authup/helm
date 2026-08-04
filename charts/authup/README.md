@@ -8,13 +8,13 @@
 
 ![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.58](https://img.shields.io/badge/AppVersion-1.0.0--beta.58-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-web admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
+Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-admin-console admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
 
 - **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
   surface plus the server-rendered auth pages (login, consent, registration,
   password recovery). This is the identity origin.
-- **client-web** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
-  (optional; disable with `ui.enabled=false` for a headless IdP).
+- **client-admin-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
+  (optional; disable with `adminConsole.enabled=false` for a headless IdP).
 - optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
   instances on docker-official images — a convenience for dev and small
   deployments, not the production database story.
@@ -111,6 +111,102 @@ Kubernetes: `>=1.25.0-0`
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| adminConsole.affinity | object | `{}` | Affinity (overrides the anti-affinity preset when set) |
+| adminConsole.apiUrl | string | `""` | Browser-facing server-core URL (NUXT_PUBLIC_API_URL). "" = the server public URL. Must be reachable from the user's browser, never a cluster-internal DNS name |
+| adminConsole.args | list | `[]` | Override the container args |
+| adminConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the UI |
+| adminConsole.autoscaling.hpa.maxReplicas | int | `5` | Maximum replicas |
+| adminConsole.autoscaling.hpa.minReplicas | int | `2` | Minimum replicas |
+| adminConsole.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
+| adminConsole.autoscaling.hpa.targetMemory | string | `""` | Target memory utilization percentage |
+| adminConsole.command | list | `[]` | Override the container command |
+| adminConsole.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap |
+| adminConsole.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context (same root-image caveat as the server) |
+| adminConsole.customLivenessProbe | object | `{}` | Custom liveness probe |
+| adminConsole.customReadinessProbe | object | `{}` | Custom readiness probe |
+| adminConsole.customStartupProbe | object | `{}` | Custom startup probe |
+| adminConsole.disableRestartOnChanges | bool | `false` | Disable the checksum annotations that roll pods on config changes |
+| adminConsole.enabled | bool | `true` | Deploy the client-admin-console admin UI (false = headless IdP) |
+| adminConsole.extraEnvVars | list | `[]` | Extra environment variables for the UI container |
+| adminConsole.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
+| adminConsole.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |
+| adminConsole.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
+| adminConsole.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
+| adminConsole.hostAliases | list | `[]` | Pod host aliases |
+| adminConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
+| adminConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
+| adminConsole.ingress.enabled | bool | `false` | Enable ingress for the UI |
+| adminConsole.ingress.extraHosts | list | `[]` | Extra hosts |
+| adminConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
+| adminConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; overrides the generated rule) |
+| adminConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
+| adminConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived UI public URL |
+| adminConsole.ingress.ingressClassName | string | `""` | Ingress class name |
+| adminConsole.ingress.path | string | `"/"` | Ingress path |
+| adminConsole.ingress.pathType | string | `"Prefix"` | Ingress path type |
+| adminConsole.ingress.tls | bool | `false` | Enable TLS for the hostname |
+| adminConsole.initContainers | list | `[]` | Init containers (tpl-rendered) |
+| adminConsole.internalApiUrl | string | `""` | Server-side (SSR) API URL override (NUXT_API_URL), e.g. the in-cluster service URL to keep SSR traffic off the ingress |
+| adminConsole.lifecycleHooks | object | `{}` | Container lifecycle hooks |
+| adminConsole.livenessProbe.enabled | bool | `true` | Enable the liveness probe |
+| adminConsole.livenessProbe.failureThreshold | int | `3` |  |
+| adminConsole.livenessProbe.initialDelaySeconds | int | `0` |  |
+| adminConsole.livenessProbe.periodSeconds | int | `30` |  |
+| adminConsole.livenessProbe.successThreshold | int | `1` |  |
+| adminConsole.livenessProbe.timeoutSeconds | int | `5` |  |
+| adminConsole.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere |
+| adminConsole.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
+| adminConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the UI |
+| adminConsole.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
+| adminConsole.networkPolicy.extraIngress | list | `[]` | Extra ingress rules |
+| adminConsole.networkPolicy.ingressNSMatchLabels | object | `{}` | Namespace labels allowed to connect when allowExternal is false |
+| adminConsole.networkPolicy.ingressPodMatchLabels | object | `{}` | Pod labels allowed to connect when allowExternal is false |
+| adminConsole.nodeSelector | object | `{}` | Node selector |
+| adminConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the UI |
+| adminConsole.pdb.maxUnavailable | string | `""` | Maximum unavailable pods (defaults to 1 when both are empty) |
+| adminConsole.pdb.minAvailable | string | `""` | Minimum available pods |
+| adminConsole.podAnnotations | object | `{}` | Pod annotations (tpl-rendered) |
+| adminConsole.podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset: soft, hard or "" |
+| adminConsole.podLabels | object | `{}` | Pod labels (tpl-rendered) |
+| adminConsole.podSecurityContext | object | `{"enabled":true,"fsGroup":1000}` | Pod security context |
+| adminConsole.priorityClassName | string | `""` | Priority class name |
+| adminConsole.publicUrl | string | `""` | Public URL of the UI (NUXT_PUBLIC_PUBLIC_URL). "" = derived from adminConsole.ingress |
+| adminConsole.readinessProbe.enabled | bool | `true` | Enable the readiness probe |
+| adminConsole.readinessProbe.failureThreshold | int | `3` |  |
+| adminConsole.readinessProbe.initialDelaySeconds | int | `0` |  |
+| adminConsole.readinessProbe.periodSeconds | int | `10` |  |
+| adminConsole.readinessProbe.successThreshold | int | `1` |  |
+| adminConsole.readinessProbe.timeoutSeconds | int | `5` |  |
+| adminConsole.replicaCount | int | `1` | Number of UI replicas (fully stateless, scale freely) |
+| adminConsole.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | UI container resources |
+| adminConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
+| adminConsole.route.annotations | object | `{}` | HTTPRoute annotations |
+| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI |
+| adminConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname) |
+| adminConsole.route.parentRefs | list | `[]` | Gateway parentRefs |
+| adminConsole.schedulerName | string | `""` | Scheduler name |
+| adminConsole.service.annotations | object | `{}` | Service annotations (tpl-rendered) |
+| adminConsole.service.clusterIP | string | `""` | Static cluster IP |
+| adminConsole.service.externalTrafficPolicy | string | `"Cluster"` | External traffic policy |
+| adminConsole.service.extraPorts | list | `[]` | Extra service ports |
+| adminConsole.service.loadBalancerIP | string | `""` | LoadBalancer IP |
+| adminConsole.service.loadBalancerSourceRanges | list | `[]` | LoadBalancer source ranges |
+| adminConsole.service.nodePorts.http | string | `""` | Node port ("" = auto-assign) |
+| adminConsole.service.ports.http | int | `3000` | Service HTTP port (the container port is fixed at 3000) |
+| adminConsole.service.sessionAffinity | string | `"None"` | Session affinity |
+| adminConsole.service.sessionAffinityConfig | object | `{}` | Session affinity config |
+| adminConsole.service.type | string | `"ClusterIP"` | Service type |
+| adminConsole.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
+| adminConsole.startupProbe.enabled | bool | `true` | Enable the startup probe |
+| adminConsole.startupProbe.failureThreshold | int | `24` |  |
+| adminConsole.startupProbe.initialDelaySeconds | int | `5` |  |
+| adminConsole.startupProbe.periodSeconds | int | `5` |  |
+| adminConsole.startupProbe.successThreshold | int | `1` |  |
+| adminConsole.startupProbe.timeoutSeconds | int | `5` |  |
+| adminConsole.terminationGracePeriodSeconds | int | `30` | Pod termination grace period |
+| adminConsole.tolerations | list | `[]` | Tolerations |
+| adminConsole.topologySpreadConstraints | list | `[]` | Topology spread constraints |
+| adminConsole.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | auth.adminPassword | string | `""` | Initial admin user password ("" = generate once, keep across upgrades). Changing it after the first install only takes effect with adminPasswordReset=true for one upgrade cycle |
 | auth.adminPasswordReset | bool | `false` | Re-assert the admin password on every boot (USER_ADMIN_PASSWORD_RESET) |
 | auth.existingSecret | string | `""` | Existing secret holding the keys below instead of the chart-managed secret (tpl-rendered) |
@@ -313,7 +409,7 @@ Kubernetes: `>=1.25.0-0`
 | server.topologySpreadConstraints | list | `[]` | Topology spread constraints (a missing labelSelector is filled with the pod's selector labels) |
 | server.trustProxy | string | `"1"` | TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress), not authup's spoofable trust-everything default |
 | server.trustedOrigins | list | `[]` | Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed origin can obtain full-permission tokens via the per-realm web client. List or comma-separated string; tpl-rendered. |
-| server.trustedOriginsAppendUI | bool | `true` | Automatically append the client-web UI origin to TRUSTED_ORIGINS (removes the most common dead-login misconfiguration) |
+| server.trustedOriginsAppendAdminConsole | bool | `true` | Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the most common dead-login misconfiguration) |
 | server.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | serviceAccount.annotations | object | `{}` | ServiceAccount annotations (tpl-rendered) |
 | serviceAccount.automountServiceAccountToken | bool | `false` | Automount the service account token |
@@ -322,102 +418,6 @@ Kubernetes: `>=1.25.0-0`
 | smtp.connectionString | string | `""` | SMTP connection string (smtp(s)://user:pass@host:port); stored in a chart-managed secret |
 | smtp.existingSecret | string | `""` | Existing secret holding the SMTP connection string (tpl-rendered) |
 | smtp.existingSecretKey | string | `"smtp-connection-string"` | Key inside smtp.existingSecret holding the connection string |
-| ui.affinity | object | `{}` | Affinity (overrides the anti-affinity preset when set) |
-| ui.apiUrl | string | `""` | Browser-facing server-core URL (NUXT_PUBLIC_API_URL). "" = the server public URL. Must be reachable from the user's browser, never a cluster-internal DNS name |
-| ui.args | list | `[]` | Override the container args |
-| ui.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the UI |
-| ui.autoscaling.hpa.maxReplicas | int | `5` | Maximum replicas |
-| ui.autoscaling.hpa.minReplicas | int | `2` | Minimum replicas |
-| ui.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
-| ui.autoscaling.hpa.targetMemory | string | `""` | Target memory utilization percentage |
-| ui.command | list | `[]` | Override the container command |
-| ui.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap |
-| ui.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context (same root-image caveat as the server) |
-| ui.customLivenessProbe | object | `{}` | Custom liveness probe |
-| ui.customReadinessProbe | object | `{}` | Custom readiness probe |
-| ui.customStartupProbe | object | `{}` | Custom startup probe |
-| ui.disableRestartOnChanges | bool | `false` | Disable the checksum annotations that roll pods on config changes |
-| ui.enabled | bool | `true` | Deploy the client-web admin UI (false = headless IdP) |
-| ui.extraEnvVars | list | `[]` | Extra environment variables for the UI container |
-| ui.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
-| ui.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |
-| ui.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
-| ui.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
-| ui.hostAliases | list | `[]` | Pod host aliases |
-| ui.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
-| ui.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
-| ui.ingress.enabled | bool | `false` | Enable ingress for the UI |
-| ui.ingress.extraHosts | list | `[]` | Extra hosts |
-| ui.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
-| ui.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; overrides the generated rule) |
-| ui.ingress.extraTls | list | `[]` | Extra TLS entries |
-| ui.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived UI public URL |
-| ui.ingress.ingressClassName | string | `""` | Ingress class name |
-| ui.ingress.path | string | `"/"` | Ingress path |
-| ui.ingress.pathType | string | `"Prefix"` | Ingress path type |
-| ui.ingress.tls | bool | `false` | Enable TLS for the hostname |
-| ui.initContainers | list | `[]` | Init containers (tpl-rendered) |
-| ui.internalApiUrl | string | `""` | Server-side (SSR) API URL override (NUXT_API_URL), e.g. the in-cluster service URL to keep SSR traffic off the ingress |
-| ui.lifecycleHooks | object | `{}` | Container lifecycle hooks |
-| ui.livenessProbe.enabled | bool | `true` | Enable the liveness probe |
-| ui.livenessProbe.failureThreshold | int | `3` |  |
-| ui.livenessProbe.initialDelaySeconds | int | `0` |  |
-| ui.livenessProbe.periodSeconds | int | `30` |  |
-| ui.livenessProbe.successThreshold | int | `1` |  |
-| ui.livenessProbe.timeoutSeconds | int | `5` |  |
-| ui.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere |
-| ui.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
-| ui.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the UI |
-| ui.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
-| ui.networkPolicy.extraIngress | list | `[]` | Extra ingress rules |
-| ui.networkPolicy.ingressNSMatchLabels | object | `{}` | Namespace labels allowed to connect when allowExternal is false |
-| ui.networkPolicy.ingressPodMatchLabels | object | `{}` | Pod labels allowed to connect when allowExternal is false |
-| ui.nodeSelector | object | `{}` | Node selector |
-| ui.pdb.create | bool | `false` | Create a PodDisruptionBudget for the UI |
-| ui.pdb.maxUnavailable | string | `""` | Maximum unavailable pods (defaults to 1 when both are empty) |
-| ui.pdb.minAvailable | string | `""` | Minimum available pods |
-| ui.podAnnotations | object | `{}` | Pod annotations (tpl-rendered) |
-| ui.podAntiAffinityPreset | string | `"soft"` | Pod anti-affinity preset: soft, hard or "" |
-| ui.podLabels | object | `{}` | Pod labels (tpl-rendered) |
-| ui.podSecurityContext | object | `{"enabled":true,"fsGroup":1000}` | Pod security context |
-| ui.priorityClassName | string | `""` | Priority class name |
-| ui.publicUrl | string | `""` | Public URL of the UI (NUXT_PUBLIC_PUBLIC_URL). "" = derived from ui.ingress |
-| ui.readinessProbe.enabled | bool | `true` | Enable the readiness probe |
-| ui.readinessProbe.failureThreshold | int | `3` |  |
-| ui.readinessProbe.initialDelaySeconds | int | `0` |  |
-| ui.readinessProbe.periodSeconds | int | `10` |  |
-| ui.readinessProbe.successThreshold | int | `1` |  |
-| ui.readinessProbe.timeoutSeconds | int | `5` |  |
-| ui.replicaCount | int | `1` | Number of UI replicas (fully stateless, scale freely) |
-| ui.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | UI container resources |
-| ui.revisionHistoryLimit | int | `3` | Deployment revision history limit |
-| ui.route.annotations | object | `{}` | HTTPRoute annotations |
-| ui.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI |
-| ui.route.hostnames | list | `[]` | Route hostnames ([] = derived from ui.publicUrl / ingress hostname) |
-| ui.route.parentRefs | list | `[]` | Gateway parentRefs |
-| ui.schedulerName | string | `""` | Scheduler name |
-| ui.service.annotations | object | `{}` | Service annotations (tpl-rendered) |
-| ui.service.clusterIP | string | `""` | Static cluster IP |
-| ui.service.externalTrafficPolicy | string | `"Cluster"` | External traffic policy |
-| ui.service.extraPorts | list | `[]` | Extra service ports |
-| ui.service.loadBalancerIP | string | `""` | LoadBalancer IP |
-| ui.service.loadBalancerSourceRanges | list | `[]` | LoadBalancer source ranges |
-| ui.service.nodePorts.http | string | `""` | Node port ("" = auto-assign) |
-| ui.service.ports.http | int | `3000` | Service HTTP port (the container port is fixed at 3000) |
-| ui.service.sessionAffinity | string | `"None"` | Session affinity |
-| ui.service.sessionAffinityConfig | object | `{}` | Session affinity config |
-| ui.service.type | string | `"ClusterIP"` | Service type |
-| ui.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
-| ui.startupProbe.enabled | bool | `true` | Enable the startup probe |
-| ui.startupProbe.failureThreshold | int | `24` |  |
-| ui.startupProbe.initialDelaySeconds | int | `5` |  |
-| ui.startupProbe.periodSeconds | int | `5` |  |
-| ui.startupProbe.successThreshold | int | `1` |  |
-| ui.startupProbe.timeoutSeconds | int | `5` |  |
-| ui.terminationGracePeriodSeconds | int | `30` | Pod termination grace period |
-| ui.tolerations | list | `[]` | Tolerations |
-| ui.topologySpreadConstraints | list | `[]` | Topology spread constraints |
-| ui.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | useHelmHooks | bool | `true` | Render Job hook annotations (set false for ArgoCD / Flux) |
 | valkey.affinity | object | `{}` | Valkey affinity |
 | valkey.auth.password | string | `""` | Valkey password ("" = generate once, keep across upgrades) |

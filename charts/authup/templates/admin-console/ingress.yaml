@@ -1,0 +1,9 @@
+{{- if and .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled }}
+{{- include "authup.ingress" (dict
+  "context" $
+  "component" "admin-console"
+  "name" (include "authup.adminConsole.fullname" .)
+  "ingress" .Values.adminConsole.ingress
+  "serviceName" (include "authup.adminConsole.fullname" .)
+) }}
+{{- end }}

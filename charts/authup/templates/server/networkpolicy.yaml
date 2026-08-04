@@ -19,7 +19,7 @@ spec:
       {{- if not .Values.server.networkPolicy.allowExternal }}
       from:
         - podSelector:
-            matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "ui") | nindent 14 }}
+            matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "admin-console") | nindent 14 }}
         {{- if .Values.server.networkPolicy.ingressPodMatchLabels }}
         - podSelector:
             matchLabels: {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.ingressPodMatchLabels "context" $) | nindent 14 }}

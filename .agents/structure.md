@@ -26,7 +26,7 @@ authup/helm
     │   ├── mysql-values.yaml
     │   ├── external-db-values.yaml      # externalDatabase + existingSecret, against ci/manifests fixture
     │   ├── valkey-values.yaml           # cache + 2 replicas + migration hook
-    │   ├── server-only-values.yaml      # headless IdP (ui.enabled=false)
+    │   ├── server-only-values.yaml      # headless IdP (adminConsole.enabled=false)
     │   └── manifests/postgres.yaml      # fixtures pre-applied before ct install
     └── templates/
         ├── _helpers.tpl         # names, labels, images, tplvalues, affinity, securityContext
@@ -35,7 +35,7 @@ authup/helm
         ├── _urls.tpl            # publicUrl/apiUrl/origin derivation + post-render scheme asserts
         ├── _ingress.tpl         # shared Ingress + HTTPRoute renderers (server and ui call them)
         ├── _server-env.tpl      # configEnv map, secretEnv list, shared volumes (deployment + job)
-        ├── _ui-env.tpl          # ui configEnv map
+        ├── _admin-console-env.tpl          # ui configEnv map
         ├── validations.yaml     # render-nothing fail-fast guards (cross-field rules)
         ├── secret.yaml          # chart-managed auth secret (admin password, system client, KEK)
         ├── secret-db.yaml       # external-db password secret (no generation fallback)
@@ -47,7 +47,7 @@ authup/helm
         ├── server/              # server-core: deployment, service, ingress, httproute,
         │                        # configmap-env, configmap-configuration, configmap-provisioning,
         │                        # migration-job, hpa, pdb, networkpolicy, servicemonitor
-        ├── ui/                  # client-web: deployment, service, ingress, httproute,
+        ├── ui/                  # client-admin-console: deployment, service, ingress, httproute,
         │                        # configmap-env, hpa, pdb, networkpolicy
         ├── postgresql/          # built-in instance: statefulset, service, secret
         ├── mysql/               # built-in instance: statefulset, service, secret
@@ -57,14 +57,14 @@ authup/helm
 ## Two components, per-role template directories
 
 `server/` (server-core, the IdP: OAuth2/OIDC surface + SSR auth pages) and
-`ui/` (client-web admin console) are separate template directories with ~85%
+`ui/` (client-admin-console admin console) are separate template directories with ~85%
 similar deployment templates. This duplication is DELIBERATE: authentik built
 the DRY role-loop and reverted it ("takes DRY maybe a bit too far", their
 PR #163). Do not introduce a role loop. A future authup server/worker split
 becomes a third directory with the same skeleton.
 
 Both services run the SAME image (`authup/authup`) with different args
-(`server/core start` vs `client/web start`). The image entrypoint force-exports
+(`server/core start` vs `client/admin-console start`). The image entrypoint force-exports
 `PORT=3000` for both, so `containerPort` is pinned to 3000 everywhere and only
 Service ports are values.
 
