@@ -17,20 +17,24 @@
 
 ## Releases & publishing
 
-- chart-releaser runs on every master push and publishes when `Chart.yaml`'s
+- `tada5hi/hevi@v2` runs on every master push and publishes when `Chart.yaml`'s
   version has no release yet: GitHub release `authup-<version>`, `index.yaml`
-  on `gh-pages`, then an OCI push to `oci://ghcr.io/authup/helm`.
+  on `gh-pages`, then an OCI push to `oci://ghcr.io/authup/helm`. hevi drives
+  `cr` under the hood, so the `authup-<version>` release-name template
+  (release-please's baseline) stays stable.
 - The publish job is deliberately UNGATED on release-please outputs: the chart
   package uses `skip-github-release`, so `releases_created` never fires for it
-  (gating on it would make publishing unreachable). chart-releaser is
-  idempotent via `CR_SKIP_EXISTING`.
-- chart-releaser detects "changed charts" by diffing against the latest
-  `authup-*` tag (falling back to the root commit), so a release only triggers
-  when a commit touches `charts/`.
-- Migration to hevi (tada5hi's own releaser) is planned and tracked by
-  tada5hi/hevi#52, a chart-releaser parity checklist. Do not switch the
-  publish tooling before that issue is closed; when working on it, keep the
-  `authup-<version>` tag format stable (release-please's baseline).
+  (gating on it would make publishing unreachable). Re-runs are safe because
+  hevi skips existing releases (`cr --skip-existing`) and existing OCI tags
+  (`push-skip-existing`). Every run packages every chart under `charts/`, so
+  "did this commit touch the chart" is not a precondition.
+- The workflow also accepts a `workflow_dispatch`, which skips release-please
+  and publishes whatever `Chart.yaml` holds at the dispatched ref. This is the
+  recovery path when a publish fails on its own after the version bump has
+  already merged, since publishing is otherwise reachable only from a push.
+- Requires hevi >= v2.0.2. Earlier versions called `cr upload` without
+  `--commit`, so GitHub rejected every newly created release with
+  `422 Invalid target_commitish parameter` (tada5hi/hevi#60).
 - Breaking value changes: document the migration in `charts/authup/BREAKING.md`
   AND add a fail-loud tripwire for the old key in `templates/validations.yaml`.
 
