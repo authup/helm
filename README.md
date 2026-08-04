@@ -54,7 +54,7 @@ helm install authup authup/authup
 Charts are also published as OCI artifacts:
 
 ```bash
-helm install authup oci://ghcr.io/authup/helm-charts/authup
+helm install authup oci://ghcr.io/authup/helm/authup
 ```
 
 The default install brings up server-core, the admin UI and a built-in

@@ -52,7 +52,7 @@ jobs:
           release: true
           release-generate-notes: true
           push: true
-          push-host: ghcr.io/${{ github.repository_owner }}/helm-charts
+          push-host: ghcr.io/${{ github.repository_owner }}/helm
           push-username: ${{ github.actor }}
           push-password: ${{ secrets.GITHUB_TOKEN }}
           push-skip-existing: true

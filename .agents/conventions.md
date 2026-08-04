@@ -19,7 +19,7 @@
 
 - chart-releaser runs on every master push and publishes when `Chart.yaml`'s
   version has no release yet: GitHub release `authup-<version>`, `index.yaml`
-  on `gh-pages`, then an OCI push to `oci://ghcr.io/authup/helm-charts`.
+  on `gh-pages`, then an OCI push to `oci://ghcr.io/authup/helm`.
 - The publish job is deliberately UNGATED on release-please outputs: the chart
   package uses `skip-github-release`, so `releases_created` never fires for it
   (gating on it would make publishing unreachable). chart-releaser is

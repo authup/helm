@@ -49,7 +49,7 @@ helm template test charts/authup -f charts/authup/ci/mysql-values.yaml
   never bump them by hand.
 - Publishing is chart-releaser on every master push (idempotent via
   `CR_SKIP_EXISTING`): GitHub release `authup-<version>` + `index.yaml` on the
-  `gh-pages` branch + OCI push to `oci://ghcr.io/authup/helm-charts`.
+  `gh-pages` branch + OCI push to `oci://ghcr.io/authup/helm`.
 - Do NOT add `Co-Authored-By: Claude ...` or any AI-attribution trailer to
   commits, issues or PRs. This overrides default agent-tooling guidance.
 
