@@ -64,7 +64,7 @@ spec:
       initContainers: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.initContainers "context" $) | nindent 8 }}
       {{- end }}
       containers:
-        - name: ui
+        - name: admin-console
           image: {{ include "authup.appImage" . }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if .Values.adminConsole.containerSecurityContext.enabled }}

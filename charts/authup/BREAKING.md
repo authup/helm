@@ -16,6 +16,9 @@ dedicated OAuth2 client (authup/authup#3371).
   (Deployment, Service, Ingress, ...). Helm re-creates them on upgrade;
   expect a brief admin-UI rollout and update anything referencing the old
   Service name directly.
+- The pod container is renamed `ui` -> `admin-console`, matching the `server`
+  and `migration` containers. Update any `kubectl logs -c ui` / `exec -c ui`
+  invocation and any log pipeline selecting on the container name.
 - The admin UI container now starts with `client/admin-console start` and
   logs in against the per-realm `admin-console` OAuth2 client. Requires an
   authup image containing authup/authup#3370 + #3371; older images only know
