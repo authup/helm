@@ -24,7 +24,11 @@ spec:
         {{- end }}
       annotations:
         {{- if not .Values.server.disableRestartOnChanges }}
-        checksum/env: {{ include "authup.server.configEnv" . | sha256sum }}
+        {{- /* Both halves of the env ConfigMap: themeEnv lives outside
+               configEnv (the migration Job must not inherit it), so hashing
+               configEnv alone would leave a fragmentsEnabled flip invisible
+               to the running pods. */}}
+        checksum/env: {{ printf "%s%s" (include "authup.server.configEnv" .) (include "authup.server.themeEnv" .) | sha256sum }}
         {{- if include "authup.auth.createSecret" . }}
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
         {{- end }}
@@ -39,6 +43,9 @@ spec:
         {{- end }}
         {{- if and .Values.server.provisioning.enabled .Values.server.provisioning.files }}
         checksum/provisioning: {{ include (print $.Template.BasePath "/server/configmap-provisioning.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and .Values.server.theme.enabled .Values.server.theme.files }}
+        checksum/theme: {{ include (print $.Template.BasePath "/server/configmap-theme.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.server.configuration }}
         checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
@@ -158,6 +165,9 @@ spec:
           lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.server.lifecycleHooks "context" $) | nindent 12 }}
           {{- end }}
           volumeMounts: {{- include "authup.server.volumeMounts" . | nindent 12 }}
+            {{- if include "authup.server.themeMounted" . }}
+            {{- include "authup.server.themeVolumeMounts" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.server.extraVolumeMounts }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
             {{- end }}
@@ -165,6 +175,9 @@ spec:
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.sidecars "context" $) | nindent 8 }}
         {{- end }}
       volumes: {{- include "authup.server.volumes" . | nindent 8 }}
+        {{- if include "authup.server.themeMounted" . }}
+        {{- include "authup.server.themeVolumes" . | nindent 8 }}
+        {{- end }}
         {{- if .Values.server.extraVolumes }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
         {{- end }}

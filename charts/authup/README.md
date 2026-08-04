@@ -405,6 +405,11 @@ Kubernetes: `>=1.25.0-0`
 | server.startupProbe.successThreshold | int | `1` |  |
 | server.startupProbe.timeoutSeconds | int | `5` |  |
 | server.terminationGracePeriodSeconds | int | `30` | Pod termination grace period (server-core tears down within ~10s after signal) |
+| server.theme.enabled | bool | `false` | Mount an operator theme for the served consoles (the auth console and the account console). Requires an authup image that supports THEME_DIRECTORY_PATH; older images ignore it |
+| server.theme.existingConfigMap | string | `""` | Existing ConfigMap holding the theme (tpl-rendered name). Use for binary assets, which cannot be expressed in files |
+| server.theme.existingConfigMapItems | list | `[]` | Key -> path projection for existingConfigMap, so its keys can land in subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]). Empty mounts every key flat at the theme root |
+| server.theme.files | object | `{}` | Map of path -> file content, relative to the theme root (tpl-rendered). Keys may carry a "/" ("assets/theme.css") and are projected into subdirectories. Only assets/ is served over HTTP. Text only — use existingConfigMap with binaryData for images |
+| server.theme.fragmentsEnabled | bool | `false` | Read fragments/head.html and splice it into the console <head>. Raw, unsanitized markup on the identity provider origin, so it is opt-in |
 | server.tolerations | list | `[]` | Tolerations |
 | server.topologySpreadConstraints | list | `[]` | Topology spread constraints (a missing labelSelector is filled with the pod's selector labels) |
 | server.trustProxy | string | `"1"` | TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress), not authup's spoofable trust-everything default |

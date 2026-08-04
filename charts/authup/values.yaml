@@ -451,6 +451,29 @@ server:
     # -- Existing Secret with provisioning files (tpl-rendered; takes
     # precedence — use for provisioning content that carries credentials)
     existingSecret: ""
+  theme:
+    # -- Mount an operator theme for the served consoles (the auth console and
+    # the account console). Requires an authup image that supports
+    # THEME_DIRECTORY_PATH; older images ignore it
+    enabled: false
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Map of path -> file content, relative to the theme root (tpl-rendered).
+    # Keys may carry a "/" ("assets/theme.css") and are projected into
+    # subdirectories. Only assets/ is served over HTTP. Text only — use
+    # existingConfigMap with binaryData for images
+    files: {}
+    # -- Existing ConfigMap holding the theme (tpl-rendered name). Use for
+    # binary assets, which cannot be expressed in files
+    existingConfigMap: ""
+    # -- Key -> path projection for existingConfigMap, so its keys can land in
+    # subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]).
+    # Empty mounts every key flat at the theme root
+    existingConfigMapItems: []
+    # -- Read fragments/head.html and splice it into the console <head>. Raw,
+    # unsanitized markup on the identity provider origin, so it is opt-in
+    fragmentsEnabled: false
   migration:
     # -- Run `server/core migration run` as a pre-upgrade hook Job. Recommended
     # for multi-replica deployments (serializes DDL before pods roll). Fresh
