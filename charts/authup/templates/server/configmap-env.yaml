@@ -7,4 +7,10 @@ metadata:
   labels: {{- include "authup.labels" (dict "context" $ "component" "server") | nindent 4 }}
   annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
 data: {{- include "authup.server.configEnv" . | nindent 2 }}
+  {{- /* Only the Deployment consumes this ConfigMap (envFrom); the
+         migration Job inlines configEnv instead, so it never sees the
+         theme env. See authup.server.themeEnv. */}}
+  {{- if include "authup.server.themeMounted" . }}
+  {{- include "authup.server.themeEnv" . | nindent 2 }}
+  {{- end }}
 {{- end }}

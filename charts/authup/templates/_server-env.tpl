@@ -28,10 +28,6 @@ PASSWORD_RECOVERY_ENABLED: {{ .Values.server.features.passwordRecovery | toStrin
 EMAIL_VERIFICATION_ENABLED: {{ .Values.server.features.emailVerification | toString | quote }}
 MFA_ENABLED: {{ .Values.server.mfa.enabled | toString | quote }}
 MFA_REQUIRED: {{ .Values.server.mfa.required | toString | quote }}
-{{- if include "authup.server.themeMounted" . }}
-THEME_DIRECTORY_PATH: {{ include "authup.server.themeMountPath" . | quote }}
-THEME_FRAGMENTS_ENABLED: {{ .Values.server.theme.fragmentsEnabled | toString | quote }}
-{{- end }}
 {{- if .Values.auth.adminPasswordReset }}
 USER_ADMIN_PASSWORD_RESET: "true"
 {{- end }}
@@ -150,6 +146,24 @@ resources, so on the upgrade that first enables theming it would reference a
 ConfigMap that does not exist yet and hang. A migration run has no use for
 the theme either way.
 */}}
+{{/*
+Theme environment, kept OUT of authup.server.configEnv for the same reason
+as the volume: the migration Job inlines configEnv, and pointing
+THEME_DIRECTORY_PATH at a directory that Job does not mount would describe
+a pod that does not exist. Nothing reads it there today (the migration
+command boots only config + logger, never the http module), but the env
+should not contradict the pod it is in.
+
+THEME_* stays in configEnv's reserved-key list regardless, so a
+`server.config` entry cannot emit a duplicate key into the same ConfigMap.
+*/}}
+{{- define "authup.server.themeEnv" -}}
+{{- if include "authup.server.themeMounted" . }}
+THEME_DIRECTORY_PATH: {{ include "authup.server.themeMountPath" . | quote }}
+THEME_FRAGMENTS_ENABLED: {{ .Values.server.theme.fragmentsEnabled | toString | quote }}
+{{- end }}
+{{- end -}}
+
 {{- define "authup.server.themeVolumeMounts" -}}
 {{- if include "authup.server.themeMounted" . }}
 - name: theme
@@ -236,6 +250,15 @@ looks exactly like an un-themed page.
 {{- end }}
 {{- if contains "__" $path }}
 {{- fail (printf "authup: server.theme.files key %q must not contain \"__\" — it is reserved for encoding the path separator into a ConfigMap key." $path) }}
+{{- end }}
+{{- /* A ConfigMap data key must match ^[A-Za-z0-9._-]+$, so a path
+       carrying a space, a colon or any other character outside this set
+       would flatten into an INVALID key and fail at apply time with a
+       Kubernetes validation error instead of here. The set is the one the
+       server's own asset handler accepts, so the chart now rejects at
+       render time exactly what the server would 404 at request time. */}}
+{{- if not (regexMatch "^[a-zA-Z0-9][a-zA-Z0-9._/-]*$" $path) }}
+{{- fail (printf "authup: server.theme.files key %q must start with a letter or digit and contain only letters, digits, \".\", \"_\", \"-\" and \"/\"." $path) }}
 {{- end }}
 {{- end }}
 {{- end }}
