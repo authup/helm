@@ -3306,6 +3306,55 @@
           "title": "terminationGracePeriodSeconds",
           "type": "integer"
         },
+        "theme": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": false,
+              "description": "Mount an operator theme for the served consoles (the auth console and\nthe account console). Requires an authup image that supports\nTHEME_DIRECTORY_PATH; older images ignore it",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "existingConfigMap": {
+              "default": "",
+              "description": "Existing ConfigMap holding the theme (tpl-rendered name). Use for\nbinary assets, which cannot be expressed in files",
+              "required": [],
+              "title": "existingConfigMap",
+              "type": "string"
+            },
+            "existingConfigMapItems": {
+              "description": "Key -\u003e path projection for existingConfigMap, so its keys can land in\nsubdirectories (e.g. [{key: theme-css, path: assets/theme.css}]).\nEmpty mounts every key flat at the theme root",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "existingConfigMapItems",
+              "type": "array"
+            },
+            "files": {
+              "additionalProperties": true,
+              "description": "Map of path -\u003e file content, relative to the theme root (tpl-rendered).\nKeys may carry a \"/\" (\"assets/theme.css\") and are projected into\nsubdirectories. Only assets/ is served over HTTP. Text only — use\nexistingConfigMap with binaryData for images",
+              "required": [],
+              "title": "files"
+            },
+            "fragmentsEnabled": {
+              "default": false,
+              "description": "Read fragments/head.html and splice it into the console \u003chead\u003e. Raw,\nunsanitized markup on the identity provider origin, so it is opt-in",
+              "required": [],
+              "title": "fragmentsEnabled",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled",
+            "existingConfigMap",
+            "existingConfigMapItems",
+            "fragmentsEnabled"
+          ],
+          "title": "theme",
+          "type": "object"
+        },
         "tolerations": {
           "description": "Tolerations",
           "items": {
@@ -3376,6 +3425,7 @@
         "configuration",
         "existingConfigmap",
         "provisioning",
+        "theme",
         "migration",
         "command",
         "args",

@@ -1,0 +1,28 @@
+# Operator theme mounted from an inline files map, covering the path-keyed
+# ConfigMap projection (a "/" key must land in a subdirectory) and the env
+# wiring. THEME_DIRECTORY_PATH is ignored by an authup image that predates
+# console theming, so the rollout assertion holds either way.
+server:
+  theme:
+    enabled: true
+    fragmentsEnabled: true
+    files:
+      theme.json: |
+        {
+          "version": 1,
+          "title": "Sign in to ACME",
+          "stylesheet": "assets/theme.css",
+          "tokens": {
+            "--authup-periwinkle": "#c0392b"
+          },
+          "tokensDark": {
+            "--authup-auth-accent": "#e06c5a"
+          }
+        }
+      assets/theme.css: |
+        .a-auth-shell-card { border-radius: 2px; }
+      fragments/head.html: |
+        <meta name="operator" content="acme">
+
+ui:
+  enabled: false

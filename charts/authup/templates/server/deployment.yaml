@@ -40,6 +40,9 @@ spec:
         {{- if and .Values.server.provisioning.enabled .Values.server.provisioning.files }}
         checksum/provisioning: {{ include (print $.Template.BasePath "/server/configmap-provisioning.yaml") . | sha256sum }}
         {{- end }}
+        {{- if and .Values.server.theme.enabled .Values.server.theme.files }}
+        checksum/theme: {{ include (print $.Template.BasePath "/server/configmap-theme.yaml") . | sha256sum }}
+        {{- end }}
         {{- if .Values.server.configuration }}
         checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
         {{- end }}
@@ -158,6 +161,9 @@ spec:
           lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.server.lifecycleHooks "context" $) | nindent 12 }}
           {{- end }}
           volumeMounts: {{- include "authup.server.volumeMounts" . | nindent 12 }}
+            {{- if include "authup.server.themeMounted" . }}
+            {{- include "authup.server.themeVolumeMounts" . | nindent 12 }}
+            {{- end }}
             {{- if .Values.server.extraVolumeMounts }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
             {{- end }}
@@ -165,6 +171,9 @@ spec:
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.sidecars "context" $) | nindent 8 }}
         {{- end }}
       volumes: {{- include "authup.server.volumes" . | nindent 8 }}
+        {{- if include "authup.server.themeMounted" . }}
+        {{- include "authup.server.themeVolumes" . | nindent 8 }}
+        {{- end }}
         {{- if .Values.server.extraVolumes }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
         {{- end }}
