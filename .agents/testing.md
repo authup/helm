@@ -52,7 +52,20 @@ helm template t charts/authup --set server.theme.enabled=true --set server.theme
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=assets/logo.svg   # asset missing from files
 helm template t charts/authup --set server.theme.enabled=true --set 'server.theme.tokens.--authup-bg=url(x)'  # token value authup rejects
 helm template t charts/authup --set 'server.trustedOrigins[0]=https://**.x'  # globstar host
+helm template t charts/authup --set server.route.enabled=true --set server.publicUrl=https://h.x/auth   # sub-path route without matches
+helm template t charts/authup --set server.route.enabled=true --set server.ingress.enabled=true \
+  --set server.ingress.hostname=h.x --set server.ingress.path=/auth                                     # same, via the derived URL
 ```
+
+The route guard reads the public URL AFTER derivation, so the ingress-derived
+case needs its own line: only the origin reaches the HTTPRoute hostname, and the
+dropped path is exactly what turns the rule into a catch-all. Adding
+`--set 'server.route.matches[0].path.value=/auth'` must make both RENDER.
+
+Umbrella use is part of the contract: `global` must stay open. Render a throwaway
+parent chart with authup in `charts/` and an unrelated global (`global.myOrgKey`)
+whenever the schema generation changes; `ci/default-values.yaml` carries a stray
+global key as the cheap in-repo version of that check.
 
 A single `*` host wildcard (`https://*.example.com`) must still RENDER: authup
 supports it, only `**` is the allow-any-origin trap.

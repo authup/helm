@@ -50,6 +50,26 @@ store, token blocklist and MFA challenges fall back to a per-process memory cach
 {{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
 
+{{/*
+A Gateway API HTTPRoute rule without `matches` defaults to PathPrefix "/", i.e. it
+matches every request on every hostname the route attaches to. The route hostname is
+derived from the public URL's ORIGIN, so a sub-path public URL would silently attach
+authup as the catch-all backend of a hostname it is meant to share. authup always
+serves at "/" and expects the proxy to strip the prefix, hence match AND rewrite.
+*/}}
+{{- if and .Values.server.enabled .Values.server.route.enabled (not .Values.server.route.matches) }}
+{{- $path := (urlParse (include "authup.server.publicUrl" .)).path }}
+{{- if and $path (ne $path "/") }}
+{{- fail (printf "authup: the server public URL carries the path %q but server.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). authup serves at \"/\" and expects the proxy to strip the prefix, so set both:\n  server.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  server.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
+{{- end }}
+{{- end }}
+{{- if and .Values.adminConsole.enabled .Values.adminConsole.route.enabled (not .Values.adminConsole.route.matches) }}
+{{- $path := (urlParse (include "authup.adminConsole.publicUrl" .)).path }}
+{{- if and $path (ne $path "/") }}
+{{- fail (printf "authup: the admin console public URL carries the path %q but adminConsole.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). Set both:\n  adminConsole.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  adminConsole.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
+{{- end }}
+{{- end }}
+
 {{/* URL values must carry a scheme — a scheme-less value would derive a broken "://" origin into TRUSTED_ORIGINS and crash-loop server-core. */}}
 {{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl "adminConsole.publicUrl" .Values.adminConsole.publicUrl "adminConsole.apiUrl" .Values.adminConsole.apiUrl "adminConsole.internalApiUrl" .Values.adminConsole.internalApiUrl }}
 {{- if and $value (not (contains "{{" $value)) (not (regexMatch "^https?://" $value)) }}

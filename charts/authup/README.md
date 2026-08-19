@@ -187,7 +187,7 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.ingress.enabled | bool | `false` | Enable ingress for the UI |
 | adminConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | adminConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
-| adminConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; overrides the generated rule) |
+| adminConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | adminConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
 | adminConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived UI public URL |
 | adminConsole.ingress.ingressClassName | string | `""` | Ingress class name |
@@ -231,7 +231,9 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | adminConsole.route.annotations | object | `{}` | HTTPRoute annotations |
 | adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI |
-| adminConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname) |
+| adminConsole.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
+| adminConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public URL path is dropped and needs its own matches entry) |
+| adminConsole.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
 | adminConsole.route.parentRefs | list | `[]` | Gateway parentRefs |
 | adminConsole.schedulerName | string | `""` | Scheduler name |
 | adminConsole.service.annotations | object | `{}` | Service annotations (tpl-rendered) |
@@ -369,7 +371,7 @@ Kubernetes: `>=1.25.0-0`
 | server.ingress.enabled | bool | `false` | Enable ingress for server-core. NOTE: this also exposes the UNAUTHENTICATED /metrics endpoint publicly — block it at the ingress controller or disable it via server.configuration ("middlewarePrometheus: false") when it is not scraped |
 | server.ingress.extraHosts | list | `[]` | Extra hosts |
 | server.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
-| server.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; overrides the generated rule) |
+| server.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | server.ingress.extraTls | list | `[]` | Extra TLS entries |
 | server.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived PUBLIC_URL |
 | server.ingress.ingressClassName | string | `""` | Ingress class name |
@@ -433,7 +435,9 @@ Kubernetes: `>=1.25.0-0`
 | server.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | server.route.annotations | object | `{}` | HTTPRoute annotations |
 | server.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for server-core |
-| server.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl / ingress hostname) |
+| server.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
+| server.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public URL path is dropped and needs its own matches entry) |
+| server.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
 | server.route.parentRefs | list | `[]` | Gateway parentRefs |
 | server.schedulerName | string | `""` | Scheduler name |
 | server.service.annotations | object | `{}` | Service annotations (tpl-rendered) |

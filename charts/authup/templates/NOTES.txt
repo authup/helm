@@ -98,6 +98,22 @@ small deployments. For production, consider an external database
 (externalDatabase.*) or an operator (e.g. CloudNativePG).
 {{- end }}
 
+{{- $prefixed := list }}
+{{- if and .Values.server.enabled .Values.server.route.enabled (urlParse $serverUrl).path (ne (urlParse $serverUrl).path "/") }}
+{{- $prefixed = append $prefixed (printf "server.route %s" (urlParse $serverUrl).path) }}
+{{- end }}
+{{- if and .Values.adminConsole.enabled .Values.adminConsole.route.enabled (urlParse $uiUrl).path (ne (urlParse $uiUrl).path "/") }}
+{{- $prefixed = append $prefixed (printf "adminConsole.route %s" (urlParse $uiUrl).path) }}
+{{- end }}
+{{- if $prefixed }}
+
+NOTE: serving under a path prefix ({{ join ", " $prefixed }}). authup itself always
+serves at "/", so something in the chain has to strip the prefix: a route.filters
+URLRewrite (ReplacePrefixMatch "/"), an implementation-specific filter, or a proxy
+in front of the gateway. Without one, every request reaches the pod with the prefix
+still attached and 404s.
+{{- end }}
+
 {{- if $serverUrl }}
 
 Changing PUBLIC_URL later breaks enrolled WebAuthn credentials (the rpId binds

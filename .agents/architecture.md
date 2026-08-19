@@ -91,6 +91,22 @@ editing templates or values.
     `authup.tplvalues.render`, so umbrella charts can inject template
     expressions (the PrivateAIM lesson: their untemplatable `existingSecret`
     forced a hardcoded-names table).
+17. **`global` must stay open in the schema.** helm copies a parent chart's
+    ENTIRE `global` map into every subchart before validating that subchart's
+    schema, so `additionalProperties: false` there makes the chart
+    uninstallable as a dependency of any umbrella that sets a global this
+    chart does not declare. `values.yaml` carries the
+    `# @schema additionalProperties: true` opt-out and `ci/default-values.yaml`
+    a stray global key as the regression guard. The chart reads only
+    `imageRegistry` / `imagePullSecrets` / `defaultStorageClass` and ignores
+    the rest.
+18. **An HTTPRoute rule with no `matches` is a catch-all.** The Gateway API
+    defaults an empty `matches` to PathPrefix `/`, and route hostnames come
+    from the public URL's ORIGIN (the path is dropped), so a sub-path
+    deployment would silently take over the whole shared hostname.
+    `validations.yaml` fails that combination; `route.matches` / `route.filters`
+    are the raw passthroughs that express it (authup always serves at `/`, so
+    the prefix must be matched AND rewritten away).
 
 ## Values conventions
 

@@ -2,6 +2,10 @@
 
 ## @section Global parameters
 
+# @schema
+# type: object
+# additionalProperties: true
+# @schema
 global:
   # -- Global container image registry override (takes precedence over image.registry)
   imageRegistry: ""
@@ -739,12 +743,13 @@ server:
     extraPaths: []
     # -- Extra TLS entries
     extraTls: []
-    # -- Full custom rules (tpl-rendered; overrides the generated rule)
+    # -- Full custom rules (tpl-rendered; appended after the generated rules)
     extraRules: []
   route:
     # -- Create a Gateway API HTTPRoute for server-core
     enabled: false
-    # -- Route hostnames ([] = derived from server.publicUrl / ingress hostname)
+    # -- Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public
+    # URL path is dropped and needs its own matches entry)
     hostnames: []
     # -- Gateway parentRefs
     parentRefs: []
@@ -753,6 +758,10 @@ server:
     # @schema
     # -- HTTPRoute annotations
     annotations: {}
+    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
+    matches: []
+    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
+    filters: []
   metrics:
     # -- The /metrics endpoint is UNAUTHENTICATED; keep it off the public ingress
     serviceMonitor:
@@ -1040,12 +1049,13 @@ adminConsole:
     extraPaths: []
     # -- Extra TLS entries
     extraTls: []
-    # -- Full custom rules (tpl-rendered; overrides the generated rule)
+    # -- Full custom rules (tpl-rendered; appended after the generated rules)
     extraRules: []
   route:
     # -- Create a Gateway API HTTPRoute for the UI
     enabled: false
-    # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname)
+    # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public
+    # URL path is dropped and needs its own matches entry)
     hostnames: []
     # -- Gateway parentRefs
     parentRefs: []
@@ -1054,6 +1064,10 @@ adminConsole:
     # @schema
     # -- HTTPRoute annotations
     annotations: {}
+    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
+    matches: []
+    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
+    filters: []
   pdb:
     # -- Create a PodDisruptionBudget for the UI
     create: false
