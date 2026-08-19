@@ -8,7 +8,10 @@ server:
   theme:
     enabled: true
     fragmentsEnabled: true
-    title: "Sign in to ACME"
+    # tpl-rendered, so an umbrella chart can inject it (invariant 16). The
+    # manifest guards assert the RENDERED value, so this also covers the
+    # assert-after-render path.
+    title: "Sign in to {{ .Release.Name }}"
     logo: assets/logo.svg
     stylesheet: assets/theme.css
     tokens:

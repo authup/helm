@@ -294,6 +294,7 @@ silently-inert theme: the dominant failure mode of theming is a page that
 looks exactly like an un-themed page.
 */}}
 {{- define "authup.server.validateTheme" -}}
+{{- $ctx := . }}
 {{- $theme := .Values.server.theme }}
 {{- $manifest := include "authup.server.themeManifestConfigured" . }}
 {{- if .Values.server.theme.enabled }}
@@ -316,8 +317,13 @@ looks exactly like an un-themed page.
        theme.json cannot be fetched), hence the prefix requirement. */}}
 {{- $imageExtensions := list ".svg" ".png" ".jpg" ".jpeg" ".gif" ".webp" ".avif" ".ico" }}
 {{- range $key := list "favicon" "logo" "logoDark" }}
-{{- $value := get $theme $key }}
-{{- if $value }}
+{{- $raw := get $theme $key }}
+{{- if $raw }}
+{{- /* Assert the RENDERED value: themeManifest tpl-renders it, so a
+       template-valued path only materializes here (invariant 7). Validating
+       the raw string would reject every umbrella-injected expression, since
+       none of them start with "assets/". */}}
+{{- $value := include "authup.tplvalues.render" (dict "value" $raw "context" $ctx) }}
 {{- if not (hasPrefix "assets/" $value) }}
 {{- fail (printf "authup: server.theme.%s must reference a file under \"assets/\" (got %q). assets/ is the only directory authup serves over HTTP." $key $value) }}
 {{- end }}
@@ -334,14 +340,15 @@ looks exactly like an un-themed page.
 {{- end }}
 {{- end }}
 {{- if $theme.stylesheet }}
-{{- if not (hasPrefix "assets/" $theme.stylesheet) }}
-{{- fail (printf "authup: server.theme.stylesheet must reference a file under \"assets/\" (got %q). assets/ is the only directory authup serves over HTTP." $theme.stylesheet) }}
+{{- $stylesheet := include "authup.tplvalues.render" (dict "value" $theme.stylesheet "context" $ctx) }}
+{{- if not (hasPrefix "assets/" $stylesheet) }}
+{{- fail (printf "authup: server.theme.stylesheet must reference a file under \"assets/\" (got %q). assets/ is the only directory authup serves over HTTP." $stylesheet) }}
 {{- end }}
-{{- if not (hasSuffix ".css" (lower $theme.stylesheet)) }}
-{{- fail (printf "authup: server.theme.stylesheet must be a .css file (got %q)." $theme.stylesheet) }}
+{{- if not (hasSuffix ".css" (lower $stylesheet)) }}
+{{- fail (printf "authup: server.theme.stylesheet must be a .css file (got %q)." $stylesheet) }}
 {{- end }}
-{{- if not (hasKey ($theme.files | default dict) $theme.stylesheet) }}
-{{- fail (printf "authup: server.theme.stylesheet references %q, which is not a key of server.theme.files. The stylesheet would 404 and the console would render un-themed." $theme.stylesheet) }}
+{{- if not (hasKey ($theme.files | default dict) $stylesheet) }}
+{{- fail (printf "authup: server.theme.stylesheet references %q, which is not a key of server.theme.files. The stylesheet would 404 and the console would render un-themed." $stylesheet) }}
 {{- end }}
 {{- end }}
 {{- /* Mirrors authup's own manifest validation. It fails the BOOT on a bad
@@ -352,7 +359,7 @@ looks exactly like an un-themed page.
 {{- if not (regexMatch "^--[a-z0-9-]+$" $name) }}
 {{- fail (printf "authup: server.theme.%s key %q must be a lowercase CSS custom property (--foo-bar)." $key $name) }}
 {{- end }}
-{{- $rendered := $value | toString }}
+{{- $rendered := include "authup.tplvalues.render" (dict "value" ($value | toString) "context" $ctx) }}
 {{- if gt (len $rendered) 256 }}
 {{- fail (printf "authup: server.theme.%s.%s exceeds the 256 character limit authup enforces on a token value." $key $name) }}
 {{- end }}
