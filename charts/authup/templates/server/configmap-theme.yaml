@@ -1,4 +1,4 @@
-{{- if and .Values.server.enabled .Values.server.theme.enabled .Values.server.theme.files (not .Values.server.theme.existingConfigMap) }}
+{{- if and .Values.server.enabled .Values.server.theme.enabled (not .Values.server.theme.existingConfigMap) (or .Values.server.theme.files (include "authup.server.themeManifestConfigured" .)) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -11,6 +11,10 @@ data:
          subdirectories. Keys are flattened here and projected back to their
          real path by the volume's items list, so the operator writes
          "assets/theme.css" and never sees the encoding. */}}
+  {{- if include "authup.server.themeManifestConfigured" . }}
+  theme.json: |-
+    {{- include "authup.server.themeManifest" . | nindent 4 }}
+  {{- end }}
   {{- range $path, $content := .Values.server.theme.files }}
   {{ include "authup.server.themeConfigMapKey" $path }}: |-
     {{- include "authup.tplvalues.render" (dict "value" $content "context" $) | nindent 4 }}

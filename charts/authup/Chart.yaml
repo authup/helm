@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   with optional built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.2.0
-appVersion: "1.0.0-beta.58"
+appVersion: "1.0.0-beta.62"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -31,7 +31,11 @@ annotations:
     - name: Source
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
-    - kind: fixed
-      description: Chart license corrected to Apache-2.0
+    - kind: changed
+      description: appVersion tracks authup 1.0.0-beta.62
     - kind: added
-      description: Chart icon
+      description: server.theme manifest values compose theme.json (title, logo, tokens)
+    - kind: added
+      description: server.features.accountConsole toggles the /account self-service console
+    - kind: added
+      description: Trusted origins carrying "**" now fail the render, as authup fails the boot

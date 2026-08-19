@@ -46,7 +46,22 @@ helm template t charts/authup --set server.publicUrl=auth.example.com        # s
 helm template t charts/authup --set postgresql.enabled=false --set externalDatabase.host=db  # extdb w/o password
 helm template t charts/authup --set server.ingress.enabled=true              # ingress w/o hostname
 helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # first-class collision
+helm template t charts/authup --set server.theme.enabled=true               # theme with no carrier
+helm template t charts/authup --set server.theme.enabled=true --set server.theme.title=X --set server.theme.existingConfigMap=cm  # manifest + existing CM
+helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=logo.svg          # asset outside assets/
+helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=assets/logo.svg   # asset missing from files
+helm template t charts/authup --set server.theme.enabled=true --set 'server.theme.tokens.--authup-bg=url(x)'  # token value authup rejects
+helm template t charts/authup --set 'server.trustedOrigins[0]=https://**.x'  # globstar host
 ```
+
+A single `*` host wildcard (`https://*.example.com`) must still RENDER: authup
+supports it, only `**` is the allow-any-origin trap.
+
+The `server.theme` manifest guards assert the value AFTER `tpl` rendering, so
+both directions need a case: a templated token or asset path must RENDER, and
+one whose rendered result is illegal must FAIL. Validating the raw value gets
+this backwards in a way that looks correct (every `{{ ... }}` contains `}`, so
+the forbidden-character check rejects it for the wrong reason).
 
 The generated `values.schema.json` must keep catching typos
 (`--set server.replicaCountt=3` fails) while free-form maps stay open

@@ -402,8 +402,11 @@ server:
   # "" = derived from server.ingress when enabled. Changing it later breaks
   # enrolled WebAuthn credentials and the OIDC issuer.
   publicUrl: ""
-  # -- Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed
-  # origin can obtain full-permission tokens via the per-realm web client.
+  # -- Additional trusted first-party app origins (TRUSTED_ORIGINS). Each entry
+  # is added to the redirect allowlist of the per-realm built-in system clients
+  # (admin-console, account-console), so any listed origin can complete a login
+  # and obtain a full-permission token. A host may carry a single "*"
+  # (https://*.example.com); "**" in a host is rejected by authup at boot.
   # List or comma-separated string; tpl-rendered.
   trustedOrigins: []
   # -- Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the
@@ -419,6 +422,10 @@ server:
     passwordRecovery: false
     # -- Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP)
     emailVerification: false
+    # -- Serve the account self-service console at <publicUrl>/account
+    # (profile, password, authenticators, sessions, applications).
+    # ACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal
+    accountConsole: true
   mfa:
     # -- Enable multi-factor authentication (MFA_ENABLED)
     enabled: false
@@ -428,7 +435,10 @@ server:
   # additionalProperties: true
   # @schema
   # -- Extra environment variables rendered literally into the env ConfigMap
-  # (map of NAME: value) for options without first-class values
+  # (map of NAME: value) for options without first-class values, e.g.
+  # AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console
+  # with your own build (pair them with extraVolumes; the substituted package
+  # owns the login flow, so use server.theme for branding instead)
   config: {}
   # -- Content of an authup.server.core.conf mounted into the working directory
   # for file-only options (middleware objects, per-field SMTP, CORS allowlist).
@@ -454,18 +464,48 @@ server:
   theme:
     # -- Mount an operator theme for the served consoles (the auth console and
     # the account console). Requires an authup image that supports
-    # THEME_DIRECTORY_PATH; older images ignore it
+    # THEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the
+    # directory layout and the theme* options may change in a minor release
     enabled: false
+    # -- Document title of both served consoles ("" = authup's own)
+    title: ""
+    # -- Favicon path, relative to the theme root and under assets/
+    # (e.g. assets/favicon.svg). Must be a key of files
+    favicon: ""
+    # -- Logo replacing the built-in mark on both consoles, under assets/.
+    # Painted into the existing mark's box, so it needs no sizing
+    logo: ""
+    # -- Dark-mode logo variant, under assets/. Without it dark mode reuses
+    # logo, which disappears when the mark is drawn dark-on-light
+    logoDark: ""
+    # -- Stylesheet path, under assets/ and ending in .css. Linked last, so it
+    # beats the token block; it is unlayered, so set dark colors explicitly
+    stylesheet: ""
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- CSS custom properties applied in both color modes (tpl-rendered).
+    # --authup-periwinkle alone recolors buttons, focus rings and links.
+    # A color set here also wins in dark mode: put surface colors in both
+    # tokens and tokensDark
+    tokens: {}
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- CSS custom properties applied in dark mode only (tpl-rendered)
+    tokensDark: {}
     # @schema
     # additionalProperties: true
     # @schema
     # -- Map of path -> file content, relative to the theme root (tpl-rendered).
     # Keys may carry a "/" ("assets/theme.css") and are projected into
     # subdirectories. Only assets/ is served over HTTP. Text only — use
-    # existingConfigMap with binaryData for images
+    # existingConfigMap with binaryData for images. Set theme.json here only
+    # when writing the manifest by hand instead of using the values above
     files: {}
     # -- Existing ConfigMap holding the theme (tpl-rendered name). Use for
-    # binary assets, which cannot be expressed in files
+    # binary assets, which cannot be expressed in files. Mounted whole, so it
+    # must carry theme.json itself and excludes the manifest values above
     existingConfigMap: ""
     # -- Key -> path projection for existingConfigMap, so its keys can land in
     # subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]).

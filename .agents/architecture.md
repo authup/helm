@@ -71,6 +71,15 @@ editing templates or values.
     `server.configuration` file mount). Never mirror authup's config schema in
     templates (Authelia's 714-line configMap treadmill is the cautionary tale).
     `server.config` keys colliding with first-class env names fail the render.
+    The ONE mirrored schema is the theme manifest (`server.theme.title` /
+    `logo` / `tokens` / ... compose `theme.json`), and it earns the exception
+    on three counts: the file is a fixed 8-key document rather than a growing
+    config surface, authup fails the BOOT on an unknown key or a malformed
+    token so a typo has no cheaper detector, and the alternative is a JSON
+    blob inside a YAML string with no schema at all. It stays worth it only
+    while the manifest stays small: `files` remains the escape hatch, and a
+    hand-written `theme.json` there is still supported (the two are mutually
+    exclusive by validation).
 15. **URL derivation is the chart's core UX.** `PUBLIC_URL`,
     `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_PUBLIC_URL` derive from the two
     ingress blocks; the UI origin is auto-appended to `TRUSTED_ORIGINS`

@@ -25,8 +25,9 @@
 {{ template "chart.description" . }} It deploys:
 
 - **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
-  surface plus the server-rendered auth pages (login, consent, registration,
-  password recovery). This is the identity origin.
+  surface, the server-rendered auth pages (login, consent, registration,
+  password recovery) and the `/account` self-service console
+  (`server.features.accountConsole`). This is the identity origin.
 - **client-admin-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
   (optional; disable with `adminConsole.enabled=false` for a headless IdP).
 - optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
@@ -100,6 +101,53 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Theming the served consoles
+
+Both consoles server-core serves (the auth pages and `/account`) are rebranded
+from a directory the chart mounts read-only. Set the manifest as values and the
+chart composes `theme.json` for you; `files` carries the assets it references:
+
+```yaml
+server:
+  theme:
+    enabled: true
+    title: Sign in to ACME
+    logo: assets/logo.svg
+    stylesheet: assets/theme.css
+    tokens:
+      # the accent the whole primary palette is mixed from
+      --authup-periwinkle: "#c0392b"
+      --authup-surface-card: "#ffffff"
+    tokensDark:
+      --authup-surface-card: "#201e1d"
+    files:
+      assets/logo.svg: |
+        <svg xmlns="http://www.w3.org/2000/svg" ...></svg>
+      assets/theme.css: |
+        .a-auth-shell-card { border: 1px solid var(--authup-surface-border); }
+```
+
+A colour in `tokens` wins in dark mode too, so surface colours belong in both
+maps. The chart rejects at render time what Authup rejects at boot or answers
+with a 404: an asset outside `assets/`, an asset no file provides, a token name
+that is not a lowercase custom property, and a token value carrying `url(` or
+`;`. Only `assets/` is served over HTTP, so `theme.json` is unreachable by
+construction.
+
+`existingConfigMap` replaces the whole mechanism when you need binary assets
+(`binaryData`); it is mounted whole, so it must carry `theme.json` itself and
+cannot be combined with the manifest values. `fragmentsEnabled` splices
+`fragments/head.html` into the console `<head>` verbatim: raw operator markup
+on the origin that holds your users' session cookies, hence opt-in.
+
+> The theme directory is as sensitive as the config file: CSS there can restyle
+> or cover the OAuth2 consent buttons. Never source it from somewhere a tenant
+> or a lower-privileged CI job can write.
+
+Theming is experimental upstream: the directory layout and the `theme*` options
+may change in an Authup minor release. See the
+[Authup theming guide](https://authup.org/guide/deployment/theming.html).
 
 ## GitOps / ArgoCD
 

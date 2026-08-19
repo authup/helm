@@ -1,24 +1,26 @@
-# Operator theme mounted from an inline files map, covering the path-keyed
-# ConfigMap projection (a "/" key must land in a subdirectory) and the env
-# wiring. THEME_DIRECTORY_PATH is ignored by an authup image that predates
-# console theming, so the rollout assertion holds either way.
+# Operator theme covering both carriers in one install: the structured
+# manifest values (the chart composes theme.json) and the inline files map
+# for the assets they reference, which exercises the path-keyed ConfigMap
+# projection (a "/" key must land in a subdirectory) and the env wiring.
+# THEME_DIRECTORY_PATH is ignored by an authup image that predates console
+# theming, so the rollout assertion holds either way.
 server:
   theme:
     enabled: true
     fragmentsEnabled: true
+    # tpl-rendered, so an umbrella chart can inject it (invariant 16). The
+    # manifest guards assert the RENDERED value, so this also covers the
+    # assert-after-render path.
+    title: "Sign in to {{ .Release.Name }}"
+    logo: assets/logo.svg
+    stylesheet: assets/theme.css
+    tokens:
+      --authup-periwinkle: "#c0392b"
+    tokensDark:
+      --authup-auth-accent: "#e06c5a"
     files:
-      theme.json: |
-        {
-          "version": 1,
-          "title": "Sign in to ACME",
-          "stylesheet": "assets/theme.css",
-          "tokens": {
-            "--authup-periwinkle": "#c0392b"
-          },
-          "tokensDark": {
-            "--authup-auth-accent": "#e06c5a"
-          }
-        }
+      assets/logo.svg: |
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="#c0392b"/></svg>
       assets/theme.css: |
         .a-auth-shell-card { border-radius: 2px; }
       fragments/head.html: |

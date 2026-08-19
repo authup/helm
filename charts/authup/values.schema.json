@@ -2200,7 +2200,7 @@
         },
         "config": {
           "additionalProperties": true,
-          "description": "Extra environment variables rendered literally into the env ConfigMap\n(map of NAME: value) for options without first-class values",
+          "description": "Extra environment variables rendered literally into the env ConfigMap\n(map of NAME: value) for options without first-class values, e.g.\nAUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console\nwith your own build (pair them with extraVolumes; the substituted package\nowns the login flow, so use server.theme for branding instead)",
           "required": [],
           "title": "config"
         },
@@ -2380,6 +2380,13 @@
         "features": {
           "additionalProperties": false,
           "properties": {
+            "accountConsole": {
+              "default": true,
+              "description": "Serve the account self-service console at \u003cpublicUrl\u003e/account\n(profile, password, authenticators, sessions, applications).\nACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal",
+              "required": [],
+              "title": "accountConsole",
+              "type": "boolean"
+            },
             "emailVerification": {
               "default": false,
               "description": "Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP)",
@@ -2405,7 +2412,8 @@
           "required": [
             "registration",
             "passwordRecovery",
-            "emailVerification"
+            "emailVerification",
+            "accountConsole"
           ],
           "title": "features",
           "type": "object"
@@ -3311,14 +3319,14 @@
           "properties": {
             "enabled": {
               "default": false,
-              "description": "Mount an operator theme for the served consoles (the auth console and\nthe account console). Requires an authup image that supports\nTHEME_DIRECTORY_PATH; older images ignore it",
+              "description": "Mount an operator theme for the served consoles (the auth console and\nthe account console). Requires an authup image that supports\nTHEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the\ndirectory layout and the theme* options may change in a minor release",
               "required": [],
               "title": "enabled",
               "type": "boolean"
             },
             "existingConfigMap": {
               "default": "",
-              "description": "Existing ConfigMap holding the theme (tpl-rendered name). Use for\nbinary assets, which cannot be expressed in files",
+              "description": "Existing ConfigMap holding the theme (tpl-rendered name). Use for\nbinary assets, which cannot be expressed in files. Mounted whole, so it\nmust carry theme.json itself and excludes the manifest values above",
               "required": [],
               "title": "existingConfigMap",
               "type": "string"
@@ -3332,9 +3340,16 @@
               "title": "existingConfigMapItems",
               "type": "array"
             },
+            "favicon": {
+              "default": "",
+              "description": "Favicon path, relative to the theme root and under assets/\n(e.g. assets/favicon.svg). Must be a key of files",
+              "required": [],
+              "title": "favicon",
+              "type": "string"
+            },
             "files": {
               "additionalProperties": true,
-              "description": "Map of path -\u003e file content, relative to the theme root (tpl-rendered).\nKeys may carry a \"/\" (\"assets/theme.css\") and are projected into\nsubdirectories. Only assets/ is served over HTTP. Text only — use\nexistingConfigMap with binaryData for images",
+              "description": "Map of path -\u003e file content, relative to the theme root (tpl-rendered).\nKeys may carry a \"/\" (\"assets/theme.css\") and are projected into\nsubdirectories. Only assets/ is served over HTTP. Text only — use\nexistingConfigMap with binaryData for images. Set theme.json here only\nwhen writing the manifest by hand instead of using the values above",
               "required": [],
               "title": "files"
             },
@@ -3344,10 +3359,55 @@
               "required": [],
               "title": "fragmentsEnabled",
               "type": "boolean"
+            },
+            "logo": {
+              "default": "",
+              "description": "Logo replacing the built-in mark on both consoles, under assets/.\nPainted into the existing mark's box, so it needs no sizing",
+              "required": [],
+              "title": "logo",
+              "type": "string"
+            },
+            "logoDark": {
+              "default": "",
+              "description": "Dark-mode logo variant, under assets/. Without it dark mode reuses\nlogo, which disappears when the mark is drawn dark-on-light",
+              "required": [],
+              "title": "logoDark",
+              "type": "string"
+            },
+            "stylesheet": {
+              "default": "",
+              "description": "Stylesheet path, under assets/ and ending in .css. Linked last, so it\nbeats the token block; it is unlayered, so set dark colors explicitly",
+              "required": [],
+              "title": "stylesheet",
+              "type": "string"
+            },
+            "title": {
+              "default": "",
+              "description": "Document title of both served consoles (\"\" = authup's own)",
+              "required": [],
+              "title": "title",
+              "type": "string"
+            },
+            "tokens": {
+              "additionalProperties": true,
+              "description": "CSS custom properties applied in both color modes (tpl-rendered).\nauthup-periwinkle alone recolors buttons, focus rings and links.\nA color set here also wins in dark mode: put surface colors in both\ntokens and tokensDark",
+              "required": [],
+              "title": "tokens"
+            },
+            "tokensDark": {
+              "additionalProperties": true,
+              "description": "CSS custom properties applied in dark mode only (tpl-rendered)",
+              "required": [],
+              "title": "tokensDark"
             }
           },
           "required": [
             "enabled",
+            "title",
+            "favicon",
+            "logo",
+            "logoDark",
+            "stylesheet",
             "existingConfigMap",
             "existingConfigMapItems",
             "fragmentsEnabled"
@@ -3381,7 +3441,7 @@
           "type": "string"
         },
         "trustedOrigins": {
-          "description": "Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed\norigin can obtain full-permission tokens via the per-realm web client.\nList or comma-separated string; tpl-rendered.",
+          "description": "Additional trusted first-party app origins (TRUSTED_ORIGINS). Each entry\nis added to the redirect allowlist of the per-realm built-in system clients\n(admin-console, account-console), so any listed origin can complete a login\nand obtain a full-permission token. A host may carry a single \"*\"\n(https://*.example.com); \"**\" in a host is rejected by authup at boot.\nList or comma-separated string; tpl-rendered.",
           "items": {
             "required": []
           },

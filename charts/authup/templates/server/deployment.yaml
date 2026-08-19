@@ -44,7 +44,7 @@ spec:
         {{- if and .Values.server.provisioning.enabled .Values.server.provisioning.files }}
         checksum/provisioning: {{ include (print $.Template.BasePath "/server/configmap-provisioning.yaml") . | sha256sum }}
         {{- end }}
-        {{- if and .Values.server.theme.enabled .Values.server.theme.files }}
+        {{- if and .Values.server.theme.enabled (or .Values.server.theme.files (include "authup.server.themeManifestConfigured" .)) }}
         checksum/theme: {{ include (print $.Template.BasePath "/server/configmap-theme.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.server.configuration }}

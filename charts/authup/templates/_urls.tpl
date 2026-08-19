@@ -89,5 +89,23 @@ disabled or already covered by the server public URL's origin.
 {{- $origins = append $origins $uiOrigin -}}
 {{- end -}}
 {{- end -}}
-{{- $origins | uniq | join "," -}}
+{{- $origins = $origins | uniq -}}
+{{- range $origins -}}
+{{- include "authup.assertTrustedOrigin" . -}}
+{{- end -}}
+{{- $origins | join "," -}}
+{{- end -}}
+
+{{/*
+Post-render origin assertion. A trusted origin becomes an `<origin>/**`
+redirect pattern on every realm's built-in system clients, and `**` in the
+host matches the rest of the value outright, so one typo turns that
+allowlist into allow-any-origin. authup rejects it at boot (beta.59+);
+asserting here turns a crash-looping IdP into a failed render. A single `*`
+is a supported host wildcard and stays allowed.
+*/}}
+{{- define "authup.assertTrustedOrigin" -}}
+{{- if contains "**" . -}}
+{{- fail (printf "authup: a trusted origin must not use \"**\" in the host, it would match every origin. Use a single \"*\" for a host wildcard (got %q)." .) -}}
+{{- end -}}
 {{- end -}}

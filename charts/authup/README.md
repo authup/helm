@@ -7,13 +7,14 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.2.0?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.58](https://img.shields.io/badge/AppVersion-1.0.0--beta.58-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.62](https://img.shields.io/badge/AppVersion-1.0.0--beta.62-informational?style=flat-square)
 
 Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-admin-console admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
 
 - **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
-  surface plus the server-rendered auth pages (login, consent, registration,
-  password recovery). This is the identity origin.
+  surface, the server-rendered auth pages (login, consent, registration,
+  password recovery) and the `/account` self-service console
+  (`server.features.accountConsole`). This is the identity origin.
 - **client-admin-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
   (optional; disable with `adminConsole.enabled=false` for a headless IdP).
 - optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
@@ -87,6 +88,53 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Theming the served consoles
+
+Both consoles server-core serves (the auth pages and `/account`) are rebranded
+from a directory the chart mounts read-only. Set the manifest as values and the
+chart composes `theme.json` for you; `files` carries the assets it references:
+
+```yaml
+server:
+  theme:
+    enabled: true
+    title: Sign in to ACME
+    logo: assets/logo.svg
+    stylesheet: assets/theme.css
+    tokens:
+      # the accent the whole primary palette is mixed from
+      --authup-periwinkle: "#c0392b"
+      --authup-surface-card: "#ffffff"
+    tokensDark:
+      --authup-surface-card: "#201e1d"
+    files:
+      assets/logo.svg: |
+        <svg xmlns="http://www.w3.org/2000/svg" ...></svg>
+      assets/theme.css: |
+        .a-auth-shell-card { border: 1px solid var(--authup-surface-border); }
+```
+
+A colour in `tokens` wins in dark mode too, so surface colours belong in both
+maps. The chart rejects at render time what Authup rejects at boot or answers
+with a 404: an asset outside `assets/`, an asset no file provides, a token name
+that is not a lowercase custom property, and a token value carrying `url(` or
+`;`. Only `assets/` is served over HTTP, so `theme.json` is unreachable by
+construction.
+
+`existingConfigMap` replaces the whole mechanism when you need binary assets
+(`binaryData`); it is mounted whole, so it must carry `theme.json` itself and
+cannot be combined with the manifest values. `fragmentsEnabled` splices
+`fragments/head.html` into the console `<head>` verbatim: raw operator markup
+on the origin that holds your users' session cookies, hence opt-in.
+
+> The theme directory is as sensitive as the config file: CSS there can restyle
+> or cover the OAuth2 consent buttons. Never source it from somewhere a tenant
+> or a lower-privileged CI job can write.
+
+Theming is experimental upstream: the directory layout and the `theme*` options
+may change in an Authup minor release. See the
+[Authup theming guide](https://authup.org/guide/deployment/theming.html).
 
 ## GitOps / ArgoCD
 
@@ -297,7 +345,7 @@ Kubernetes: `>=1.25.0-0`
 | server.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
 | server.autoscaling.hpa.targetMemory | string | `""` | Target memory utilization percentage |
 | server.command | list | `[]` | Override the container command |
-| server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values |
+| server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values, e.g. AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console with your own build (pair them with extraVolumes; the substituted package owns the login flow, so use server.theme for branding instead) |
 | server.configuration | string | `""` | Content of an authup.server.core.conf mounted into the working directory for file-only options (middleware objects, per-field SMTP, CORS allowlist). Environment variables always win over file values. |
 | server.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context. The upstream image runs as root and needs a writable npm cache; the chart mounts emptyDirs at /usr/src/app/writable and /tmp to keep readOnlyRootFilesystem viable. |
 | server.customLivenessProbe | object | `{}` | Custom liveness probe |
@@ -311,6 +359,7 @@ Kubernetes: `>=1.25.0-0`
 | server.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |
 | server.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
 | server.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
+| server.features.accountConsole | bool | `true` | Serve the account self-service console at <publicUrl>/account (profile, password, authenticators, sessions, applications). ACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal |
 | server.features.emailVerification | bool | `false` | Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP) |
 | server.features.passwordRecovery | bool | `false` | Enable password recovery (PASSWORD_RECOVERY_ENABLED; requires SMTP) |
 | server.features.registration | bool | `false` | Enable self-service user registration (REGISTRATION_ENABLED) |
@@ -406,15 +455,22 @@ Kubernetes: `>=1.25.0-0`
 | server.startupProbe.successThreshold | int | `1` |  |
 | server.startupProbe.timeoutSeconds | int | `5` |  |
 | server.terminationGracePeriodSeconds | int | `30` | Pod termination grace period (server-core tears down within ~10s after signal) |
-| server.theme.enabled | bool | `false` | Mount an operator theme for the served consoles (the auth console and the account console). Requires an authup image that supports THEME_DIRECTORY_PATH; older images ignore it |
-| server.theme.existingConfigMap | string | `""` | Existing ConfigMap holding the theme (tpl-rendered name). Use for binary assets, which cannot be expressed in files |
+| server.theme.enabled | bool | `false` | Mount an operator theme for the served consoles (the auth console and the account console). Requires an authup image that supports THEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the directory layout and the theme* options may change in a minor release |
+| server.theme.existingConfigMap | string | `""` | Existing ConfigMap holding the theme (tpl-rendered name). Use for binary assets, which cannot be expressed in files. Mounted whole, so it must carry theme.json itself and excludes the manifest values above |
 | server.theme.existingConfigMapItems | list | `[]` | Key -> path projection for existingConfigMap, so its keys can land in subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]). Empty mounts every key flat at the theme root |
-| server.theme.files | object | `{}` | Map of path -> file content, relative to the theme root (tpl-rendered). Keys may carry a "/" ("assets/theme.css") and are projected into subdirectories. Only assets/ is served over HTTP. Text only — use existingConfigMap with binaryData for images |
+| server.theme.favicon | string | `""` | Favicon path, relative to the theme root and under assets/ (e.g. assets/favicon.svg). Must be a key of files |
+| server.theme.files | object | `{}` | Map of path -> file content, relative to the theme root (tpl-rendered). Keys may carry a "/" ("assets/theme.css") and are projected into subdirectories. Only assets/ is served over HTTP. Text only — use existingConfigMap with binaryData for images. Set theme.json here only when writing the manifest by hand instead of using the values above |
 | server.theme.fragmentsEnabled | bool | `false` | Read fragments/head.html and splice it into the console <head>. Raw, unsanitized markup on the identity provider origin, so it is opt-in |
+| server.theme.logo | string | `""` | Logo replacing the built-in mark on both consoles, under assets/. Painted into the existing mark's box, so it needs no sizing |
+| server.theme.logoDark | string | `""` | Dark-mode logo variant, under assets/. Without it dark mode reuses logo, which disappears when the mark is drawn dark-on-light |
+| server.theme.stylesheet | string | `""` | Stylesheet path, under assets/ and ending in .css. Linked last, so it beats the token block; it is unlayered, so set dark colors explicitly |
+| server.theme.title | string | `""` | Document title of both served consoles ("" = authup's own) |
+| server.theme.tokens | object | `{}` | authup-periwinkle alone recolors buttons, focus rings and links. A color set here also wins in dark mode: put surface colors in both tokens and tokensDark |
+| server.theme.tokensDark | object | `{}` | CSS custom properties applied in dark mode only (tpl-rendered) |
 | server.tolerations | list | `[]` | Tolerations |
 | server.topologySpreadConstraints | list | `[]` | Topology spread constraints (a missing labelSelector is filled with the pod's selector labels) |
 | server.trustProxy | string | `"1"` | TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress), not authup's spoofable trust-everything default |
-| server.trustedOrigins | list | `[]` | Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed origin can obtain full-permission tokens via the per-realm web client. List or comma-separated string; tpl-rendered. |
+| server.trustedOrigins | list | `[]` | Additional trusted first-party app origins (TRUSTED_ORIGINS). Each entry is added to the redirect allowlist of the per-realm built-in system clients (admin-console, account-console), so any listed origin can complete a login and obtain a full-permission token. A host may carry a single "*" (https://*.example.com); "**" in a host is rejected by authup at boot. List or comma-separated string; tpl-rendered. |
 | server.trustedOriginsAppendAdminConsole | bool | `true` | Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the most common dead-login misconfiguration) |
 | server.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | serviceAccount.annotations | object | `{}` | ServiceAccount annotations (tpl-rendered) |
