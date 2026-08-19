@@ -46,6 +46,11 @@ helm template t charts/authup --set server.publicUrl=auth.example.com        # s
 helm template t charts/authup --set postgresql.enabled=false --set externalDatabase.host=db  # extdb w/o password
 helm template t charts/authup --set server.ingress.enabled=true              # ingress w/o hostname
 helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # first-class collision
+helm template t charts/authup --set server.theme.enabled=true               # theme with no carrier
+helm template t charts/authup --set server.theme.enabled=true --set server.theme.title=X --set server.theme.existingConfigMap=cm  # manifest + existing CM
+helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=logo.svg          # asset outside assets/
+helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=assets/logo.svg   # asset missing from files
+helm template t charts/authup --set server.theme.enabled=true --set 'server.theme.tokens.--authup-bg=url(x)'  # token value authup rejects
 helm template t charts/authup --set 'server.trustedOrigins[0]=https://**.x'  # globstar host
 ```
 

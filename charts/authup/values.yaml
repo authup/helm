@@ -464,18 +464,48 @@ server:
   theme:
     # -- Mount an operator theme for the served consoles (the auth console and
     # the account console). Requires an authup image that supports
-    # THEME_DIRECTORY_PATH; older images ignore it
+    # THEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the
+    # directory layout and the theme* options may change in a minor release
     enabled: false
+    # -- Document title of both served consoles ("" = authup's own)
+    title: ""
+    # -- Favicon path, relative to the theme root and under assets/
+    # (e.g. assets/favicon.svg). Must be a key of files
+    favicon: ""
+    # -- Logo replacing the built-in mark on both consoles, under assets/.
+    # Painted into the existing mark's box, so it needs no sizing
+    logo: ""
+    # -- Dark-mode logo variant, under assets/. Without it dark mode reuses
+    # logo, which disappears when the mark is drawn dark-on-light
+    logoDark: ""
+    # -- Stylesheet path, under assets/ and ending in .css. Linked last, so it
+    # beats the token block; it is unlayered, so set dark colors explicitly
+    stylesheet: ""
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- CSS custom properties applied in both color modes (tpl-rendered).
+    # --authup-periwinkle alone recolors buttons, focus rings and links.
+    # A color set here also wins in dark mode: put surface colors in both
+    # tokens and tokensDark
+    tokens: {}
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- CSS custom properties applied in dark mode only (tpl-rendered)
+    tokensDark: {}
     # @schema
     # additionalProperties: true
     # @schema
     # -- Map of path -> file content, relative to the theme root (tpl-rendered).
     # Keys may carry a "/" ("assets/theme.css") and are projected into
     # subdirectories. Only assets/ is served over HTTP. Text only — use
-    # existingConfigMap with binaryData for images
+    # existingConfigMap with binaryData for images. Set theme.json here only
+    # when writing the manifest by hand instead of using the values above
     files: {}
     # -- Existing ConfigMap holding the theme (tpl-rendered name). Use for
-    # binary assets, which cannot be expressed in files
+    # binary assets, which cannot be expressed in files. Mounted whole, so it
+    # must carry theme.json itself and excludes the manifest values above
     existingConfigMap: ""
     # -- Key -> path projection for existingConfigMap, so its keys can land in
     # subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]).

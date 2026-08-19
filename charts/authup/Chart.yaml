@@ -34,6 +34,8 @@ annotations:
     - kind: changed
       description: appVersion tracks authup 1.0.0-beta.62
     - kind: added
+      description: server.theme manifest values compose theme.json (title, logo, tokens)
+    - kind: added
       description: server.features.accountConsole toggles the /account self-service console
     - kind: added
       description: Trusted origins carrying "**" now fail the render, as authup fails the boot

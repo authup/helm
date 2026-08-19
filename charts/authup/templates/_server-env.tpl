@@ -187,7 +187,7 @@ THEME_FRAGMENTS_ENABLED: {{ .Values.server.theme.fragmentsEnabled | toString | q
     {{- end }}
     {{- else }}
     items:
-      {{- range $path, $content := .Values.server.theme.files }}
+      {{- range $path := splitList "\n" (include "authup.server.themePaths" $) }}
       - key: {{ include "authup.server.themeConfigMapKey" $path }}
         path: {{ $path }}
       {{- end }}
@@ -224,9 +224,68 @@ operator.
 True when a theme should be mounted at all.
 */}}
 {{- define "authup.server.themeMounted" -}}
-{{- if and .Values.server.theme.enabled (or .Values.server.theme.files .Values.server.theme.existingConfigMap) -}}
+{{- if and .Values.server.theme.enabled (or .Values.server.theme.files .Values.server.theme.existingConfigMap (include "authup.server.themeManifestConfigured" .)) -}}
 true
 {{- end -}}
+{{- end -}}
+
+{{/*
+True when any structured manifest value is set, i.e. when the chart owns
+theme.json instead of the operator writing it into `files` by hand.
+*/}}
+{{- define "authup.server.themeManifestConfigured" -}}
+{{- $t := .Values.server.theme -}}
+{{- if or $t.title $t.favicon $t.logo $t.logoDark $t.stylesheet $t.tokens $t.tokensDark -}}
+true
+{{- end -}}
+{{- end -}}
+
+{{/*
+theme.json composed from the structured manifest values. Only keys the
+operator actually set are emitted: authup fails the boot on an UNKNOWN
+manifest key, and would also read an empty string as a real (broken) asset
+reference, so a "" must never reach the file.
+
+`version` is authup's manifest version, not the chart's: it is how a future
+per-realm layout change becomes detectable instead of silent.
+*/}}
+{{- define "authup.server.themeManifest" -}}
+{{- $ctx := . -}}
+{{- $t := .Values.server.theme -}}
+{{- $manifest := dict "version" 1 -}}
+{{- range $key := list "title" "favicon" "logo" "logoDark" "stylesheet" -}}
+{{- $value := get $t $key -}}
+{{- if $value -}}
+{{- $_ := set $manifest $key (include "authup.tplvalues.render" (dict "value" $value "context" $ctx)) -}}
+{{- end -}}
+{{- end -}}
+{{- range $key := list "tokens" "tokensDark" -}}
+{{- $source := get $t $key -}}
+{{- if $source -}}
+{{- $rendered := dict -}}
+{{- range $name, $value := $source -}}
+{{- $_ := set $rendered $name (include "authup.tplvalues.render" (dict "value" ($value | toString) "context" $ctx)) -}}
+{{- end -}}
+{{- $_ := set $manifest $key $rendered -}}
+{{- end -}}
+{{- end -}}
+{{- toPrettyJson $manifest -}}
+{{- end -}}
+
+{{/*
+Every path the chart-managed theme ConfigMap carries, newline separated.
+Single source for the ConfigMap keys AND the volume's items projection, so
+the two cannot diverge into a key that is stored but never mounted.
+*/}}
+{{- define "authup.server.themePaths" -}}
+{{- $paths := list -}}
+{{- if include "authup.server.themeManifestConfigured" . -}}
+{{- $paths = append $paths "theme.json" -}}
+{{- end -}}
+{{- range $path, $content := .Values.server.theme.files -}}
+{{- $paths = append $paths $path -}}
+{{- end -}}
+{{- $paths | join "\n" -}}
 {{- end -}}
 
 {{/*
@@ -235,12 +294,74 @@ silently-inert theme: the dominant failure mode of theming is a page that
 looks exactly like an un-themed page.
 */}}
 {{- define "authup.server.validateTheme" -}}
+{{- $theme := .Values.server.theme }}
+{{- $manifest := include "authup.server.themeManifestConfigured" . }}
 {{- if .Values.server.theme.enabled }}
-{{- if not (or .Values.server.theme.files .Values.server.theme.existingConfigMap) }}
-{{- fail "authup: server.theme.enabled requires server.theme.files or server.theme.existingConfigMap — an empty theme directory would render an un-themed page with no error." }}
+{{- if not (or $theme.files $theme.existingConfigMap $manifest) }}
+{{- fail "authup: server.theme.enabled requires server.theme.files, server.theme.existingConfigMap or the structured manifest values (title / logo / tokens / ...). An empty theme directory would render an un-themed page with no error." }}
 {{- end }}
-{{- if and .Values.server.theme.files .Values.server.theme.existingConfigMap }}
+{{- if and $theme.files $theme.existingConfigMap }}
 {{- fail "authup: set either server.theme.files or server.theme.existingConfigMap, not both — the existing ConfigMap would win and the inline files would be silently ignored." }}
+{{- end }}
+{{- if and $manifest $theme.existingConfigMap }}
+{{- fail "authup: the structured server.theme manifest values cannot be combined with server.theme.existingConfigMap: the ConfigMap is mounted whole, so the chart-composed theme.json would never reach the pod. Put theme.json into that ConfigMap instead." }}
+{{- end }}
+{{- if and $manifest (hasKey $theme.files "theme.json") }}
+{{- fail "authup: server.theme.files has a \"theme.json\" key while the structured manifest values are also set. The chart composes theme.json from those values, so one of the two would be silently dropped. Use one or the other." }}
+{{- end }}
+{{- /* An asset reference the theme does not carry is the exact failure the
+       chart exists to catch: authup answers 404 and the page renders
+       un-themed, which looks identical to theming being off. Only assets/
+       is served over HTTP (the theme root is deliberately unreachable, so
+       theme.json cannot be fetched), hence the prefix requirement. */}}
+{{- $imageExtensions := list ".svg" ".png" ".jpg" ".jpeg" ".gif" ".webp" ".avif" ".ico" }}
+{{- range $key := list "favicon" "logo" "logoDark" }}
+{{- $value := get $theme $key }}
+{{- if $value }}
+{{- if not (hasPrefix "assets/" $value) }}
+{{- fail (printf "authup: server.theme.%s must reference a file under \"assets/\" (got %q). assets/ is the only directory authup serves over HTTP." $key $value) }}
+{{- end }}
+{{- $matched := false }}
+{{- range $extension := $imageExtensions }}
+{{- if hasSuffix $extension (lower $value) }}{{- $matched = true }}{{- end }}
+{{- end }}
+{{- if not $matched }}
+{{- fail (printf "authup: server.theme.%s must be an image (%s), got %q. authup returns 404 for any other type." $key (join ", " $imageExtensions) $value) }}
+{{- end }}
+{{- if not (hasKey ($theme.files | default dict) $value) }}
+{{- fail (printf "authup: server.theme.%s references %q, which is not a key of server.theme.files. The asset would 404 and the console would render un-themed." $key $value) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- if $theme.stylesheet }}
+{{- if not (hasPrefix "assets/" $theme.stylesheet) }}
+{{- fail (printf "authup: server.theme.stylesheet must reference a file under \"assets/\" (got %q). assets/ is the only directory authup serves over HTTP." $theme.stylesheet) }}
+{{- end }}
+{{- if not (hasSuffix ".css" (lower $theme.stylesheet)) }}
+{{- fail (printf "authup: server.theme.stylesheet must be a .css file (got %q)." $theme.stylesheet) }}
+{{- end }}
+{{- if not (hasKey ($theme.files | default dict) $theme.stylesheet) }}
+{{- fail (printf "authup: server.theme.stylesheet references %q, which is not a key of server.theme.files. The stylesheet would 404 and the console would render un-themed." $theme.stylesheet) }}
+{{- end }}
+{{- end }}
+{{- /* Mirrors authup's own manifest validation. It fails the BOOT on a bad
+       token, so catching it at render time turns a crash-looping IdP into a
+       failed `helm upgrade`. */}}
+{{- range $key := list "tokens" "tokensDark" }}
+{{- range $name, $value := (get $theme $key) }}
+{{- if not (regexMatch "^--[a-z0-9-]+$" $name) }}
+{{- fail (printf "authup: server.theme.%s key %q must be a lowercase CSS custom property (--foo-bar)." $key $name) }}
+{{- end }}
+{{- $rendered := $value | toString }}
+{{- if gt (len $rendered) 256 }}
+{{- fail (printf "authup: server.theme.%s.%s exceeds the 256 character limit authup enforces on a token value." $key $name) }}
+{{- end }}
+{{- range $forbidden := list "}" "<" ">" ";" "@" "\\" "/*" "url(" "expression(" }}
+{{- if contains $forbidden $rendered }}
+{{- fail (printf "authup: server.theme.%s.%s contains %q, which authup rejects in a token value. Use server.theme.stylesheet for anything needing url() or multiple declarations." $key $name $forbidden) }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- range $path, $content := .Values.server.theme.files }}
 {{- if hasPrefix "/" $path }}
