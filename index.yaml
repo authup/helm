@@ -3,6 +3,51 @@ entries:
   authup:
   - annotations:
       artifacthub.io/changes: |
+        - kind: changed
+          description: appVersion tracks authup 1.0.0-beta.62
+        - kind: added
+          description: server.theme manifest values compose theme.json (title, logo, tokens)
+        - kind: added
+          description: server.features.accountConsole toggles the /account self-service console
+        - kind: added
+          description: Trusted origins carrying "**" now fail the render, as authup fails the boot
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.62
+    created: "2026-08-19T08:53:43.099335724Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      the server-core IdP/API service and the client-admin-console admin UI, with
+      optional built-in PostgreSQL, MySQL and Valkey instances.
+    digest: bde14967bd140ff7945e596e9f61aabd10f001fbb6f711aef8351920aec47c6f
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.2.1/authup-0.2.1.tgz
+    version: 0.2.1
+  - annotations:
+      artifacthub.io/changes: |
         - kind: fixed
           description: Chart license corrected to Apache-2.0
         - kind: added
@@ -80,4 +125,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-04T19:03:24.973158578Z"
+generated: "2026-08-19T08:53:43.09934623Z"
