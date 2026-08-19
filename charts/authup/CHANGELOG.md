@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/authup/helm/compare/authup-0.2.0...authup-0.2.1) (2026-08-19)
+
+
+### Features
+
+* **authup:** track authup 1.0.0-beta.62 and compose theme.json from values ([#8](https://github.com/authup/helm/issues/8)) ([696ea13](https://github.com/authup/helm/commit/696ea13e868421d882bf3b7a57fc13b33c4c0dca))
+
 ## [0.2.0](https://github.com/authup/helm/compare/authup-0.1.0...authup-0.2.0) (2026-08-04)
 
 
