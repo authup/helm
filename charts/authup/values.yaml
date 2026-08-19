@@ -2,6 +2,10 @@
 
 ## @section Global parameters
 
+# @schema
+# type: object
+# additionalProperties: true
+# @schema
 global:
   # -- Global container image registry override (takes precedence over image.registry)
   imageRegistry: ""

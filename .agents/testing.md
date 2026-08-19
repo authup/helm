@@ -54,6 +54,11 @@ helm template t charts/authup --set server.theme.enabled=true --set 'server.them
 helm template t charts/authup --set 'server.trustedOrigins[0]=https://**.x'  # globstar host
 ```
 
+Umbrella use is part of the contract: `global` must stay open. Render a throwaway
+parent chart with authup in `charts/` and an unrelated global (`global.myOrgKey`)
+whenever the schema generation changes; `ci/default-values.yaml` carries a stray
+global key as the cheap in-repo version of that check.
+
 A single `*` host wildcard (`https://*.example.com`) must still RENDER: authup
 supports it, only `**` is the allow-any-origin trap.
 

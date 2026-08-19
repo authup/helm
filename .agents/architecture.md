@@ -91,6 +91,15 @@ editing templates or values.
     `authup.tplvalues.render`, so umbrella charts can inject template
     expressions (the PrivateAIM lesson: their untemplatable `existingSecret`
     forced a hardcoded-names table).
+17. **`global` must stay open in the schema.** helm copies a parent chart's
+    ENTIRE `global` map into every subchart before validating that subchart's
+    schema, so `additionalProperties: false` there makes the chart
+    uninstallable as a dependency of any umbrella that sets a global this
+    chart does not declare. `values.yaml` carries the
+    `# @schema additionalProperties: true` opt-out and `ci/default-values.yaml`
+    a stray global key as the regression guard. The chart reads only
+    `imageRegistry` / `imagePullSecrets` / `defaultStorageClass` and ignores
+    the rest.
 
 ## Values conventions
 

@@ -1,4 +1,9 @@
 # Baseline: built-in PostgreSQL, both services.
+# The stray global key is a regression guard: helm copies a parent chart's whole
+# global map into every subchart before schema validation, so the schema must not
+# reject globals this chart does not declare.
+global:
+  umbrellaProbe: parent-injected
 postgresql:
   persistence:
     enabled: false

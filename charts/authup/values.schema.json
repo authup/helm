@@ -1359,7 +1359,7 @@
       "type": "string"
     },
     "global": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "defaultStorageClass": {
           "default": "",
@@ -3890,7 +3890,6 @@
     }
   },
   "required": [
-    "global",
     "nameOverride",
     "fullnameOverride",
     "namespaceOverride",
