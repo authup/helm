@@ -32,6 +32,21 @@
   and publishes whatever `Chart.yaml` holds at the dispatched ref. This is the
   recovery path when a publish fails on its own after the version bump has
   already merged, since publishing is otherwise reachable only from a push.
+- `skip-github-release` costs release-please its own PR bookkeeping, so the
+  publish job closes that loop by hand. release-please labels a release PR
+  `autorelease: pending` when it opens it and only clears the label in the
+  release step, which is exactly the step being skipped. A merged release PR
+  therefore keeps the label forever, and from then on every run aborts PR
+  creation with `There are untagged, merged release PRs outstanding` while
+  exiting 0, so the workflow stays green while no release PR is ever opened
+  again. The `Clear the release-please pending label` step is the fix; a single
+  merged PR still carrying the label deadlocks every future release PR.
+  The step exists only because chart-releaser owns releases: `cr upload
+  --skip-existing` skips an existing release wholesale (no asset upload), so a
+  release-please-created release would leave the chart `.tgz` unattached and
+  the `index.yaml` download URL dangling. If hevi ever learns to attach assets
+  to an existing release, drop `skip-github-release` and delete the step:
+  release-please then handles the whole cycle on its own.
 - Requires hevi >= v2.0.2. Earlier versions called `cr upload` without
   `--commit`, so GitHub rejected every newly created release with
   `422 Invalid target_commitish parameter` (tada5hi/hevi#60).
