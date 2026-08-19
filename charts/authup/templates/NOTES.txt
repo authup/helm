@@ -9,6 +9,9 @@ server-core (IdP / API):
 {{- if $serverUrl }}
   Public URL / OIDC issuer: {{ $serverUrl }}
   OIDC discovery:           {{ $serverUrl }}/.well-known/openid-configuration
+{{- if .Values.server.features.accountConsole }}
+  Account self-service:     {{ $serverUrl }}/account
+{{- end }}
 {{- else }}
   In-cluster URL: http://{{ include "authup.server.fullname" . }}.{{ include "authup.namespace" . }}.svc:{{ .Values.server.service.ports.http }}
   (port-forward: kubectl -n {{ include "authup.namespace" . }} port-forward svc/{{ include "authup.server.fullname" . }} 3001:{{ .Values.server.service.ports.http }})
@@ -79,6 +82,13 @@ NOTE: multi-replica server with the migration hook enabled — upgrades run
 TIP: with server.replicaCount > 1, consider server.migration.enabled=true so
 schema migrations are serialized in a pre-upgrade Job instead of racing at
 pod boot.
+{{- end }}
+
+{{- if .Values.server.provisioning.enabled }}
+
+NOTE: "admin-console" and "account-console" are reserved client names: authup
+provisions them as built-in system clients in every realm and overwrites a
+client of either name. Do not declare them in server.provisioning.
 {{- end }}
 
 {{- if or .Values.postgresql.enabled .Values.mysql.enabled }}

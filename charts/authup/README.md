@@ -7,13 +7,14 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.2.0?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.58](https://img.shields.io/badge/AppVersion-1.0.0--beta.58-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.62](https://img.shields.io/badge/AppVersion-1.0.0--beta.62-informational?style=flat-square)
 
 Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-admin-console admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
 
 - **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
-  surface plus the server-rendered auth pages (login, consent, registration,
-  password recovery). This is the identity origin.
+  surface, the server-rendered auth pages (login, consent, registration,
+  password recovery) and the `/account` self-service console
+  (`server.features.accountConsole`). This is the identity origin.
 - **client-admin-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
   (optional; disable with `adminConsole.enabled=false` for a headless IdP).
 - optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
@@ -297,7 +298,7 @@ Kubernetes: `>=1.25.0-0`
 | server.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
 | server.autoscaling.hpa.targetMemory | string | `""` | Target memory utilization percentage |
 | server.command | list | `[]` | Override the container command |
-| server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values |
+| server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values, e.g. AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console with your own build (pair them with extraVolumes; the substituted package owns the login flow, so use server.theme for branding instead) |
 | server.configuration | string | `""` | Content of an authup.server.core.conf mounted into the working directory for file-only options (middleware objects, per-field SMTP, CORS allowlist). Environment variables always win over file values. |
 | server.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context. The upstream image runs as root and needs a writable npm cache; the chart mounts emptyDirs at /usr/src/app/writable and /tmp to keep readOnlyRootFilesystem viable. |
 | server.customLivenessProbe | object | `{}` | Custom liveness probe |
@@ -311,6 +312,7 @@ Kubernetes: `>=1.25.0-0`
 | server.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |
 | server.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
 | server.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
+| server.features.accountConsole | bool | `true` | Serve the account self-service console at <publicUrl>/account (profile, password, authenticators, sessions, applications). ACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal |
 | server.features.emailVerification | bool | `false` | Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP) |
 | server.features.passwordRecovery | bool | `false` | Enable password recovery (PASSWORD_RECOVERY_ENABLED; requires SMTP) |
 | server.features.registration | bool | `false` | Enable self-service user registration (REGISTRATION_ENABLED) |
@@ -414,7 +416,7 @@ Kubernetes: `>=1.25.0-0`
 | server.tolerations | list | `[]` | Tolerations |
 | server.topologySpreadConstraints | list | `[]` | Topology spread constraints (a missing labelSelector is filled with the pod's selector labels) |
 | server.trustProxy | string | `"1"` | TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress), not authup's spoofable trust-everything default |
-| server.trustedOrigins | list | `[]` | Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed origin can obtain full-permission tokens via the per-realm web client. List or comma-separated string; tpl-rendered. |
+| server.trustedOrigins | list | `[]` | Additional trusted first-party app origins (TRUSTED_ORIGINS). Each entry is added to the redirect allowlist of the per-realm built-in system clients (admin-console, account-console), so any listed origin can complete a login and obtain a full-permission token. A host may carry a single "*" (https://*.example.com); "**" in a host is rejected by authup at boot. List or comma-separated string; tpl-rendered. |
 | server.trustedOriginsAppendAdminConsole | bool | `true` | Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the most common dead-login misconfiguration) |
 | server.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | serviceAccount.annotations | object | `{}` | ServiceAccount annotations (tpl-rendered) |

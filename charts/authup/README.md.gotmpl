@@ -25,8 +25,9 @@
 {{ template "chart.description" . }} It deploys:
 
 - **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
-  surface plus the server-rendered auth pages (login, consent, registration,
-  password recovery). This is the identity origin.
+  surface, the server-rendered auth pages (login, consent, registration,
+  password recovery) and the `/account` self-service console
+  (`server.features.accountConsole`). This is the identity origin.
 - **client-admin-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
   (optional; disable with `adminConsole.enabled=false` for a headless IdP).
 - optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in

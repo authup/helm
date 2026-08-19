@@ -2200,7 +2200,7 @@
         },
         "config": {
           "additionalProperties": true,
-          "description": "Extra environment variables rendered literally into the env ConfigMap\n(map of NAME: value) for options without first-class values",
+          "description": "Extra environment variables rendered literally into the env ConfigMap\n(map of NAME: value) for options without first-class values, e.g.\nAUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console\nwith your own build (pair them with extraVolumes; the substituted package\nowns the login flow, so use server.theme for branding instead)",
           "required": [],
           "title": "config"
         },
@@ -2380,6 +2380,13 @@
         "features": {
           "additionalProperties": false,
           "properties": {
+            "accountConsole": {
+              "default": true,
+              "description": "Serve the account self-service console at \u003cpublicUrl\u003e/account\n(profile, password, authenticators, sessions, applications).\nACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal",
+              "required": [],
+              "title": "accountConsole",
+              "type": "boolean"
+            },
             "emailVerification": {
               "default": false,
               "description": "Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP)",
@@ -2405,7 +2412,8 @@
           "required": [
             "registration",
             "passwordRecovery",
-            "emailVerification"
+            "emailVerification",
+            "accountConsole"
           ],
           "title": "features",
           "type": "object"
@@ -3381,7 +3389,7 @@
           "type": "string"
         },
         "trustedOrigins": {
-          "description": "Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed\norigin can obtain full-permission tokens via the per-realm web client.\nList or comma-separated string; tpl-rendered.",
+          "description": "Additional trusted first-party app origins (TRUSTED_ORIGINS). Each entry\nis added to the redirect allowlist of the per-realm built-in system clients\n(admin-console, account-console), so any listed origin can complete a login\nand obtain a full-permission token. A host may carry a single \"*\"\n(https://*.example.com); \"**\" in a host is rejected by authup at boot.\nList or comma-separated string; tpl-rendered.",
           "items": {
             "required": []
           },

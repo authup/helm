@@ -402,8 +402,11 @@ server:
   # "" = derived from server.ingress when enabled. Changing it later breaks
   # enrolled WebAuthn credentials and the OIDC issuer.
   publicUrl: ""
-  # -- Additional trusted first-party app origins (TRUSTED_ORIGINS). Each listed
-  # origin can obtain full-permission tokens via the per-realm web client.
+  # -- Additional trusted first-party app origins (TRUSTED_ORIGINS). Each entry
+  # is added to the redirect allowlist of the per-realm built-in system clients
+  # (admin-console, account-console), so any listed origin can complete a login
+  # and obtain a full-permission token. A host may carry a single "*"
+  # (https://*.example.com); "**" in a host is rejected by authup at boot.
   # List or comma-separated string; tpl-rendered.
   trustedOrigins: []
   # -- Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the
@@ -419,6 +422,10 @@ server:
     passwordRecovery: false
     # -- Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP)
     emailVerification: false
+    # -- Serve the account self-service console at <publicUrl>/account
+    # (profile, password, authenticators, sessions, applications).
+    # ACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal
+    accountConsole: true
   mfa:
     # -- Enable multi-factor authentication (MFA_ENABLED)
     enabled: false
@@ -428,7 +435,10 @@ server:
   # additionalProperties: true
   # @schema
   # -- Extra environment variables rendered literally into the env ConfigMap
-  # (map of NAME: value) for options without first-class values
+  # (map of NAME: value) for options without first-class values, e.g.
+  # AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console
+  # with your own build (pair them with extraVolumes; the substituted package
+  # owns the login flow, so use server.theme for branding instead)
   config: {}
   # -- Content of an authup.server.core.conf mounted into the working directory
   # for file-only options (middleware objects, per-field SMTP, CORS allowlist).

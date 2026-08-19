@@ -46,7 +46,11 @@ helm template t charts/authup --set server.publicUrl=auth.example.com        # s
 helm template t charts/authup --set postgresql.enabled=false --set externalDatabase.host=db  # extdb w/o password
 helm template t charts/authup --set server.ingress.enabled=true              # ingress w/o hostname
 helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # first-class collision
+helm template t charts/authup --set 'server.trustedOrigins[0]=https://**.x'  # globstar host
 ```
+
+A single `*` host wildcard (`https://*.example.com`) must still RENDER: authup
+supports it, only `**` is the allow-any-origin trap.
 
 The generated `values.schema.json` must keep catching typos
 (`--set server.replicaCountt=3` fails) while free-form maps stay open
