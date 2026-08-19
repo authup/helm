@@ -312,7 +312,7 @@
               "type": "array"
             },
             "extraRules": {
-              "description": "Full custom rules (tpl-rendered; overrides the generated rule)",
+              "description": "Full custom rules (tpl-rendered; appended after the generated rules)",
               "items": {
                 "required": []
               },
@@ -742,13 +742,31 @@
               "title": "enabled",
               "type": "boolean"
             },
+            "filters": {
+              "description": "Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "filters",
+              "type": "array"
+            },
             "hostnames": {
-              "description": "Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname)",
+              "description": "Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public\nURL path is dropped and needs its own matches entry)",
               "items": {
                 "required": []
               },
               "required": [],
               "title": "hostnames",
+              "type": "array"
+            },
+            "matches": {
+              "description": "Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix \"/\"",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "matches",
               "type": "array"
             },
             "parentRefs": {
@@ -764,7 +782,9 @@
           "required": [
             "enabled",
             "hostnames",
-            "parentRefs"
+            "parentRefs",
+            "matches",
+            "filters"
           ],
           "title": "route",
           "type": "object"
@@ -2469,7 +2489,7 @@
               "type": "array"
             },
             "extraRules": {
-              "description": "Full custom rules (tpl-rendered; overrides the generated rule)",
+              "description": "Full custom rules (tpl-rendered; appended after the generated rules)",
               "items": {
                 "required": []
               },
@@ -3095,13 +3115,31 @@
               "title": "enabled",
               "type": "boolean"
             },
+            "filters": {
+              "description": "Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "filters",
+              "type": "array"
+            },
             "hostnames": {
-              "description": "Route hostnames ([] = derived from server.publicUrl / ingress hostname)",
+              "description": "Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public\nURL path is dropped and needs its own matches entry)",
               "items": {
                 "required": []
               },
               "required": [],
               "title": "hostnames",
+              "type": "array"
+            },
+            "matches": {
+              "description": "Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix \"/\"",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "matches",
               "type": "array"
             },
             "parentRefs": {
@@ -3117,7 +3155,9 @@
           "required": [
             "enabled",
             "hostnames",
-            "parentRefs"
+            "parentRefs",
+            "matches",
+            "filters"
           ],
           "title": "route",
           "type": "object"

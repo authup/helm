@@ -100,6 +100,13 @@ editing templates or values.
     a stray global key as the regression guard. The chart reads only
     `imageRegistry` / `imagePullSecrets` / `defaultStorageClass` and ignores
     the rest.
+18. **An HTTPRoute rule with no `matches` is a catch-all.** The Gateway API
+    defaults an empty `matches` to PathPrefix `/`, and route hostnames come
+    from the public URL's ORIGIN (the path is dropped), so a sub-path
+    deployment would silently take over the whole shared hostname.
+    `validations.yaml` fails that combination; `route.matches` / `route.filters`
+    are the raw passthroughs that express it (authup always serves at `/`, so
+    the prefix must be matched AND rewritten away).
 
 ## Values conventions
 

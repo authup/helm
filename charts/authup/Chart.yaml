@@ -33,3 +33,7 @@ annotations:
   artifacthub.io/changes: |
     - kind: fixed
       description: A parent chart's own global.* keys no longer fail schema validation
+    - kind: added
+      description: server.route / adminConsole.route accept matches and filters
+    - kind: added
+      description: An HTTPRoute for a sub-path public URL without matches now fails the render

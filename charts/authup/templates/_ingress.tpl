@@ -113,4 +113,10 @@ spec:
     - backendRefs:
         - name: {{ .serviceName }}
           port: {{ .servicePort }}
+      {{- if $route.matches }}
+      matches: {{- include "authup.tplvalues.render" (dict "value" $route.matches "context" $ctx) | nindent 8 }}
+      {{- end }}
+      {{- if $route.filters }}
+      filters: {{- include "authup.tplvalues.render" (dict "value" $route.filters "context" $ctx) | nindent 8 }}
+      {{- end }}
 {{- end -}}
