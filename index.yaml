@@ -3,6 +3,49 @@ entries:
   authup:
   - annotations:
       artifacthub.io/changes: |
+        - kind: fixed
+          description: A parent chart's own global.* keys no longer fail schema validation
+        - kind: added
+          description: server.route / adminConsole.route accept matches and filters
+        - kind: added
+          description: An HTTPRoute for a sub-path public URL without matches now fails the render
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.62
+    created: "2026-08-19T10:04:24.636656749Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      the server-core IdP/API service and the client-admin-console admin UI, with
+      optional built-in PostgreSQL, MySQL and Valkey instances.
+    digest: abc400adbfa8e7413d4f9271bde20ac67e049cad93e9ddf3170a4f0c1066ed1e
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.2.2/authup-0.2.2.tgz
+    version: 0.2.2
+  - annotations:
+      artifacthub.io/changes: |
         - kind: changed
           description: appVersion tracks authup 1.0.0-beta.62
         - kind: added
@@ -125,4 +168,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-19T08:53:43.09934623Z"
+generated: "2026-08-19T10:04:24.636682838Z"
