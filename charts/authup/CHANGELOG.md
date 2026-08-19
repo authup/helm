@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/authup/helm/compare/authup-0.2.1...authup-0.2.2) (2026-08-19)
+
+
+### Features
+
+* **authup:** open the global schema node and let HTTPRoute rules carry matches/filters ([#13](https://github.com/authup/helm/issues/13)) ([a3ca5d5](https://github.com/authup/helm/commit/a3ca5d520cff62a5c658238090b977e325fd1d57))
+
 ## [0.2.1](https://github.com/authup/helm/compare/authup-0.2.0...authup-0.2.1) (2026-08-19)
 
 
