@@ -66,23 +66,3 @@ jobs:
           push-username: ${{ github.actor }}
           push-password: ${{ secrets.GITHUB_TOKEN }}
           push-skip-existing: true
-
-      # release-please labels a release PR "autorelease: pending" when it opens it
-      # and only clears the label in the release step, which skip-github-release
-      # turns off (chart-releaser owns tags + releases). The merged PR therefore
-      # keeps the label forever, and from then on every run aborts PR creation
-      # with "There are untagged, merged release PRs outstanding" while still
-      # exiting 0, so the job looks green. Clear it here, once the charts really
-      # are published. Delete this step if release-please ever owns the release.
-      - name: Clear the release-please pending label
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Assigned, not piped into the loop: a failing query would otherwise
-          # read as "nothing pending" and leave the deadlock in place, green.
-          pending=$(gh pr list --state merged --base master \
-            --label 'autorelease: pending' --json number --jq '.[].number')
-          for pr in $pending; do
-            echo "Marking pull request #${pr} as released"
-            gh pr edit "$pr" --remove-label 'autorelease: pending'
-          done
