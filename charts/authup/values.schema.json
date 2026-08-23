@@ -737,7 +737,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches)",
+              "description": "Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches;\n\"false\" and \"\" disable it, anything else fails the render)",
               "required": [],
               "title": "enabled",
               "type": [
@@ -3113,7 +3113,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches)",
+              "description": "Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches;\n\"false\" and \"\" disable it, anything else fails the render)",
               "required": [],
               "title": "enabled",
               "type": [

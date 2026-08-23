@@ -48,6 +48,7 @@ helm template t charts/authup --set server.ingress.enabled=true              # i
 helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # first-class collision
 helm template t charts/authup --set server.config.WRITABLE_DIRECTORY_PATH=/x  # ditto; the chart pins this one to the path it mounts
 helm template t charts/authup --set 'server.route.enabled=yes'               # flag that is neither true nor false
+helm template t charts/authup --set adminConsole.enabled=false --set adminConsole.route.enabled=yes  # ditto: validated even with the component off
 helm template t charts/authup --set server.theme.enabled=true               # theme with no carrier
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.title=X --set server.theme.existingConfigMap=cm  # manifest + existing CM
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=logo.svg          # asset outside assets/

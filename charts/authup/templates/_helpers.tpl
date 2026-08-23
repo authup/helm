@@ -84,11 +84,12 @@ Anything that is not true/false/"" fails the render instead.
 Usage: {{ if (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) }}
 */}}
 {{- define "authup.flag" -}}
-{{- $value := include "authup.tplvalues.render" (dict "value" .value "context" .context) | trim | lower -}}
+{{- $rendered := include "authup.tplvalues.render" (dict "value" .value "context" .context) | trim -}}
+{{- $value := lower $rendered -}}
 {{- if eq $value "true" -}}
 true
 {{- else if not (or (eq $value "false") (eq $value "")) -}}
-{{- fail (printf "authup: %s must be true or false (or a template rendering to one of them), got %q." .key $value) -}}
+{{- fail (printf "authup: %s must be true or false (or a template rendering to one of them), got %q." .key $rendered) -}}
 {{- end -}}
 {{- end -}}
 

@@ -751,7 +751,8 @@ server:
     # required: true
     # @schema
     # -- Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to
-    # "true" enables it, so an umbrella chart can drive this from one of its own switches)
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches;
+    # "false" and "" disable it, anything else fails the render)
     enabled: false
     # -- Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public
     # URL path is dropped and needs its own matches entry)
@@ -1062,7 +1063,8 @@ adminConsole:
     # required: true
     # @schema
     # -- Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to
-    # "true" enables it, so an umbrella chart can drive this from one of its own switches)
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches;
+    # "false" and "" disable it, anything else fails the render)
     enabled: false
     # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public
     # URL path is dropped and needs its own matches entry)

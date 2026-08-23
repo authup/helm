@@ -51,6 +51,16 @@ store, token blocklist and MFA challenges fall back to a per-process memory cach
 {{- end }}
 
 {{/*
+The route flags are validated here unconditionally. The render gates spell
+`and <component>.enabled (include "authup.flag" ...)`, and Go short-circuits
+`and`, so a disabled component would never reach the helper: the schema used to
+reject a bad value either way, and widening it to [boolean, string] moved that
+job into the template.
+*/}}
+{{- $_ := include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled") }}
+{{- $_ = include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled") }}
+
+{{/*
 A Gateway API HTTPRoute rule without `matches` defaults to PathPrefix "/", i.e. it
 matches every request on every hostname the route attaches to. The route hostname is
 derived from the public URL's ORIGIN, so a sub-path public URL would silently attach
