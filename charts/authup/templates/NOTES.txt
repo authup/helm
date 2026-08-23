@@ -99,10 +99,10 @@ small deployments. For production, consider an external database
 {{- end }}
 
 {{- $prefixed := list }}
-{{- if and .Values.server.enabled .Values.server.route.enabled (urlParse $serverUrl).path (ne (urlParse $serverUrl).path "/") }}
+{{- if and .Values.server.enabled (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) (urlParse $serverUrl).path (ne (urlParse $serverUrl).path "/") }}
 {{- $prefixed = append $prefixed (printf "server.route %s" (urlParse $serverUrl).path) }}
 {{- end }}
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.route.enabled (urlParse $uiUrl).path (ne (urlParse $uiUrl).path "/") }}
+{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) (urlParse $uiUrl).path (ne (urlParse $uiUrl).path "/") }}
 {{- $prefixed = append $prefixed (printf "adminConsole.route %s" (urlParse $uiUrl).path) }}
 {{- end }}
 {{- if $prefixed }}

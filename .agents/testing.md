@@ -47,6 +47,7 @@ helm template t charts/authup --set postgresql.enabled=false --set externalDatab
 helm template t charts/authup --set server.ingress.enabled=true              # ingress w/o hostname
 helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # first-class collision
 helm template t charts/authup --set server.config.WRITABLE_DIRECTORY_PATH=/x  # ditto; the chart pins this one to the path it mounts
+helm template t charts/authup --set 'server.route.enabled=yes'               # flag that is neither true nor false
 helm template t charts/authup --set server.theme.enabled=true               # theme with no carrier
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.title=X --set server.theme.existingConfigMap=cm  # manifest + existing CM
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=logo.svg          # asset outside assets/
@@ -62,6 +63,24 @@ The route guard reads the public URL AFTER derivation, so the ingress-derived
 case needs its own line: only the origin reaches the HTTPRoute hostname, and the
 dropped path is exactly what turns the rule into a catch-all. Adding
 `--set 'server.route.matches[0].path.value=/auth'` must make both RENDER.
+
+`server.route.enabled` / `adminConsole.route.enabled` accept a tpl-rendered
+string, so an umbrella can drive them from one of its own switches. `--set-string`
+cannot carry `{{ }}` (helm fails parsing on the closing brace), so both directions
+go through a values file, and BOTH are needed: a rendered `"false"` is a non-empty
+string, which a Go template `if` reads as true.
+
+```bash
+printf 'global:\n  gw:\n    enabled: false\nserver:\n  route:\n    enabled: "{{ .Values.global.gw.enabled }}"\n' \
+  | helm template t charts/authup -f - | grep -c 'kind: HTTPRoute'   # must be 0
+printf 'global:\n  gw:\n    enabled: true\nserver:\n  publicUrl: https://auth.example.com\n  route:\n    enabled: "{{ .Values.global.gw.enabled }}"\n    parentRefs:\n    - name: gw\n' \
+  | helm template t charts/authup -f - | grep -c 'kind: HTTPRoute'   # must be 1
+```
+
+The sub-path catch-all guard and the NOTES path-prefix warning read the same
+flag, so all six read sites convert together: leave one raw and an umbrella-driven
+route renders unguarded. `ci/default-values.yaml` carries the false direction as
+the in-repo regression guard.
 
 Umbrella use is part of the contract: `global` must stay open. Render a throwaway
 parent chart with authup in `charts/` and an unrelated global (`global.myOrgKey`)

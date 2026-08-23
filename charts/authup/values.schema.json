@@ -737,10 +737,13 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a Gateway API HTTPRoute for the UI",
+              "description": "Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches)",
               "required": [],
               "title": "enabled",
-              "type": "boolean"
+              "type": [
+                "boolean",
+                "string"
+              ]
             },
             "filters": {
               "description": "Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix",
@@ -3110,10 +3113,13 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a Gateway API HTTPRoute for server-core",
+              "description": "Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches)",
               "required": [],
               "title": "enabled",
-              "type": "boolean"
+              "type": [
+                "boolean",
+                "string"
+              ]
             },
             "filters": {
               "description": "Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix",

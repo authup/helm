@@ -230,7 +230,7 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | UI container resources |
 | adminConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | adminConsole.route.annotations | object | `{}` | HTTPRoute annotations |
-| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI |
+| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches) |
 | adminConsole.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
 | adminConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public URL path is dropped and needs its own matches entry) |
 | adminConsole.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
@@ -434,7 +434,7 @@ Kubernetes: `>=1.25.0-0`
 | server.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Server container resources |
 | server.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | server.route.annotations | object | `{}` | HTTPRoute annotations |
-| server.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for server-core |
+| server.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches) |
 | server.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
 | server.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public URL path is dropped and needs its own matches entry) |
 | server.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |

@@ -74,6 +74,25 @@ Usage: {{ include "authup.tplvalues.render" (dict "value" .Values.<path> "contex
 {{- end -}}
 
 {{/*
+Boolean that may arrive as a tpl-rendered string, so an umbrella chart can drive
+it from one of its own switches. Returns "true" (truthy) or "" (falsy).
+
+Strict on purpose. The schema no longer rejects a string here, and a rendered
+"false" is a NON-EMPTY string, i.e. truthy to a Go template `if`: a lenient
+reader would create the resource exactly when the parent switched it off.
+Anything that is not true/false/"" fails the render instead.
+Usage: {{ if (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) }}
+*/}}
+{{- define "authup.flag" -}}
+{{- $value := include "authup.tplvalues.render" (dict "value" .value "context" .context) | trim | lower -}}
+{{- if eq $value "true" -}}
+true
+{{- else if not (or (eq $value "false") (eq $value "")) -}}
+{{- fail (printf "authup: %s must be true or false (or a template rendering to one of them), got %q." .key $value) -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Standard labels.
 Usage: {{ include "authup.labels" (dict "context" $ "component" "server") }}
 */}}

@@ -33,3 +33,5 @@ annotations:
   artifacthub.io/changes: |
     - kind: fixed
       description: The writable directory moves to /var/lib/authup and WRITABLE_DIRECTORY_PATH is set to the path the chart mounts, so an image default change cannot silently stop file provisioning
+    - kind: added
+      description: server.route.enabled / adminConsole.route.enabled accept a tpl-rendered string, so an umbrella chart can drive them from a global

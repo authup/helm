@@ -746,7 +746,12 @@ server:
     # -- Full custom rules (tpl-rendered; appended after the generated rules)
     extraRules: []
   route:
-    # -- Create a Gateway API HTTPRoute for server-core
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches)
     enabled: false
     # -- Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public
     # URL path is dropped and needs its own matches entry)
@@ -1052,7 +1057,12 @@ adminConsole:
     # -- Full custom rules (tpl-rendered; appended after the generated rules)
     extraRules: []
   route:
-    # -- Create a Gateway API HTTPRoute for the UI
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches)
     enabled: false
     # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public
     # URL path is dropped and needs its own matches entry)
