@@ -18,8 +18,8 @@ land on the middle digit. Every entry lists the value migrations required.
   container layer, file provisioning scanning a directory that does not exist).
   To move the directory anyway, set it through `server.extraEnvVars` and mount
   the same path with `server.extraVolumeMounts`; `server.provisioning` then needs
-  its ConfigMap re-mounted at `<new path>/provisioning` by hand, because the
-  chart's own provisioning mount stays where the chart puts it.
+  its source (ConfigMap or Secret) re-mounted at `<new path>/provisioning` by
+  hand, because the chart's own provisioning mount stays where the chart puts it.
 
 ## 0.2.0 (unreleased)
 
