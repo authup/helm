@@ -595,7 +595,7 @@ server:
   # additionalProperties: true
   # @schema
   # -- Container security context. The upstream image runs as root and needs a
-  # writable npm cache; the chart mounts emptyDirs at /usr/src/app/writable and
+  # writable npm cache; the chart mounts emptyDirs at /var/lib/authup and
   # /tmp to keep readOnlyRootFilesystem viable.
   containerSecurityContext:
     enabled: true

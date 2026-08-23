@@ -32,8 +32,4 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: fixed
-      description: A parent chart's own global.* keys no longer fail schema validation
-    - kind: added
-      description: server.route / adminConsole.route accept matches and filters
-    - kind: added
-      description: An HTTPRoute for a sub-path public URL without matches now fails the render
+      description: The writable directory moves to /var/lib/authup and WRITABLE_DIRECTORY_PATH is set to the path the chart mounts, so an image default change cannot silently stop file provisioning

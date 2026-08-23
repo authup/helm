@@ -2233,7 +2233,7 @@
         },
         "containerSecurityContext": {
           "additionalProperties": true,
-          "description": "Container security context. The upstream image runs as root and needs a\nwritable npm cache; the chart mounts emptyDirs at /usr/src/app/writable and\n/tmp to keep readOnlyRootFilesystem viable.",
+          "description": "Container security context. The upstream image runs as root and needs a\nwritable npm cache; the chart mounts emptyDirs at /var/lib/authup and\n/tmp to keep readOnlyRootFilesystem viable.",
           "properties": {
             "allowPrivilegeEscalation": {
               "default": false,

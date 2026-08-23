@@ -38,10 +38,15 @@ CLIENT_SYSTEM_ENABLED: "true"
 CLIENT_SYSTEM_SECRET_RESET: "true"
 {{- end }}
 {{- end }}
-{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
+{{- /* Pinned to the path the volumeMounts use, not inherited from the image, whose default
+       moved here in v1.0.0-beta.63: a mount that stops matching it fails silently (logs on
+       the container layer, file provisioning scanning a directory that is not there). */}}
+WRITABLE_DIRECTORY_PATH: "/var/lib/authup"
+{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "WRITABLE_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
 {{- range $key, $value := .Values.server.config }}
 {{- if has $key $reserved }}
-{{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through the dedicated value instead." $key) }}
+{{- $instead := ternary "server.extraEnvVars plus a matching server.extraVolumeMounts" "the dedicated value" (eq $key "WRITABLE_DIRECTORY_PATH") }}
+{{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through %s instead." $key $instead) }}
 {{- end }}
 {{ $key }}: {{ include "authup.tplvalues.render" (dict "value" ($value | toString) "context" $) | quote }}
 {{- end }}
@@ -102,12 +107,12 @@ provisioning files, config file).
 */}}
 {{- define "authup.server.volumeMounts" -}}
 - name: writable
-  mountPath: /usr/src/app/writable
+  mountPath: /var/lib/authup
 - name: tmp
   mountPath: /tmp
 {{- if and .Values.server.provisioning.enabled (or .Values.server.provisioning.files .Values.server.provisioning.existingConfigMap .Values.server.provisioning.existingSecret) }}
 - name: provisioning
-  mountPath: /usr/src/app/writable/provisioning
+  mountPath: /var/lib/authup/provisioning
   readOnly: true
 {{- end }}
 {{- if or .Values.server.configuration .Values.server.existingConfigmap }}
