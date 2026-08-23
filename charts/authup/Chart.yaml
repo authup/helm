@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   with optional built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.2.2
-appVersion: "1.0.0-beta.62"
+appVersion: "1.0.0-beta.63"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -33,5 +33,7 @@ annotations:
   artifacthub.io/changes: |
     - kind: fixed
       description: The writable directory moves to /var/lib/authup and WRITABLE_DIRECTORY_PATH is set to the path the chart mounts, so an image default change cannot silently stop file provisioning
+    - kind: changed
+      description: Track authup v1.0.0-beta.63, whose image writes to /var/lib/authup
     - kind: added
       description: server.route.enabled / adminConsole.route.enabled accept a tpl-rendered string, so an umbrella chart can drive them from a global

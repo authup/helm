@@ -3,7 +3,7 @@
 Repo: https://github.com/authup/authup (local checkout commonly at
 `/opt/projects/authup/authup`). The chart encodes facts about the app; verify
 against these sources when authup releases change behavior. Pinned against the
-v1.0.0-beta.62 line (chart `appVersion`).
+v1.0.0-beta.63 line (chart `appVersion`).
 
 ## Image / entrypoint contract
 
