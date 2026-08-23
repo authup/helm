@@ -7,7 +7,7 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.2.2?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.62](https://img.shields.io/badge/AppVersion-1.0.0--beta.62-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.63](https://img.shields.io/badge/AppVersion-1.0.0--beta.63-informational?style=flat-square)
 
 Authup is an authentication & authorization system. This chart deploys the server-core IdP/API service and the client-admin-console admin UI, with optional built-in PostgreSQL, MySQL and Valkey instances. It deploys:
 
@@ -230,7 +230,7 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | UI container resources |
 | adminConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | adminConsole.route.annotations | object | `{}` | HTTPRoute annotations |
-| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI |
+| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
 | adminConsole.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
 | adminConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public URL path is dropped and needs its own matches entry) |
 | adminConsole.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
@@ -349,7 +349,7 @@ Kubernetes: `>=1.25.0-0`
 | server.command | list | `[]` | Override the container command |
 | server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values, e.g. AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console with your own build (pair them with extraVolumes; the substituted package owns the login flow, so use server.theme for branding instead) |
 | server.configuration | string | `""` | Content of an authup.server.core.conf mounted into the working directory for file-only options (middleware objects, per-field SMTP, CORS allowlist). Environment variables always win over file values. |
-| server.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context. The upstream image runs as root and needs a writable npm cache; the chart mounts emptyDirs at /usr/src/app/writable and /tmp to keep readOnlyRootFilesystem viable. |
+| server.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context. The upstream image runs as root and needs a writable npm cache; the chart mounts emptyDirs at /var/lib/authup and /tmp to keep readOnlyRootFilesystem viable. |
 | server.customLivenessProbe | object | `{}` | Custom liveness probe |
 | server.customReadinessProbe | object | `{}` | Custom readiness probe |
 | server.customStartupProbe | object | `{}` | Custom startup probe overriding the structured one |
@@ -434,7 +434,7 @@ Kubernetes: `>=1.25.0-0`
 | server.resources | object | `{"limits":{"memory":"2Gi"},"requests":{"cpu":"250m","memory":"512Mi"}}` | Server container resources |
 | server.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | server.route.annotations | object | `{}` | HTTPRoute annotations |
-| server.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for server-core |
+| server.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
 | server.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
 | server.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public URL path is dropped and needs its own matches entry) |
 | server.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |

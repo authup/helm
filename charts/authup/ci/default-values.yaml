@@ -4,6 +4,10 @@
 # reject globals this chart does not declare.
 global:
   umbrellaProbe: parent-injected
+  # A templated route.enabled rendering to "false" is the second umbrella guard:
+  # the schema must accept the string, and the render must produce no HTTPRoute
+  # (a rendered "false" is a non-empty, i.e. truthy, string to a Go template).
+  gatewayApiProbe: false
 postgresql:
   persistence:
     enabled: false
@@ -17,3 +21,5 @@ adminConsole:
     requests:
       cpu: 25m
       memory: 128Mi
+  route:
+    enabled: '{{ .Values.global.gatewayApiProbe }}'

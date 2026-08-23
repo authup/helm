@@ -1,4 +1,4 @@
-{{- if and .Values.server.enabled .Values.server.route.enabled }}
+{{- if and .Values.server.enabled (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) }}
 {{- include "authup.httproute" (dict
   "context" $
   "component" "server"

@@ -51,19 +51,29 @@ store, token blocklist and MFA challenges fall back to a per-process memory cach
 {{- end }}
 
 {{/*
+The route flags are validated here unconditionally. The render gates spell
+`and <component>.enabled (include "authup.flag" ...)`, and Go short-circuits
+`and`, so a disabled component would never reach the helper: the schema used to
+reject a bad value either way, and widening it to [boolean, string] moved that
+job into the template.
+*/}}
+{{- $_ := include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled") }}
+{{- $_ = include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled") }}
+
+{{/*
 A Gateway API HTTPRoute rule without `matches` defaults to PathPrefix "/", i.e. it
 matches every request on every hostname the route attaches to. The route hostname is
 derived from the public URL's ORIGIN, so a sub-path public URL would silently attach
 authup as the catch-all backend of a hostname it is meant to share. authup always
 serves at "/" and expects the proxy to strip the prefix, hence match AND rewrite.
 */}}
-{{- if and .Values.server.enabled .Values.server.route.enabled (not .Values.server.route.matches) }}
+{{- if and .Values.server.enabled (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) (not .Values.server.route.matches) }}
 {{- $path := (urlParse (include "authup.server.publicUrl" .)).path }}
 {{- if and $path (ne $path "/") }}
 {{- fail (printf "authup: the server public URL carries the path %q but server.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). authup serves at \"/\" and expects the proxy to strip the prefix, so set both:\n  server.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  server.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
 {{- end }}
 {{- end }}
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.route.enabled (not .Values.adminConsole.route.matches) }}
+{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) (not .Values.adminConsole.route.matches) }}
 {{- $path := (urlParse (include "authup.adminConsole.publicUrl" .)).path }}
 {{- if and $path (ne $path "/") }}
 {{- fail (printf "authup: the admin console public URL carries the path %q but adminConsole.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). Set both:\n  adminConsole.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  adminConsole.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}

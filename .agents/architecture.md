@@ -91,6 +91,13 @@ editing templates or values.
     `authup.tplvalues.render`, so umbrella charts can inject template
     expressions (the PrivateAIM lesson: their untemplatable `existingSecret`
     forced a hardcoded-names table).
+    `server.route.enabled` / `adminConsole.route.enabled` extend this to a
+    BOOLEAN, read through `authup.flag`. That reader is strict by necessity:
+    the schema is widened to `[boolean, string]` so it no longer rejects
+    garbage, and a rendered `"false"` is a non-empty (truthy) string, so a
+    plain `if` would create the route exactly when the parent switched it off.
+    All six read sites (2 HTTPRoutes, 2 validations, 2 NOTES) convert together
+    or the sub-path catch-all guard of rule 18 stops covering umbrella users.
 17. **`global` must stay open in the schema.** helm copies a parent chart's
     ENTIRE `global` map into every subchart before validating that subchart's
     schema, so `additionalProperties: false` there makes the chart

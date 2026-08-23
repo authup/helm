@@ -595,7 +595,7 @@ server:
   # additionalProperties: true
   # @schema
   # -- Container security context. The upstream image runs as root and needs a
-  # writable npm cache; the chart mounts emptyDirs at /usr/src/app/writable and
+  # writable npm cache; the chart mounts emptyDirs at /var/lib/authup and
   # /tmp to keep readOnlyRootFilesystem viable.
   containerSecurityContext:
     enabled: true
@@ -746,7 +746,13 @@ server:
     # -- Full custom rules (tpl-rendered; appended after the generated rules)
     extraRules: []
   route:
-    # -- Create a Gateway API HTTPRoute for server-core
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Create a Gateway API HTTPRoute for server-core (tpl-rendered: a string rendering to
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches;
+    # "false" and "" disable it, anything else fails the render)
     enabled: false
     # -- Route hostnames ([] = derived from server.publicUrl / ingress hostname; only the host is kept, a public
     # URL path is dropped and needs its own matches entry)
@@ -1052,7 +1058,13 @@ adminConsole:
     # -- Full custom rules (tpl-rendered; appended after the generated rules)
     extraRules: []
   route:
-    # -- Create a Gateway API HTTPRoute for the UI
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches;
+    # "false" and "" disable it, anything else fails the render)
     enabled: false
     # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public
     # URL path is dropped and needs its own matches entry)

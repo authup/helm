@@ -1,4 +1,4 @@
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.route.enabled }}
+{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) }}
 {{- include "authup.httproute" (dict
   "context" $
   "component" "admin-console"

@@ -349,7 +349,7 @@ fail-closed semantics (an invalid file aborts boot) and camelCase keys.
 - Hardened `podSecurityContext` / `containerSecurityContext` defaults
   (runAsNonRoot 1000, readOnlyRootFilesystem, drop ALL, seccompRuntimeDefault) —
   with the caveat that the upstream image runs as root and `npm` wants a writable
-  HOME: the chart mounts emptyDirs at `/usr/src/app/writable` and `/tmp`, sets
+  HOME: the chart mounts emptyDirs at `/var/lib/authup` and `/tmp`, sets
   `npm_config_cache=/tmp/.npm-cache`, and documents that full hardening is
   best-effort until upstream ships a non-root image (tracked as an upstream issue).
 - `/metrics` is unauthenticated: `metrics.serviceMonitor` targets the Service
