@@ -1,0 +1,39 @@
+{{- if and .Values.server.enabled .Values.server.migration.enabled .Values.server.configuration (not .Values.server.existingConfigmap) }}
+{{/*
+The migration Job's own copy of authup.server.core.conf.
+
+`migration run` loads the config file unconditionally, and the db options only
+the file can carry (ssl, socketPath, replication, extensions, poolSize) decide
+how it connects and what it creates, so the Job has to mount it. It cannot mount
+the release ConfigMap: a pre-upgrade hook runs BEFORE the release manifest is
+applied, so that object either does not exist yet (the upgrade that first sets
+server.configuration) or still holds the previous release's content. Same reason
+the Job inlines the env ConfigMap instead of mounting it.
+
+Rendered from authup.server.configurationContent, the single source the release
+ConfigMap uses too, so migration and server pods can never read different files.
+Hook weight -5 puts it ahead of the Job's 0 (helm applies the hook-succeeded
+delete policy only after every hook in the event has run, so it outlives the
+Job); the ArgoCD branch mirrors that with sync-wave -5.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ "hook" true) }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "migration") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- if .Values.useHelmHooks }}
+    helm.sh/hook: pre-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    helm.sh/hook-weight: "-5"
+    {{- else }}
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-5"
+    {{- end }}
+data:
+  authup.server.core.conf: |-
+    {{- include "authup.server.configurationContent" . | nindent 4 }}
+{{- end }}

@@ -38,17 +38,79 @@ editing templates or values.
    name + instance + component. `commonLabels` / `podLabels` must never leak
    into a selector. `app.kubernetes.io/component` separates the two services'
    Services within one release.
-9. **Component fullnames truncate the base BEFORE suffixing**
-   (`trunc 52` then `-server` / `-ui` / engine suffix), so long release names
-   cannot collapse every resource onto one identical name.
-10. **The migration Job shares the deployment's env by construction.**
-    `authup.server.configEnv` (map) and `authup.server.secretEnv` (list) are
-    the single sources consumed by both `server/deployment.yaml` and
+9. **Component fullnames truncate the base BEFORE suffixing, on a budget
+   derived from the suffix.** `authup.component.fullname`
+   (`dict "context" $ "suffix" "server"`) is the single implementation; every
+   component name and the migration Job go through it. Truncating first is what
+   keeps names DISTINCT (a 63-char fullname would otherwise collapse every
+   component onto one name); deriving the budget is what keeps them LEGAL.
+
+   The ceiling is 63, not the 253 a ConfigMap allows, wherever a name becomes a
+   DNS-1035 label (Service) or a label value (a Job name is copied into the
+   `job-name` pod labels). The old flat `trunc 52` ignored that: `-admin-console`
+   rendered a 66-char Service, so any release name from ~43 characters up could
+   not install at all, and appending `-migration` to the `-server` name reached
+   69. Both are now `min 52 (63 - len(suffix) - 1)`.
+
+   `min 52` is the load-bearing half. The derived budget is WIDER than 52 for
+   short suffixes, and widening RENAMES resources on releases whose fullname
+   lands between 53 and 55 characters. A renamed Secret carrying
+   `helm.sh/resource-policy: keep` orphans the old one and generates a new admin
+   password: a silent credential rotation on upgrade. **The budget may only ever
+   tighten**, which by construction touches only names too long to exist. Assert
+   that when changing it (see testing.md), do not assume it.
+10. **The migration Job shares the deployment's env by construction, minus
+    what a hook cannot see.** `authup.server.configEnv` (map),
+    `authup.server.secretEnv` (list) and the two volume helpers are the single
+    sources consumed by both `server/deployment.yaml` and
     `server/migration-job.yaml`; the Job INLINES the config map (a pre-upgrade
     hook would otherwise run against the previous release's ConfigMap). The
     Job is pre-upgrade ONLY (never pre-install: hooks run before backing
     services exist; authup migrates at boot on fresh installs). With
-    `useHelmHooks=false` it renders ArgoCD `PreSync` hook annotations instead.
+    `useHelmHooks=false` it renders ArgoCD `PreSync` hook annotations instead,
+    which is an ArgoCD-only mode: see rule 19.
+
+    Helm applies a pre-upgrade hook BEFORE the release manifest, so every
+    NON-HOOK resource the Job references must already exist from the PREVIOUS
+    release. A hook resource at a lower weight is the one exception: it is
+    created earlier in the same hook phase, which is exactly what the config
+    copy below relies on. Four
+    helpers take a `hook` flag (`secretEnv`, the two volume helpers and
+    `configurationConfigMapName`; `configEnv` does not, it is inlined instead)
+    and drop what `migration run` does not read. That flag is the ONE mechanism
+    for this: the theme volume used to be a pair of deployment-only defines
+    carved out for the same reason, and two conventions in one `volumeMounts:`
+    block is how the next mount ends up on the wrong side. `themeEnv` stays
+    separate because it splits along a different axis. Dropped:
+    `REDIS`, `SMTP` (their Secrets are release resources, and the migration
+    builds no cache or mail module) and the provisioning mount (`ProvisionerModule`
+    is registered by the start command only). What stays, stays for a reason:
+    the writable directory, because under the image's `NODE_ENV=production` the
+    logger opens `<writable>/http.log` before the first query and an uncreatable
+    path is a hard ENOENT; and the config file, because `migration run` loads
+    `authup.server.core.conf` unconditionally and its file-only db keys (`ssl`,
+    `socketPath`, `replication`, `extensions`) decide how the migration connects.
+    The Job reads that file from a hook-scoped COPY
+    (`server/configmap-migration-configuration.yaml`, weight -5) for the same
+    reason it inlines the env: the release ConfigMap is either absent or one
+    release stale when the hook runs. `USER_ADMIN_PASSWORD` and
+    `CLIENT_SYSTEM_SECRET` go the same way: no identity or provisioning module
+    on the migration path, and the auth Secret they read is itself a release
+    resource. `SECRETS_ENCRYPTION_KEY` deliberately does NOT, even though its
+    key is conditional too and the migration does not read it today: rule 6's
+    fail-closed posture outranks the one-off break, so a write-once KEK gets its
+    own upgrade.
+
+    What the flag cannot reach, i.e. the residuals to keep in mind when adding
+    anything to the Job: `DB_PASSWORD` (the Secret behind it changes on an engine
+    switch, on adopting a built-in engine after `externalDatabase`, and on a
+    first inline `externalDatabase.password`, since `secret-db.yaml` is a release
+    resource too); the `serviceAccountName`, whose ServiceAccount renders only
+    under `serviceAccount.create`, so flipping that on fails pod ADMISSION with
+    no container status to read; and the `extraEnvVarsCM` / `extraEnvVarsSecret`
+    / `extraVolumes` passthroughs, whose targets are operator-owned unless the
+    operator ships them through `extraDeploy`, which renders them into the
+    release manifest and therefore after the hook.
 11. **Checksum annotations roll pods on config or secret changes.** The server
     deployment checksums the env map plus every chart-managed secret it
     consumes (auth, external-db, redis, smtp, provisioning, configuration),
@@ -114,6 +176,19 @@ editing templates or values.
     `validations.yaml` fails that combination; `route.matches` / `route.filters`
     are the raw passthroughs that express it (authup always serves at `/`, so
     the prefix must be matched AND rewritten away).
+19. **`useHelmHooks=false` is an ArgoCD-only mode.** ArgoCD renders with
+    `helm template` and never executes Helm hooks, so it needs its own
+    `argocd.argoproj.io/hook` annotations. Flux is the opposite: helm-controller
+    runs a real `helm upgrade` and honours Helm hooks natively. Turning them off
+    there applies the migration Job as an ordinary release resource, and
+    `Job.spec.template` is immutable, so the next upgrade that touches the pod
+    template (image tag, `appVersion` label, a new env) fails to patch it. A
+    content-hashed Job name would make that apply-able but not correct: helm
+    orders a plain Job AFTER the Deployment and does not wait for it, which is
+    the ordering the Job exists to provide. So the value stays doc-scoped to
+    ArgoCD and NOTES warns when it is set. ArgoCD also maps Helm hooks onto its
+    own sync phases, so `true` works there as well; the flag only chooses which
+    annotation family drives the Job.
 
 ## Values conventions
 

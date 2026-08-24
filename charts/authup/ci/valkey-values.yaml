@@ -8,6 +8,13 @@ server:
   replicaCount: 2
   migration:
     enabled: true
+  # The only ci scenario setting server.configuration, which with ct's
+  # `upgrade: true` makes the master-to-branch leg the upgrade that FIRST
+  # introduces the config file while the migration hook is on: the exact case
+  # the hook-scoped copy exists for. Deliberately a no-op option: a db block
+  # here would fight the connection this scenario installs.
+  configuration: |
+    logger: true
   resources:
     requests:
       cpu: 50m

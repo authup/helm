@@ -34,6 +34,17 @@ store, token blocklist and MFA challenges fall back to a per-process memory cach
 {{- fail "authup: auth.existingSecret and inline auth values are mutually exclusive — when an existing secret is referenced, the inline adminPassword / systemClientSecret / secretsEncryptionKey values are unused; remove them to avoid a false sense of configuration." }}
 {{- end }}
 
+{{/*
+Same shape as the auth pair above, and worth its own guard because the value it
+drops is usually load-bearing: server.configuration is where db.ssl / socketPath
+/ replication live, and those decide how BOTH the server pods and the pre-upgrade
+migration hook connect. Existing-wins silently would mean believing TLS to the
+database is configured while the mounted file is the operator's.
+*/}}
+{{- if and .Values.server.enabled .Values.server.configuration .Values.server.existingConfigmap }}
+{{- fail "authup: server.configuration and server.existingConfigmap are mutually exclusive. The existing ConfigMap is the one that gets mounted, so the inline content would be silently dropped: move it into that ConfigMap, or drop server.existingConfigmap." }}
+{{- end }}
+
 {{- if and .Values.adminConsole.enabled (not .Values.server.enabled) (not .Values.adminConsole.apiUrl) }}
 {{- fail "authup: adminConsole.enabled without server.enabled requires adminConsole.apiUrl (the browser-reachable URL of an external authup server-core)." }}
 {{- end }}

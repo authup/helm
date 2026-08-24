@@ -23,27 +23,50 @@ Release-scoped fully qualified name. Every resource name derives from this.
 
 {{/*
 Per-component names. The base is truncated BEFORE suffixing so the component
-suffix always survives — otherwise a 63-char fullname would collapse every
+suffix always survives: otherwise a 63-char fullname would collapse every
 component onto one identical name.
+
+The budget is DERIVED from the suffix, not hardcoded, because the ceiling that
+actually bites is 63 and not the 253 a ConfigMap allows: a Service name is a
+DNS-1035 label, and a Job name is copied into the job-name pod labels where a
+label value stops at 63. A flat `trunc 52` let the 13-character
+`-admin-console` suffix render a 66-character Service that the API server
+rejects outright, so a long release name could not install at all.
+
+`min 52` is load-bearing, not decoration. The derived budget is WIDER than 52
+for short suffixes, and widening would RENAME resources on releases whose
+fullname lands between 53 and 55 characters. A renamed Secret carrying
+`helm.sh/resource-policy: keep` means the old one is orphaned and a new
+admin password and system-client secret are generated: a silent credential
+rotation on upgrade. The budget may therefore only ever tighten, which by
+construction touches only names that are already too long to exist.
+
+Usage: {{ include "authup.component.fullname" (dict "context" $ "suffix" "server") }}
 */}}
+{{- define "authup.component.fullname" -}}
+{{- $suffix := .suffix -}}
+{{- $budget := min 52 (sub 63 (add1 (len $suffix))) | int -}}
+{{- printf "%s-%s" (include "authup.fullname" .context | trunc $budget | trimSuffix "-") $suffix -}}
+{{- end -}}
+
 {{- define "authup.server.fullname" -}}
-{{- printf "%s-server" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "server") -}}
 {{- end -}}
 
 {{- define "authup.adminConsole.fullname" -}}
-{{- printf "%s-admin-console" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "admin-console") -}}
 {{- end -}}
 
 {{- define "authup.postgresql.fullname" -}}
-{{- printf "%s-postgresql" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "postgresql") -}}
 {{- end -}}
 
 {{- define "authup.mysql.fullname" -}}
-{{- printf "%s-mysql" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "mysql") -}}
 {{- end -}}
 
 {{- define "authup.valkey.fullname" -}}
-{{- printf "%s-valkey" (include "authup.fullname" . | trunc 52 | trimSuffix "-") -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "valkey") -}}
 {{- end -}}
 
 {{/*

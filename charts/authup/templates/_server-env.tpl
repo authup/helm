@@ -55,47 +55,70 @@ WRITABLE_DIRECTORY_PATH: "/var/lib/authup"
 {{/*
 Secret-backed server-core env entries (valueFrom.secretKeyRef list).
 Shared by the Deployment and the migration Job.
+Usage: {{ include "authup.server.secretEnv" (dict "context" $ "hook" true) }}
+
+"hook" marks the pre-upgrade migration Job and drops REDIS and SMTP. Not
+tidiness: both Secrets are ordinary release resources, and helm applies a
+pre-upgrade hook BEFORE the release manifest, so the upgrade that first enables
+valkey or SMTP would schedule a hook pod whose secretKeyRef target does not
+exist yet (CreateContainerConfigError until the hook times out). `migration run`
+builds config + logger + database only, no cache and no mail module, so neither
+value is read there. USER_ADMIN_PASSWORD and CLIENT_SYSTEM_SECRET go too: the
+migration builds no identity or provisioning module either, and the auth Secret
+they read is itself a release resource (an upgrade dropping auth.existingSecret
+for a chart-managed one creates it only AFTER the hook), on top of
+CLIENT_SYSTEM_SECRET's key being conditional. The hook keeps exactly two:
+DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 */}}
 {{- define "authup.server.secretEnv" -}}
+{{- $ctx := required "authup.server.secretEnv: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
 - name: DB_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ include "authup.database.secretName" . }}
-      key: {{ include "authup.database.passwordKey" . }}
-{{- if include "authup.redis.enabled" . }}
+      name: {{ include "authup.database.secretName" $ctx }}
+      key: {{ include "authup.database.passwordKey" $ctx }}
+{{- if and (not .hook) (include "authup.redis.enabled" $ctx) }}
 - name: REDIS
   valueFrom:
     secretKeyRef:
-      name: {{ include "authup.redis.secretName" . }}
-      key: {{ include "authup.redis.secretKey" . }}
+      name: {{ include "authup.redis.secretName" $ctx }}
+      key: {{ include "authup.redis.secretKey" $ctx }}
 {{- end }}
-{{- if include "authup.smtp.enabled" . }}
+{{- if and (not .hook) (include "authup.smtp.enabled" $ctx) }}
 - name: SMTP
   valueFrom:
     secretKeyRef:
-      name: {{ include "authup.smtp.secretName" . }}
-      key: {{ include "authup.smtp.secretKey" . }}
+      name: {{ include "authup.smtp.secretName" $ctx }}
+      key: {{ include "authup.smtp.secretKey" $ctx }}
 {{- end }}
+{{- if not .hook }}
 - name: USER_ADMIN_PASSWORD
   valueFrom:
     secretKeyRef:
-      name: {{ include "authup.auth.secretName" . }}
-      key: {{ .Values.auth.secretKeys.adminPasswordKey }}
-{{- if .Values.auth.systemClientEnabled }}
+      name: {{ include "authup.auth.secretName" $ctx }}
+      key: {{ $ctx.Values.auth.secretKeys.adminPasswordKey }}
+{{- end }}
+{{- if and (not .hook) $ctx.Values.auth.systemClientEnabled }}
 - name: CLIENT_SYSTEM_SECRET
   valueFrom:
     secretKeyRef:
-      name: {{ include "authup.auth.secretName" . }}
-      key: {{ .Values.auth.secretKeys.systemClientSecretKey }}
+      name: {{ include "authup.auth.secretName" $ctx }}
+      key: {{ $ctx.Values.auth.secretKeys.systemClientSecretKey }}
 {{- end }}
-{{- if include "authup.auth.hasSecretsEncryptionKey" . }}
+{{- if include "authup.auth.hasSecretsEncryptionKey" $ctx }}
 {{- /* Never optional: a silently missing KEK would boot authup into
-       plaintext-at-rest and defer unrecoverable decrypt failures. */}}
+       plaintext-at-rest and defer unrecoverable decrypt failures. Kept on the
+       hook for the same reason, even though its key is conditional and
+       `migration run` does not read it today: a migration that ever touches a
+       wrapped column must fail closed, not run without the key. The cost is
+       that enabling auth.secretsEncryptionKey and server.migration.enabled in
+       ONE upgrade schedules a hook pod referencing a key the release has not
+       written yet. Enable a write-once KEK on its own upgrade. */}}
 - name: SECRETS_ENCRYPTION_KEY
   valueFrom:
     secretKeyRef:
-      name: {{ include "authup.auth.secretName" . }}
-      key: {{ .Values.auth.secretKeys.secretsEncryptionKeyKey }}
+      name: {{ include "authup.auth.secretName" $ctx }}
+      key: {{ $ctx.Values.auth.secretKeys.secretsEncryptionKeyKey }}
 {{- end }}
 - name: npm_config_cache
   value: /tmp/.npm-cache
@@ -104,54 +127,102 @@ Shared by the Deployment and the migration Job.
 {{/*
 Shared volumes / volumeMounts for the server container (writable dir, tmp,
 provisioning files, config file).
+Usage: {{ include "authup.server.volumeMounts" (dict "context" $ "hook" true) }}
+The `required` on .context is load-bearing: helm renders with missingkey=zero, so
+a call site that passed a bare `.` would leave every guard below reading false and
+emit writable+tmp only, silently dropping the config file. Failing the render is
+the chart's posture everywhere else.
+
+"hook" marks the pre-upgrade migration Job. It drops the provisioning mount,
+whose ConfigMap/Secret is an ordinary release resource that helm applies AFTER
+the hook: the upgrade that first sets server.provisioning.files would leave the
+hook pod in ContainerCreating on a "configmap not found" until it times out, and
+`migration run` never reads those files anyway (ProvisionerModule is registered
+by the start command only). The writable directory stays for BOTH: under the
+image's NODE_ENV=production the logger opens <writable>/http.log and
+<writable>/error.log before the migration touches the database, and an
+uncreatable path is a hard ENOENT failure.
+
+The config file stays for both as well, and mounting it is not optional:
+`migration run` loads authup.server.core.conf unconditionally, and the db keys
+that only the file can carry (ssl, socketPath, replication, extensions, poolSize)
+decide how the migration connects and what it creates. Dropping it would silently
+migrate over a plaintext connection. The Job reads it from a hook-scoped copy
+instead: see authup.server.configurationConfigMapName.
+
+The theme volume rides the same flag. It used to be a pair of deployment-only
+defines carved out for exactly this hook reason, which left two calling
+conventions in deployment.yaml two lines apart; one mechanism is one thing to
+get right. authup.server.themeEnv stays separate: it splits along a different
+axis (configEnv is one define shared by the env ConfigMap and the Job's inlined
+env, and THEME_* must stay in its reserved-key list either way).
 */}}
 {{- define "authup.server.volumeMounts" -}}
+{{- $ctx := required "authup.server.volumeMounts: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
 - name: writable
   mountPath: /var/lib/authup
 - name: tmp
   mountPath: /tmp
-{{- if and .Values.server.provisioning.enabled (or .Values.server.provisioning.files .Values.server.provisioning.existingConfigMap .Values.server.provisioning.existingSecret) }}
+{{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
   mountPath: /var/lib/authup/provisioning
   readOnly: true
 {{- end }}
-{{- if or .Values.server.configuration .Values.server.existingConfigmap }}
+{{- if or $ctx.Values.server.configuration $ctx.Values.server.existingConfigmap }}
 - name: configuration
   mountPath: /usr/src/app/authup.server.core.conf
   subPath: authup.server.core.conf
   readOnly: true
 {{- end }}
+{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+- name: theme
+  mountPath: {{ include "authup.server.themeMountPath" $ctx }}
+  readOnly: true
+{{- end }}
 {{- end -}}
 
 {{- define "authup.server.volumes" -}}
+{{- $ctx := required "authup.server.volumes: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
 - name: writable
   emptyDir: {}
 - name: tmp
   emptyDir: {}
-{{- if and .Values.server.provisioning.enabled (or .Values.server.provisioning.files .Values.server.provisioning.existingConfigMap .Values.server.provisioning.existingSecret) }}
+{{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
-  {{- if .Values.server.provisioning.existingSecret }}
+  {{- if $ctx.Values.server.provisioning.existingSecret }}
   secret:
-    secretName: {{ include "authup.tplvalues.render" (dict "value" .Values.server.provisioning.existingSecret "context" $) }}
+    secretName: {{ include "authup.tplvalues.render" (dict "value" $ctx.Values.server.provisioning.existingSecret "context" $ctx) }}
   {{- else }}
   configMap:
-    name: {{ include "authup.server.provisioningConfigMapName" . }}
+    name: {{ include "authup.server.provisioningConfigMapName" $ctx }}
   {{- end }}
 {{- end }}
-{{- if or .Values.server.configuration .Values.server.existingConfigmap }}
+{{- if or $ctx.Values.server.configuration $ctx.Values.server.existingConfigmap }}
 - name: configuration
   configMap:
-    name: {{ include "authup.server.configurationConfigMapName" . }}
+    name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ctx "hook" .hook) }}
+{{- end }}
+{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+- name: theme
+  configMap:
+    name: {{ include "authup.server.themeConfigMapName" $ctx }}
+    {{- /* Whole-volume projection on purpose: a subPath mount is frozen
+           until the pod restarts, which would destroy authup's live theme
+           reload. */}}
+    {{- if $ctx.Values.server.theme.existingConfigMap }}
+    {{- with $ctx.Values.server.theme.existingConfigMapItems }}
+    items: {{- include "authup.tplvalues.render" (dict "value" . "context" $ctx) | nindent 6 }}
+    {{- end }}
+    {{- else }}
+    items:
+      {{- range $path := splitList "\n" (include "authup.server.themePaths" $ctx) }}
+      - key: {{ include "authup.server.themeConfigMapKey" $path }}
+        path: {{ $path }}
+      {{- end }}
+    {{- end }}
 {{- end }}
 {{- end -}}
 
-{{/*
-Theme volume / volumeMount, deliberately NOT part of the shared server
-helpers: the migration Job is a pre-upgrade HOOK, and hooks precede regular
-resources, so on the upgrade that first enables theming it would reference a
-ConfigMap that does not exist yet and hang. A migration run has no use for
-the theme either way.
-*/}}
 {{/*
 Theme environment, kept OUT of authup.server.configEnv for the same reason
 as the volume: the migration Job inlines configEnv, and pointing
@@ -167,36 +238,6 @@ THEME_* stays in configEnv's reserved-key list regardless, so a
 {{- if include "authup.server.themeMounted" . }}
 THEME_DIRECTORY_PATH: {{ include "authup.server.themeMountPath" . | quote }}
 THEME_FRAGMENTS_ENABLED: {{ .Values.server.theme.fragmentsEnabled | toString | quote }}
-{{- end }}
-{{- end -}}
-
-{{- define "authup.server.themeVolumeMounts" -}}
-{{- if include "authup.server.themeMounted" . }}
-- name: theme
-  mountPath: {{ include "authup.server.themeMountPath" . }}
-  readOnly: true
-{{- end }}
-{{- end -}}
-
-{{- define "authup.server.themeVolumes" -}}
-{{- if include "authup.server.themeMounted" . }}
-- name: theme
-  configMap:
-    name: {{ include "authup.server.themeConfigMapName" . }}
-    {{- /* Whole-volume projection on purpose: a subPath mount is frozen
-           until the pod restarts, which would destroy authup's live theme
-           reload. */}}
-    {{- if .Values.server.theme.existingConfigMap }}
-    {{- with .Values.server.theme.existingConfigMapItems }}
-    items: {{- include "authup.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}
-    {{- end }}
-    {{- else }}
-    items:
-      {{- range $path := splitList "\n" (include "authup.server.themePaths" $) }}
-      - key: {{ include "authup.server.themeConfigMapKey" $path }}
-        path: {{ $path }}
-      {{- end }}
-    {{- end }}
 {{- end }}
 {{- end -}}
 
@@ -409,10 +450,35 @@ looks exactly like an un-themed page.
 {{- end -}}
 {{- end -}}
 
+{{/*
+ConfigMap carrying authup.server.core.conf for one consumer.
+Usage: {{ include "authup.server.configurationConfigMapName" (dict "context" $ "hook" true) }}
+
+"hook" resolves to the migration Job's own copy (templates/server/configmap-
+migration-configuration.yaml), which is itself a pre-upgrade hook and is
+therefore created before the Job. Two reasons the Job cannot share the release
+ConfigMap: on the upgrade that first sets server.configuration it does not exist
+yet, and on every later upgrade it still holds the PREVIOUS release's content
+when the hook runs. Same reasoning that makes the Job inline configEnv.
+An operator-supplied existingConfigmap is not the chart's to copy: it lives
+outside the release and already exists when the hook runs.
+*/}}
 {{- define "authup.server.configurationConfigMapName" -}}
-{{- if .Values.server.existingConfigmap -}}
-{{- include "authup.tplvalues.render" (dict "value" .Values.server.existingConfigmap "context" $) -}}
+{{- $ctx := required "authup.server.configurationConfigMapName: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
+{{- if $ctx.Values.server.existingConfigmap -}}
+{{- include "authup.tplvalues.render" (dict "value" $ctx.Values.server.existingConfigmap "context" $ctx) -}}
+{{- else if .hook -}}
+{{- printf "%s-migration-configuration" (include "authup.server.fullname" $ctx) -}}
 {{- else -}}
-{{- printf "%s-configuration" (include "authup.server.fullname" .) -}}
+{{- printf "%s-configuration" (include "authup.server.fullname" $ctx) -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Rendered content of authup.server.core.conf. One source for the release
+ConfigMap and the hook copy, so the migration cannot run against a config file
+that differs from the one the server pods get.
+*/}}
+{{- define "authup.server.configurationContent" -}}
+{{- include "authup.tplvalues.render" (dict "value" .Values.server.configuration "context" $) -}}
 {{- end -}}

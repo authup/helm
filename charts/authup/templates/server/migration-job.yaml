@@ -10,7 +10,15 @@ against the previous release's ConfigMap.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ printf "%s-migration" (include "authup.server.fullname" .) }}
+  {{- /* Built from the component helper with the WHOLE "server-migration"
+         suffix rather than by appending to authup.server.fullname, so the
+         63-character budget is derived once instead of truncating a name that
+         was already assembled. It matters here because a Job name is copied
+         into the job-name / batch.kubernetes.io/job-name pod labels with no
+         hand-written spec.selector, and a label VALUE stops at 63: appending
+         to the -server name reaches 69 and the hook becomes unschedulable,
+         hanging the upgrade. Identical output for any normal release name. */}}
+  name: {{ include "authup.component.fullname" (dict "context" . "suffix" "server-migration") }}
   namespace: {{ include "authup.namespace" . | quote }}
   labels: {{- include "authup.labels" (dict "context" $ "component" "migration") | nindent 4 }}
   annotations:
@@ -69,7 +77,7 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-            {{- include "authup.server.secretEnv" . | nindent 12 }}
+            {{- include "authup.server.secretEnv" (dict "context" $ "hook" true) | nindent 12 }}
             {{- if .Values.server.extraEnvVars }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVars "context" $) | nindent 12 }}
             {{- end }}
@@ -77,11 +85,11 @@ spec:
           {{- if $resources }}
           resources: {{- toYaml $resources | nindent 12 }}
           {{- end }}
-          volumeMounts: {{- include "authup.server.volumeMounts" . | nindent 12 }}
+          volumeMounts: {{- include "authup.server.volumeMounts" (dict "context" $ "hook" true) | nindent 12 }}
             {{- if .Values.server.extraVolumeMounts }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
             {{- end }}
-      volumes: {{- include "authup.server.volumes" . | nindent 8 }}
+      volumes: {{- include "authup.server.volumes" (dict "context" $ "hook" true) | nindent 8 }}
         {{- if .Values.server.extraVolumes }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
         {{- end }}

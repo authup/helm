@@ -34,7 +34,10 @@ commonLabels: {}
 commonAnnotations: {}
 # -- Extra objects to deploy (rendered through tpl; list of manifests or strings)
 extraDeploy: []
-# -- Render Job hook annotations (set false for ArgoCD / Flux)
+# -- Render Helm hook annotations on the migration Job. Set false only for
+# ArgoCD, which reads its own PreSync annotations instead (it also understands
+# Helm hooks, so true works there too). Flux and plain helm need true: a plain
+# Job's pod template is immutable, so the next upgrade cannot patch it.
 useHelmHooks: true
 diagnosticMode:
   # -- Start every container with a sleep command and disable probes (debugging)

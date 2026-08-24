@@ -12,7 +12,7 @@ matrix.
 | Render matrix | `make template` | template errors across every `ci/*-values.yaml` |
 | Values coverage | `make lint-values-coverage` | `.Values.*` paths missing from values.yaml (strict-schema dead features) |
 | Drift gates (CI) | `make docs` / `make schema` + `git status --porcelain` | uncommitted regenerations of README.md / values.schema.json |
-| ct install (CI) | kind cluster, one install per `ci/*-values.yaml` | real boot: DB provisioning, probes, migrations |
+| ct install (CI) | kind cluster, per `ci/*-values.yaml`: install, plus two upgrades | real boot: DB provisioning, probes, migrations, and pre-upgrade hooks |
 
 `make test` runs lint + template + coverage locally.
 
@@ -49,6 +49,7 @@ helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # f
 helm template t charts/authup --set server.config.WRITABLE_DIRECTORY_PATH=/x  # ditto; the chart pins this one to the path it mounts
 helm template t charts/authup --set 'server.route.enabled=yes'               # flag that is neither true nor false
 helm template t charts/authup --set adminConsole.enabled=false --set adminConsole.route.enabled=yes  # ditto: validated even with the component off
+helm template t charts/authup --set 'server.configuration=logger: true' --set server.existingConfigmap=cm  # both config carriers
 helm template t charts/authup --set server.theme.enabled=true               # theme with no carrier
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.title=X --set server.theme.existingConfigMap=cm  # manifest + existing CM
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=logo.svg          # asset outside assets/
@@ -83,6 +84,70 @@ flag, so all six read sites convert together: leave one raw and an umbrella-driv
 route renders unguarded. `ci/default-values.yaml` carries the false direction as
 the in-repo regression guard.
 
+The pre-upgrade migration Job must stay narrower than the Deployment. Helm
+applies a hook before the release manifest, so anything the Job references has
+to exist from the previous release:
+
+```bash
+helm template t charts/authup --set server.migration.enabled=true \
+  --set valkey.enabled=true --set smtp.connectionString=smtp://u:p@mail:25 \
+  --set auth.systemClientEnabled=true \
+  --set server.provisioning.enabled=true --set 'server.provisioning.files.realms\.json=[]' \
+  --set 'server.configuration=db: {ssl: true}' \
+  -s templates/server/migration-job.yaml
+```
+
+The Job's only secret-backed env must be `DB_PASSWORD` (plus
+`SECRETS_ENCRYPTION_KEY` when the KEK is set): no `REDIS`, no `SMTP`, no
+`USER_ADMIN_PASSWORD`, no `CLIENT_SYSTEM_SECRET`. Volumes `writable` / `tmp` /
+`configuration` but NO `provisioning`; and the configuration volume must name
+`<fullname>-server-migration-configuration`
+(the hook-scoped copy at weight -5), never `<fullname>-server-configuration`. The
+server Deployment in the same render must still carry all of them. Dropping the
+config file from the Job is NOT a valid simplification: `migration run` reads it
+and its file-only db keys (`ssl`, `socketPath`, `extensions`) govern the
+connection, so a missing mount migrates over a plaintext connection instead of
+failing.
+
+Names have two ceilings, not one (rule 9). 63 applies to a Service (DNS-1035
+label) and to a Job (its name becomes a `job-name` label value); 253 applies to
+ConfigMaps and Secrets. Audit every rendered name at the longest release name
+helm accepts:
+
+```bash
+helm template $(python3 -c "print('n'*53)") charts/authup \
+  --set valkey.enabled=true --set server.migration.enabled=true | python3 -c "
+import sys, yaml
+for d in yaml.safe_load_all(sys.stdin):
+    if d and d['kind'] in ('Service','Job') and len(d['metadata']['name']) > 63:
+        print('OVER 63:', d['kind'], d['metadata']['name'])
+"
+```
+
+Must print nothing. The stronger property, and the one to assert whenever the
+budget in `authup.component.fullname` changes, is that **no name changes for a
+release that could already install**: render every release-name length 3..53 on
+both `origin/master` and the branch, and check that the two name sets differ only
+at lengths where master already emitted an over-63 Service or Job. Widening the
+budget silently renames resources, and a renamed `resource-policy: keep` Secret
+regenerates the admin password.
+
+`useHelmHooks=false` must print the Flux/plain-helm warning in NOTES.txt, and
+must not print it with hooks on. NOTES is not reachable through `helm template`,
+and `.Files.Get "templates/NOTES.txt"` does NOT work either (helm excludes
+`templates/` from `.Files`, so the wrapper renders empty and BOTH directions
+"pass"). Inline the raw template text into a generated template instead:
+
+```bash
+cp -r charts/authup /tmp/nc
+{ printf 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: notes\ndata:\n  notes: |\n'; \
+  sed 's/^/    /' /tmp/nc/templates/NOTES.txt; } > /tmp/nc/templates/zz-notes.yaml
+helm template t /tmp/nc --set server.migration.enabled=true --set useHelmHooks=false \
+  -s templates/zz-notes.yaml | grep -c 'useHelmHooks=false'   # must be >0
+helm template t /tmp/nc --set server.migration.enabled=true \
+  -s templates/zz-notes.yaml | grep -c 'useHelmHooks=false'   # must be 0
+```
+
 Umbrella use is part of the contract: `global` must stay open. Render a throwaway
 parent chart with authup in `charts/` and an unrelated global (`global.myOrgKey`)
 whenever the schema generation changes; `ci/default-values.yaml` carries a stray
@@ -110,6 +175,16 @@ The generated `values.schema.json` must keep catching typos
   (the external-db scenario's throwaway postgres + secrets live there).
 - The kind job only runs when `ct list-changed` reports chart changes, so
   docs-only PRs stay fast.
-- `--timeout 600s` accounts for first-pull of the authup image plus boot-time
-  migrations; server-core's startupProbe budget (60 x 5s) covers create-db +
+- `upgrade: true` (in `.github/configs/ct.yaml`) is what puts the pre-upgrade
+  migration Job on a real cluster at all: a plain `helm install` skips
+  `pre-upgrade` hooks entirely, so without it the Job and its hook-scoped
+  ConfigMap are render-tested only. Per values file ct then runs the chart on
+  `master` and upgrades to this revision, then installs this revision and
+  upgrades it to itself. The first leg is skipped once a release bumps the
+  middle digit, because ct reads that as a breaking change for a 0.x chart
+  (`~0.x.y` constraint); the self-upgrade leg always runs. Budget roughly 3x
+  the install-only runtime.
+- `--timeout 600s` is passed to install AND upgrade (ct hands `helm-extra-args`
+  to both), so it also has to cover hook execution. It accounts for first-pull
+  of the authup image plus boot-time migrations; server-core's startupProbe budget (60 x 5s) covers create-db +
   migrate + provision on first boot.

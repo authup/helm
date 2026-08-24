@@ -484,7 +484,7 @@ Kubernetes: `>=1.25.0-0`
 | smtp.connectionString | string | `""` | SMTP connection string (smtp(s)://user:pass@host:port); stored in a chart-managed secret |
 | smtp.existingSecret | string | `""` | Existing secret holding the SMTP connection string (tpl-rendered) |
 | smtp.existingSecretKey | string | `"smtp-connection-string"` | Key inside smtp.existingSecret holding the connection string |
-| useHelmHooks | bool | `true` | Render Job hook annotations (set false for ArgoCD / Flux) |
+| useHelmHooks | bool | `true` | Render Helm hook annotations on the migration Job. Set false only for ArgoCD, which reads its own PreSync annotations instead (it also understands Helm hooks, so true works there too). Flux and plain helm need true: a plain Job's pod template is immutable, so the next upgrade cannot patch it. |
 | valkey.affinity | object | `{}` | Valkey affinity |
 | valkey.auth.password | string | `""` | Valkey password ("" = generate once, keep across upgrades) |
 | valkey.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"runAsGroup":999,"runAsNonRoot":true,"runAsUser":999,"seccompProfile":{"type":"RuntimeDefault"}}` | Valkey container security context |
