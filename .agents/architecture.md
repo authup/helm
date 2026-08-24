@@ -70,8 +70,11 @@ editing templates or values.
     `useHelmHooks=false` it renders ArgoCD `PreSync` hook annotations instead,
     which is an ArgoCD-only mode: see rule 19.
 
-    Helm applies a pre-upgrade hook BEFORE the release manifest, so everything
-    the Job references must already exist from the PREVIOUS release. Four
+    Helm applies a pre-upgrade hook BEFORE the release manifest, so every
+    NON-HOOK resource the Job references must already exist from the PREVIOUS
+    release. A hook resource at a lower weight is the one exception: it is
+    created earlier in the same hook phase, which is exactly what the config
+    copy below relies on. Four
     helpers take a `hook` flag (`secretEnv`, the two volume helpers and
     `configurationConfigMapName`; `configEnv` does not, it is inlined instead)
     and drop what `migration run` does not read. That flag is the ONE mechanism

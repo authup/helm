@@ -12,7 +12,7 @@ matrix.
 | Render matrix | `make template` | template errors across every `ci/*-values.yaml` |
 | Values coverage | `make lint-values-coverage` | `.Values.*` paths missing from values.yaml (strict-schema dead features) |
 | Drift gates (CI) | `make docs` / `make schema` + `git status --porcelain` | uncommitted regenerations of README.md / values.schema.json |
-| ct install (CI) | kind cluster, one install per `ci/*-values.yaml` | real boot: DB provisioning, probes, migrations |
+| ct install (CI) | kind cluster, per `ci/*-values.yaml`: install, plus two upgrades | real boot: DB provisioning, probes, migrations, and pre-upgrade hooks |
 
 `make test` runs lint + template + coverage locally.
 
@@ -175,6 +175,16 @@ The generated `values.schema.json` must keep catching typos
   (the external-db scenario's throwaway postgres + secrets live there).
 - The kind job only runs when `ct list-changed` reports chart changes, so
   docs-only PRs stay fast.
-- `--timeout 600s` accounts for first-pull of the authup image plus boot-time
-  migrations; server-core's startupProbe budget (60 x 5s) covers create-db +
+- `upgrade: true` (in `.github/configs/ct.yaml`) is what puts the pre-upgrade
+  migration Job on a real cluster at all: a plain `helm install` skips
+  `pre-upgrade` hooks entirely, so without it the Job and its hook-scoped
+  ConfigMap are render-tested only. Per values file ct then runs the chart on
+  `master` and upgrades to this revision, then installs this revision and
+  upgrades it to itself. The first leg is skipped once a release bumps the
+  middle digit, because ct reads that as a breaking change for a 0.x chart
+  (`~0.x.y` constraint); the self-upgrade leg always runs. Budget roughly 3x
+  the install-only runtime.
+- `--timeout 600s` is passed to install AND upgrade (ct hands `helm-extra-args`
+  to both), so it also has to cover hook execution. It accounts for first-pull
+  of the authup image plus boot-time migrations; server-core's startupProbe budget (60 x 5s) covers create-db +
   migrate + provision on first boot.

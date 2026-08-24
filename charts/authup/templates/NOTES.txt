@@ -84,7 +84,7 @@ schema migrations are serialized in a pre-upgrade Job instead of racing at
 pod boot.
 {{- end }}
 
-{{- if and .Values.server.migration.enabled (not .Values.useHelmHooks) }}
+{{- if and .Values.server.enabled .Values.server.migration.enabled (not .Values.useHelmHooks) }}
 
 WARNING: useHelmHooks=false renders the migration Job as a plain resource
 carrying ArgoCD PreSync annotations, which only ArgoCD reads. Under Flux or
