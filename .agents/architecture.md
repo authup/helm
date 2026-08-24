@@ -38,14 +38,27 @@ editing templates or values.
    name + instance + component. `commonLabels` / `podLabels` must never leak
    into a selector. `app.kubernetes.io/component` separates the two services'
    Services within one release.
-9. **Component fullnames truncate the base BEFORE suffixing**
-   (`trunc 52` then `-server` / `-ui` / engine suffix), so long release names
-   cannot collapse every resource onto one identical name. That rule keeps names
-   DISTINCT; it does not keep them SHORT. `trunc 52` plus a suffix exceeds 63,
-   and 63 (not 253) is the real ceiling wherever a name becomes a label value or
-   a DNS-1035 label: the migration Job is capped at 63 for that reason (the API
-   server copies its name into the `job-name` pod labels). Anything new that
-   suffixes a component fullname has to ask which ceiling applies to its kind.
+9. **Component fullnames truncate the base BEFORE suffixing, on a budget
+   derived from the suffix.** `authup.component.fullname`
+   (`dict "context" $ "suffix" "server"`) is the single implementation; every
+   component name and the migration Job go through it. Truncating first is what
+   keeps names DISTINCT (a 63-char fullname would otherwise collapse every
+   component onto one name); deriving the budget is what keeps them LEGAL.
+
+   The ceiling is 63, not the 253 a ConfigMap allows, wherever a name becomes a
+   DNS-1035 label (Service) or a label value (a Job name is copied into the
+   `job-name` pod labels). The old flat `trunc 52` ignored that: `-admin-console`
+   rendered a 66-char Service, so any release name from ~43 characters up could
+   not install at all, and appending `-migration` to the `-server` name reached
+   69. Both are now `min 52 (63 - len(suffix) - 1)`.
+
+   `min 52` is the load-bearing half. The derived budget is WIDER than 52 for
+   short suffixes, and widening RENAMES resources on releases whose fullname
+   lands between 53 and 55 characters. A renamed Secret carrying
+   `helm.sh/resource-policy: keep` orphans the old one and generates a new admin
+   password: a silent credential rotation on upgrade. **The budget may only ever
+   tighten**, which by construction touches only names too long to exist. Assert
+   that when changing it (see testing.md), do not assume it.
 10. **The migration Job shares the deployment's env by construction, minus
     what a hook cannot see.** `authup.server.configEnv` (map),
     `authup.server.secretEnv` (list) and the two volume helpers are the single

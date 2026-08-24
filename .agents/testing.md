@@ -109,18 +109,28 @@ and its file-only db keys (`ssl`, `socketPath`, `extensions`) govern the
 connection, so a missing mount migrates over a plaintext connection instead of
 failing.
 
-Names have two ceilings, not one. Rule 9's `trunc 52` keeps component names
-distinct, not short, and 63 is the limit wherever a name lands in a label value
-or a DNS-1035 label. Check the migration Job at the longest release name helm
-accepts:
+Names have two ceilings, not one (rule 9). 63 applies to a Service (DNS-1035
+label) and to a Job (its name becomes a `job-name` label value); 253 applies to
+ConfigMaps and Secrets. Audit every rendered name at the longest release name
+helm accepts:
 
 ```bash
 helm template $(python3 -c "print('n'*53)") charts/authup \
-  --set server.migration.enabled=true | grep '^  name:' | awk '{print length($2), $2}' | sort -rn
+  --set valkey.enabled=true --set server.migration.enabled=true | python3 -c "
+import sys, yaml
+for d in yaml.safe_load_all(sys.stdin):
+    if d and d['kind'] in ('Service','Job') and len(d['metadata']['name']) > 63:
+        print('OVER 63:', d['kind'], d['metadata']['name'])
+"
 ```
 
-The Job must be <= 63. ConfigMaps and Secrets may exceed it (253 applies), but a
-Service may not.
+Must print nothing. The stronger property, and the one to assert whenever the
+budget in `authup.component.fullname` changes, is that **no name changes for a
+release that could already install**: render every release-name length 3..53 on
+both `origin/master` and the branch, and check that the two name sets differ only
+at lengths where master already emitted an over-63 Service or Job. Widening the
+budget silently renames resources, and a renamed `resource-policy: keep` Secret
+regenerates the admin password.
 
 `useHelmHooks=false` must print the Flux/plain-helm warning in NOTES.txt, and
 must not print it with hooks on. NOTES is not reachable through `helm template`,
