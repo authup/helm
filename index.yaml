@@ -4,6 +4,59 @@ entries:
   - annotations:
       artifacthub.io/changes: |
         - kind: fixed
+          description: The writable directory moves to /var/lib/authup and WRITABLE_DIRECTORY_PATH is set to the path the chart mounts, so an image default change cannot silently stop file provisioning
+        - kind: changed
+          description: Track authup v1.0.0-beta.63, whose image writes to /var/lib/authup
+        - kind: added
+          description: server.route.enabled / adminConsole.route.enabled accept a tpl-rendered string, so an umbrella chart can drive them from a global
+        - kind: fixed
+          description: The pre-upgrade migration Job no longer references release resources that do not exist when the hook runs; it drops the provisioning mount and every secret env migration run does not read (REDIS, SMTP, USER_ADMIN_PASSWORD, CLIENT_SYSTEM_SECRET), keeping only DB_PASSWORD and the encryption key
+        - kind: fixed
+          description: The migration Job reads authup.server.core.conf from a hook-scoped copy, so it no longer runs against a missing or one-release-stale config file
+        - kind: changed
+          description: useHelmHooks=false is documented as ArgoCD-only; under Flux or plain helm it makes the Job a plain resource whose immutable pod template fails the next upgrade
+        - kind: fixed
+          description: Component names now derive their truncation budget from the suffix, so the 63-character limit that applies to a Service name and to a Job name is respected; release names from about 43 characters up previously rendered an admin-console Service the API server rejects, and the migration Job reached 69 characters. Only names that were already too long to exist change
+        - kind: changed
+          description: Setting both server.configuration and server.existingConfigmap now fails the render instead of silently dropping the inline content, which is usually where db.ssl and socketPath live
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.63
+    created: "2026-08-24T07:38:03.836688973Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      the server-core IdP/API service and the client-admin-console admin UI, with
+      optional built-in PostgreSQL, MySQL and Valkey instances.
+    digest: 7d4962d92dacc6cc04156c9574ab90f61ebe55d2ad7d580ce658af44e7ca58cd
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.3.0/authup-0.3.0.tgz
+    version: 0.3.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: fixed
           description: A parent chart's own global.* keys no longer fail schema validation
         - kind: added
           description: server.route / adminConsole.route accept matches and filters
@@ -168,4 +221,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-19T10:04:24.636682838Z"
+generated: "2026-08-24T07:38:03.836712357Z"
