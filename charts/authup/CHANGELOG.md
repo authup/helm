@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.0](https://github.com/authup/helm/compare/authup-0.2.2...authup-0.3.0) (2026-08-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* **authup:** the writable directory moves from /usr/src/app/writable to /var/lib/authup, and server.config.WRITABLE_DIRECTORY_PATH now fails the render instead of being honored. A server.extraVolumeMounts entry aimed at the old path no longer overlays the writable directory. Migration: charts/authup/BREAKING.md.
+
+### Features
+
+* **authup:** writable directory moves to /var/lib/authup, and route.enabled accepts a template ([#16](https://github.com/authup/helm/issues/16)) ([52e42f3](https://github.com/authup/helm/commit/52e42f3968b67a9c8f223c5ae9dd7c0e01346e23))
+
+
+### Bug Fixes
+
+* **authup:** give the migration hook only what a hook can see, and scope useHelmHooks to ArgoCD ([#20](https://github.com/authup/helm/issues/20)) ([bddbb7f](https://github.com/authup/helm/commit/bddbb7faa8aaaeea711f58139b70e3d0a228a194))
+
 ## [0.2.2](https://github.com/authup/helm/compare/authup-0.2.1...authup-0.2.2) (2026-08-19)
 
 
