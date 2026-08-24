@@ -10,7 +10,13 @@ against the previous release's ConfigMap.
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ printf "%s-migration" (include "authup.server.fullname" .) }}
+  {{- /* Capped at 63, not the 253 a Job name would otherwise allow: with no
+         hand-written spec.selector the API server copies this name into the
+         job-name / batch.kubernetes.io/job-name pod labels, and a LABEL VALUE
+         stops at 63. Rule 9's trunc-52 base plus "-server" plus "-migration"
+         reaches 69, so a long release name would make the hook unschedulable
+         and hang the upgrade. */}}
+  name: {{ printf "%s-migration" (include "authup.server.fullname" .) | trunc 63 | trimSuffix "-" }}
   namespace: {{ include "authup.namespace" . | quote }}
   labels: {{- include "authup.labels" (dict "context" $ "component" "migration") | nindent 4 }}
   annotations:

@@ -149,6 +149,13 @@ that only the file can carry (ssl, socketPath, replication, extensions, poolSize
 decide how the migration connects and what it creates. Dropping it would silently
 migrate over a plaintext connection. The Job reads it from a hook-scoped copy
 instead: see authup.server.configurationConfigMapName.
+
+The theme volume rides the same flag. It used to be a pair of deployment-only
+defines carved out for exactly this hook reason, which left two calling
+conventions in deployment.yaml two lines apart; one mechanism is one thing to
+get right. authup.server.themeEnv stays separate: it splits along a different
+axis (configEnv is one define shared by the env ConfigMap and the Job's inlined
+env, and THEME_* must stay in its reserved-key list either way).
 */}}
 {{- define "authup.server.volumeMounts" -}}
 {{- $ctx := required "authup.server.volumeMounts: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
@@ -165,6 +172,11 @@ instead: see authup.server.configurationConfigMapName.
 - name: configuration
   mountPath: /usr/src/app/authup.server.core.conf
   subPath: authup.server.core.conf
+  readOnly: true
+{{- end }}
+{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+- name: theme
+  mountPath: {{ include "authup.server.themeMountPath" $ctx }}
   readOnly: true
 {{- end }}
 {{- end -}}
@@ -190,15 +202,27 @@ instead: see authup.server.configurationConfigMapName.
   configMap:
     name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ctx "hook" .hook) }}
 {{- end }}
+{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+- name: theme
+  configMap:
+    name: {{ include "authup.server.themeConfigMapName" $ctx }}
+    {{- /* Whole-volume projection on purpose: a subPath mount is frozen
+           until the pod restarts, which would destroy authup's live theme
+           reload. */}}
+    {{- if $ctx.Values.server.theme.existingConfigMap }}
+    {{- with $ctx.Values.server.theme.existingConfigMapItems }}
+    items: {{- include "authup.tplvalues.render" (dict "value" . "context" $ctx) | nindent 6 }}
+    {{- end }}
+    {{- else }}
+    items:
+      {{- range $path := splitList "\n" (include "authup.server.themePaths" $ctx) }}
+      - key: {{ include "authup.server.themeConfigMapKey" $path }}
+        path: {{ $path }}
+      {{- end }}
+    {{- end }}
+{{- end }}
 {{- end -}}
 
-{{/*
-Theme volume / volumeMount, deliberately NOT part of the shared server
-helpers: the migration Job is a pre-upgrade HOOK, and hooks precede regular
-resources, so on the upgrade that first enables theming it would reference a
-ConfigMap that does not exist yet and hang. A migration run has no use for
-the theme either way.
-*/}}
 {{/*
 Theme environment, kept OUT of authup.server.configEnv for the same reason
 as the volume: the migration Job inlines configEnv, and pointing
@@ -214,36 +238,6 @@ THEME_* stays in configEnv's reserved-key list regardless, so a
 {{- if include "authup.server.themeMounted" . }}
 THEME_DIRECTORY_PATH: {{ include "authup.server.themeMountPath" . | quote }}
 THEME_FRAGMENTS_ENABLED: {{ .Values.server.theme.fragmentsEnabled | toString | quote }}
-{{- end }}
-{{- end -}}
-
-{{- define "authup.server.themeVolumeMounts" -}}
-{{- if include "authup.server.themeMounted" . }}
-- name: theme
-  mountPath: {{ include "authup.server.themeMountPath" . }}
-  readOnly: true
-{{- end }}
-{{- end -}}
-
-{{- define "authup.server.themeVolumes" -}}
-{{- if include "authup.server.themeMounted" . }}
-- name: theme
-  configMap:
-    name: {{ include "authup.server.themeConfigMapName" . }}
-    {{- /* Whole-volume projection on purpose: a subPath mount is frozen
-           until the pod restarts, which would destroy authup's live theme
-           reload. */}}
-    {{- if .Values.server.theme.existingConfigMap }}
-    {{- with .Values.server.theme.existingConfigMapItems }}
-    items: {{- include "authup.tplvalues.render" (dict "value" . "context" $) | nindent 6 }}
-    {{- end }}
-    {{- else }}
-    items:
-      {{- range $path := splitList "\n" (include "authup.server.themePaths" $) }}
-      - key: {{ include "authup.server.themeConfigMapKey" $path }}
-        path: {{ $path }}
-      {{- end }}
-    {{- end }}
 {{- end }}
 {{- end -}}
 

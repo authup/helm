@@ -165,9 +165,6 @@ spec:
           lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.server.lifecycleHooks "context" $) | nindent 12 }}
           {{- end }}
           volumeMounts: {{- include "authup.server.volumeMounts" (dict "context" $) | nindent 12 }}
-            {{- if include "authup.server.themeMounted" . }}
-            {{- include "authup.server.themeVolumeMounts" . | nindent 12 }}
-            {{- end }}
             {{- if .Values.server.extraVolumeMounts }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
             {{- end }}
@@ -175,9 +172,6 @@ spec:
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.sidecars "context" $) | nindent 8 }}
         {{- end }}
       volumes: {{- include "authup.server.volumes" (dict "context" $) | nindent 8 }}
-        {{- if include "authup.server.themeMounted" . }}
-        {{- include "authup.server.themeVolumes" . | nindent 8 }}
-        {{- end }}
         {{- if .Values.server.extraVolumes }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
         {{- end }}

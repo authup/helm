@@ -5,6 +5,13 @@ land on the middle digit. Every entry lists the value migrations required.
 
 ## Next release (unreleased)
 
+- Setting BOTH `server.configuration` and `server.existingConfigmap` now fails
+  the render. It never worked: the existing ConfigMap is the one that gets
+  mounted, so the inline content was silently dropped, and that content is
+  typically where `db.ssl` / `socketPath` / `replication` live, i.e. how the
+  server pods and the pre-upgrade migration hook connect to the database. Move
+  the inline content into the referenced ConfigMap, or drop
+  `server.existingConfigmap`.
 - The writable directory moves from `/usr/src/app/writable` to `/var/lib/authup`,
   following the image (authup/authup#3474, shipped in v1.0.0-beta.63). The chart
   mounts an emptyDir there, so nothing persists across the change; only a

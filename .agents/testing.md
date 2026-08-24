@@ -49,6 +49,7 @@ helm template t charts/authup --set server.config.PUBLIC_URL=http://x        # f
 helm template t charts/authup --set server.config.WRITABLE_DIRECTORY_PATH=/x  # ditto; the chart pins this one to the path it mounts
 helm template t charts/authup --set 'server.route.enabled=yes'               # flag that is neither true nor false
 helm template t charts/authup --set adminConsole.enabled=false --set adminConsole.route.enabled=yes  # ditto: validated even with the component off
+helm template t charts/authup --set 'server.configuration=logger: true' --set server.existingConfigmap=cm  # both config carriers
 helm template t charts/authup --set server.theme.enabled=true               # theme with no carrier
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.title=X --set server.theme.existingConfigMap=cm  # manifest + existing CM
 helm template t charts/authup --set server.theme.enabled=true --set server.theme.logo=logo.svg          # asset outside assets/
@@ -107,6 +108,19 @@ config file from the Job is NOT a valid simplification: `migration run` reads it
 and its file-only db keys (`ssl`, `socketPath`, `extensions`) govern the
 connection, so a missing mount migrates over a plaintext connection instead of
 failing.
+
+Names have two ceilings, not one. Rule 9's `trunc 52` keeps component names
+distinct, not short, and 63 is the limit wherever a name lands in a label value
+or a DNS-1035 label. Check the migration Job at the longest release name helm
+accepts:
+
+```bash
+helm template $(python3 -c "print('n'*53)") charts/authup \
+  --set server.migration.enabled=true | grep '^  name:' | awk '{print length($2), $2}' | sort -rn
+```
+
+The Job must be <= 63. ConfigMaps and Secrets may exceed it (253 applies), but a
+Service may not.
 
 `useHelmHooks=false` must print the Flux/plain-helm warning in NOTES.txt, and
 must not print it with hooks on. NOTES is not reachable through `helm template`,

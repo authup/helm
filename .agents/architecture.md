@@ -40,7 +40,12 @@ editing templates or values.
    Services within one release.
 9. **Component fullnames truncate the base BEFORE suffixing**
    (`trunc 52` then `-server` / `-ui` / engine suffix), so long release names
-   cannot collapse every resource onto one identical name.
+   cannot collapse every resource onto one identical name. That rule keeps names
+   DISTINCT; it does not keep them SHORT. `trunc 52` plus a suffix exceeds 63,
+   and 63 (not 253) is the real ceiling wherever a name becomes a label value or
+   a DNS-1035 label: the migration Job is capped at 63 for that reason (the API
+   server copies its name into the `job-name` pod labels). Anything new that
+   suffixes a component fullname has to ask which ceiling applies to its kind.
 10. **The migration Job shares the deployment's env by construction, minus
     what a hook cannot see.** `authup.server.configEnv` (map),
     `authup.server.secretEnv` (list) and the two volume helpers are the single
@@ -56,7 +61,11 @@ editing templates or values.
     the Job references must already exist from the PREVIOUS release. Four
     helpers take a `hook` flag (`secretEnv`, the two volume helpers and
     `configurationConfigMapName`; `configEnv` does not, it is inlined instead)
-    and drop what `migration run` does not read:
+    and drop what `migration run` does not read. That flag is the ONE mechanism
+    for this: the theme volume used to be a pair of deployment-only defines
+    carved out for the same reason, and two conventions in one `volumeMounts:`
+    block is how the next mount ends up on the wrong side. `themeEnv` stays
+    separate because it splits along a different axis. Dropped:
     `REDIS`, `SMTP` (their Secrets are release resources, and the migration
     builds no cache or mail module) and the provisioning mount (`ProvisionerModule`
     is registered by the start command only). What stays, stays for a reason:

@@ -3,6 +3,12 @@ target-branch: master
 chart-dirs:
   - charts
 helm-extra-args: --timeout 600s
+# Runs two real `helm upgrade`s per ci values file: master's chart -> this
+# revision, then this revision -> itself. Without it no pre-upgrade hook is ever
+# created on a cluster, so the migration Job and its hook-scoped ConfigMap are
+# render-tested only. ct skips the first leg once a release bumps the middle
+# digit (0.x treats that as breaking); the self-upgrade leg always runs.
+upgrade: true
 check-version-increment: false
 validate-maintainers: false
 lint-conf: .github/configs/lintconf.yaml

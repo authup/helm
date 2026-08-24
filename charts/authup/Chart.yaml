@@ -43,3 +43,7 @@ annotations:
       description: The migration Job reads authup.server.core.conf from a hook-scoped copy, so it no longer runs against a missing or one-release-stale config file
     - kind: changed
       description: useHelmHooks=false is documented as ArgoCD-only; under Flux or plain helm it makes the Job a plain resource whose immutable pod template fails the next upgrade
+    - kind: fixed
+      description: The migration Job name is capped at 63 characters, the limit that applies because Kubernetes copies it into the job-name pod labels; long release names previously produced an unschedulable Job that hung the upgrade
+    - kind: changed
+      description: Setting both server.configuration and server.existingConfigmap now fails the render instead of silently dropping the inline content, which is usually where db.ssl and socketPath live
