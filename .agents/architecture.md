@@ -53,8 +53,10 @@ editing templates or values.
     which is an ArgoCD-only mode: see rule 19.
 
     Helm applies a pre-upgrade hook BEFORE the release manifest, so everything
-    the Job references must already exist from the PREVIOUS release. The three
-    helpers take a `hook` flag that drops what `migration run` does not read:
+    the Job references must already exist from the PREVIOUS release. Four
+    helpers take a `hook` flag (`secretEnv`, the two volume helpers and
+    `configurationConfigMapName`; `configEnv` does not, it is inlined instead)
+    and drop what `migration run` does not read:
     `REDIS`, `SMTP` (their Secrets are release resources, and the migration
     builds no cache or mail module) and the provisioning mount (`ProvisionerModule`
     is registered by the start command only). What stays, stays for a reason:
@@ -66,12 +68,24 @@ editing templates or values.
     The Job reads that file from a hook-scoped COPY
     (`server/configmap-migration-configuration.yaml`, weight -5) for the same
     reason it inlines the env: the release ConfigMap is either absent or one
-    release stale when the hook runs. `CLIENT_SYSTEM_SECRET` goes the same way:
-    its key inside the auth Secret is conditional. `SECRETS_ENCRYPTION_KEY`
-    deliberately does NOT, even though its key is conditional too and the
-    migration does not read it today: rule 6's fail-closed posture outranks the
-    one-off break, so a write-once KEK gets its own upgrade. `DB_PASSWORD` is the
-    other residual, and only when an upgrade also switches database engine.
+    release stale when the hook runs. `USER_ADMIN_PASSWORD` and
+    `CLIENT_SYSTEM_SECRET` go the same way: no identity or provisioning module
+    on the migration path, and the auth Secret they read is itself a release
+    resource. `SECRETS_ENCRYPTION_KEY` deliberately does NOT, even though its
+    key is conditional too and the migration does not read it today: rule 6's
+    fail-closed posture outranks the one-off break, so a write-once KEK gets its
+    own upgrade.
+
+    What the flag cannot reach, i.e. the residuals to keep in mind when adding
+    anything to the Job: `DB_PASSWORD` (the Secret behind it changes on an engine
+    switch, on adopting a built-in engine after `externalDatabase`, and on a
+    first inline `externalDatabase.password`, since `secret-db.yaml` is a release
+    resource too); the `serviceAccountName`, whose ServiceAccount renders only
+    under `serviceAccount.create`, so flipping that on fails pod ADMISSION with
+    no container status to read; and the `extraEnvVarsCM` / `extraEnvVarsSecret`
+    / `extraVolumes` passthroughs, whose targets are operator-owned unless the
+    operator ships them through `extraDeploy`, which renders them into the
+    release manifest and therefore after the hook.
 11. **Checksum annotations roll pods on config or secret changes.** The server
     deployment checksums the env map plus every chart-managed secret it
     consumes (auth, external-db, redis, smtp, provisioning, configuration),

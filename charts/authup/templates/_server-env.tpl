@@ -63,11 +63,12 @@ pre-upgrade hook BEFORE the release manifest, so the upgrade that first enables
 valkey or SMTP would schedule a hook pod whose secretKeyRef target does not
 exist yet (CreateContainerConfigError until the hook times out). `migration run`
 builds config + logger + database only, no cache and no mail module, so neither
-value is read there. CLIENT_SYSTEM_SECRET goes for the same reason: its key
-inside the chart-managed auth Secret is conditional, so flipping
-auth.systemClientEnabled on breaks the hook the same way. What stays: DB_PASSWORD
-(the migration cannot run without it), USER_ADMIN_PASSWORD (unread, but its key
-is unconditional, so it costs nothing) and the KEK (see its comment below).
+value is read there. USER_ADMIN_PASSWORD and CLIENT_SYSTEM_SECRET go too: the
+migration builds no identity or provisioning module either, and the auth Secret
+they read is itself a release resource (an upgrade dropping auth.existingSecret
+for a chart-managed one creates it only AFTER the hook), on top of
+CLIENT_SYSTEM_SECRET's key being conditional. The hook keeps exactly two:
+DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 */}}
 {{- define "authup.server.secretEnv" -}}
 {{- $ctx := required "authup.server.secretEnv: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
@@ -90,11 +91,13 @@ is unconditional, so it costs nothing) and the KEK (see its comment below).
       name: {{ include "authup.smtp.secretName" $ctx }}
       key: {{ include "authup.smtp.secretKey" $ctx }}
 {{- end }}
+{{- if not .hook }}
 - name: USER_ADMIN_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.auth.secretName" $ctx }}
       key: {{ $ctx.Values.auth.secretKeys.adminPasswordKey }}
+{{- end }}
 {{- if and (not .hook) $ctx.Values.auth.systemClientEnabled }}
 - name: CLIENT_SYSTEM_SECRET
   valueFrom:

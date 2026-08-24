@@ -326,7 +326,7 @@ first-class templating, in v1.
   annotations instead. Flux runs a real `helm upgrade` and honours Helm hooks,
   so a plain Job there hits the immutable `spec.template` on the next upgrade.
 - The hook Job sees only the PREVIOUS release's ConfigMaps and Secrets, so it
-  carries a narrowed env/mount set (no REDIS, SMTP, CLIENT_SYSTEM_SECRET or
+  carries a narrowed env/mount set (DB_PASSWORD and the encryption key only, no
   provisioning mount) plus a
   hook-scoped copy of `authup.server.core.conf`, which `migration run` does
   read.

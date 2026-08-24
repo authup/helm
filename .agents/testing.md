@@ -96,8 +96,9 @@ helm template t charts/authup --set server.migration.enabled=true \
   -s templates/server/migration-job.yaml
 ```
 
-The Job must show env `DB_PASSWORD` / `USER_ADMIN_PASSWORD` but NO `REDIS`, no
-`SMTP` and no `CLIENT_SYSTEM_SECRET`; volumes `writable` / `tmp` /
+The Job's only secret-backed env must be `DB_PASSWORD` (plus
+`SECRETS_ENCRYPTION_KEY` when the KEK is set): no `REDIS`, no `SMTP`, no
+`USER_ADMIN_PASSWORD`, no `CLIENT_SYSTEM_SECRET`. Volumes `writable` / `tmp` /
 `configuration` but NO `provisioning`; and the configuration volume must name
 `<fullname>-server-migration-configuration`
 (the hook-scoped copy at weight -5), never `<fullname>-server-configuration`. The
@@ -109,8 +110,19 @@ failing.
 
 `useHelmHooks=false` must print the Flux/plain-helm warning in NOTES.txt, and
 must not print it with hooks on. NOTES is not reachable through `helm template`,
-so wrap it: copy the chart, append `templates/NOTES.txt` into a ConfigMap
-template, render that.
+and `.Files.Get "templates/NOTES.txt"` does NOT work either (helm excludes
+`templates/` from `.Files`, so the wrapper renders empty and BOTH directions
+"pass"). Inline the raw template text into a generated template instead:
+
+```bash
+cp -r charts/authup /tmp/nc
+{ printf 'apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: notes\ndata:\n  notes: |\n'; \
+  sed 's/^/    /' /tmp/nc/templates/NOTES.txt; } > /tmp/nc/templates/zz-notes.yaml
+helm template t /tmp/nc --set server.migration.enabled=true --set useHelmHooks=false \
+  -s templates/zz-notes.yaml | grep -c 'useHelmHooks=false'   # must be >0
+helm template t /tmp/nc --set server.migration.enabled=true \
+  -s templates/zz-notes.yaml | grep -c 'useHelmHooks=false'   # must be 0
+```
 
 Umbrella use is part of the contract: `global` must stay open. Render a throwaway
 parent chart with authup in `charts/` and an unrelated global (`global.myOrgKey`)

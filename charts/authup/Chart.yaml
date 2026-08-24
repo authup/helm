@@ -38,7 +38,7 @@ annotations:
     - kind: added
       description: server.route.enabled / adminConsole.route.enabled accept a tpl-rendered string, so an umbrella chart can drive them from a global
     - kind: fixed
-      description: The pre-upgrade migration Job no longer references release resources that do not exist when the hook runs; it drops the provisioning mount plus REDIS, SMTP and CLIENT_SYSTEM_SECRET, none of which migration run reads
+      description: The pre-upgrade migration Job no longer references release resources that do not exist when the hook runs; it drops the provisioning mount and every secret env migration run does not read (REDIS, SMTP, USER_ADMIN_PASSWORD, CLIENT_SYSTEM_SECRET), keeping only DB_PASSWORD and the encryption key
     - kind: fixed
       description: The migration Job reads authup.server.core.conf from a hook-scoped copy, so it no longer runs against a missing or one-release-stale config file
     - kind: changed

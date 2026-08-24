@@ -76,8 +76,11 @@ unsupported per `.agents/architecture.md` in the monorepo),
   (`config/read/fs.ts`). Env wins per key, but the db keys typeorm-extension's
   env reader does not name survive: `ssl`, `socketPath`, `replication`,
   `poolSize`, `charset`, `extensions` (postgres `CREATE EXTENSION` during
-  `initialize()`), `entities`, `subscribers`. So the config file decides how the
-  migration connects and what it creates -> the chart MUST mount it on the Job.
+  `initialize()`). So the config file decides how the migration connects and
+  what it creates -> the chart MUST mount it on the Job. (`entities` and
+  `subscribers` are NOT in that set: `DB_ENTITIES` / `DB_SUBSCRIBERS` exist.
+  Dump the real list with
+  `grep -rhoE "DB_[A-Z_]+" node_modules/typeorm-extension/dist | sort -u`.)
 - Under `NODE_ENV=production` (baked into the image) `migration run` needs the
   writable directory before it touches the database: the logger adds winston
   File transports for `<writable>/http.log` and `<writable>/error.log`, and the
