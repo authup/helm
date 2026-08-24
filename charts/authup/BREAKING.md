@@ -5,6 +5,16 @@ land on the middle digit. Every entry lists the value migrations required.
 
 ## Next release (unreleased)
 
+- Component resource names are truncated on a budget derived from their suffix
+  (`min 52 (63 - len(suffix) - 1)`) rather than a flat `trunc 52`, so the
+  63-character limit that applies to a Service name and to a Job name is
+  respected. Only names that were already too long to exist change: with a
+  release name from roughly 43 characters up, the admin-console Service was 66
+  characters and the API server rejected it, so the release could not install at
+  all; the migration Job reached 69. Nothing to migrate, since no cluster can
+  hold a release in that range. Verified by rendering every release-name length
+  from 3 to 53 against the previous revision: the name sets differ at no length
+  where the old chart was installable.
 - Setting BOTH `server.configuration` and `server.existingConfigmap` now fails
   the render. It never worked: the existing ConfigMap is the one that gets
   mounted, so the inline content was silently dropped, and that content is
