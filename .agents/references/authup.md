@@ -65,6 +65,24 @@ unsupported per `.agents/architecture.md` in the monorepo),
 - server-core auto-runs migrations + provisioning at boot
   (`app/modules/database/module.ts`; no off-switch) -> generous startupProbe;
   optional pre-upgrade migration Job for multi-replica DDL serialization.
+- `migration run` (`cli/commands/migration.ts`, `defineCLIMigrationCommand`)
+  builds only three modules: config, logger, database. No http, cache, mail,
+  identity or provisioning module. It therefore ignores `REDIS` / `SMTP`, and
+  never scans `<writable>/provisioning` (`ProvisionerModule` is registered by
+  `createApplication()`, i.e. the `start` command only) -> the chart drops all
+  three from the migration Job.
+- `migration run` DOES read the config file, unconditionally: `createCLIConfigModule`
+  passes `fs: {}` (truthy) into `readConfig`, so `readConfigRawFromFS` runs
+  (`config/read/fs.ts`). Env wins per key, but the db keys typeorm-extension's
+  env reader does not name survive: `ssl`, `socketPath`, `replication`,
+  `poolSize`, `charset`, `extensions` (postgres `CREATE EXTENSION` during
+  `initialize()`), `entities`, `subscribers`. So the config file decides how the
+  migration connects and what it creates -> the chart MUST mount it on the Job.
+- Under `NODE_ENV=production` (baked into the image) `migration run` needs the
+  writable directory before it touches the database: the logger adds winston
+  File transports for `<writable>/http.log` and `<writable>/error.log`, and the
+  transport does `mkdirSync` + open eagerly. An unwritable path is a hard ENOENT
+  failure of the command, not a degradation -> the Job keeps the writable mount.
 - Replicas > 1 without redis: per-process MemoryCache breaks auth codes,
   revocations, MFA challenges (`app/modules/cache/module.ts`) -> hard
   validation in the chart.

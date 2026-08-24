@@ -8,5 +8,5 @@ metadata:
   annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
 data:
   authup.server.core.conf: |-
-    {{- include "authup.tplvalues.render" (dict "value" .Values.server.configuration "context" $) | nindent 4 }}
+    {{- include "authup.server.configurationContent" . | nindent 4 }}
 {{- end }}

@@ -84,6 +84,17 @@ schema migrations are serialized in a pre-upgrade Job instead of racing at
 pod boot.
 {{- end }}
 
+{{- if and .Values.server.migration.enabled (not .Values.useHelmHooks) }}
+
+WARNING: useHelmHooks=false renders the migration Job as a plain resource
+carrying ArgoCD PreSync annotations, which only ArgoCD reads. Under Flux or
+plain helm the Job is applied like any other resource, and a Job pod template
+is immutable, so the next upgrade that changes it (new image tag, new env)
+fails with "spec.template: field is immutable". Use useHelmHooks=true there.
+ArgoCD maps Helm hook annotations onto its own sync phases, so true works for
+ArgoCD too; false only changes which annotation family drives the Job.
+{{- end }}
+
 {{- if .Values.server.provisioning.enabled }}
 
 NOTE: "admin-console" and "account-console" are reserved client names: authup

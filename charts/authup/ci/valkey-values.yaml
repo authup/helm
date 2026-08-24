@@ -8,6 +8,13 @@ server:
   replicaCount: 2
   migration:
     enabled: true
+  # The only ci scenario setting server.configuration, so the release ConfigMap
+  # and the Deployment's mount get install coverage and the hook-scoped copy gets
+  # render coverage (ct never runs an upgrade, so no pre-upgrade hook is ever
+  # created on kind). Deliberately a no-op option: a db block here would fight
+  # the connection this scenario installs.
+  configuration: |
+    logger: true
   resources:
     requests:
       cpu: 50m

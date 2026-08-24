@@ -321,7 +321,15 @@ first-class templating, in v1.
   Job serializes DDL before new pods roll — recommended (and referenced by the
   replicas>1 validation) for multi-replica deployments, since MySQL DDL is
   non-transactional and concurrent boot migrations can race.
-- `useHelmHooks: false` support (ArgoCD/Flux users get a plain Job).
+- `useHelmHooks: false` support: ArgoCD only. ArgoCD renders with
+  `helm template` and never runs Helm hooks, so it gets `argocd.argoproj.io`
+  annotations instead. Flux runs a real `helm upgrade` and honours Helm hooks,
+  so a plain Job there hits the immutable `spec.template` on the next upgrade.
+- The hook Job sees only the PREVIOUS release's ConfigMaps and Secrets, so it
+  carries a narrowed env/mount set (no REDIS, SMTP, CLIENT_SYSTEM_SECRET or
+  provisioning mount) plus a
+  hook-scoped copy of `authup.server.core.conf`, which `migration run` does
+  read.
 - Value reshuffles get authentik-style tripwires: a `deprecations.yaml` template
   fails loudly naming the moved key. BREAKING.md tracks migrations; chart
   versioning is independent SemVer (0.major.minor pre-1.0), `appVersion` tracks

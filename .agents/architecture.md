@@ -41,14 +41,37 @@ editing templates or values.
 9. **Component fullnames truncate the base BEFORE suffixing**
    (`trunc 52` then `-server` / `-ui` / engine suffix), so long release names
    cannot collapse every resource onto one identical name.
-10. **The migration Job shares the deployment's env by construction.**
-    `authup.server.configEnv` (map) and `authup.server.secretEnv` (list) are
-    the single sources consumed by both `server/deployment.yaml` and
+10. **The migration Job shares the deployment's env by construction, minus
+    what a hook cannot see.** `authup.server.configEnv` (map),
+    `authup.server.secretEnv` (list) and the two volume helpers are the single
+    sources consumed by both `server/deployment.yaml` and
     `server/migration-job.yaml`; the Job INLINES the config map (a pre-upgrade
     hook would otherwise run against the previous release's ConfigMap). The
     Job is pre-upgrade ONLY (never pre-install: hooks run before backing
     services exist; authup migrates at boot on fresh installs). With
-    `useHelmHooks=false` it renders ArgoCD `PreSync` hook annotations instead.
+    `useHelmHooks=false` it renders ArgoCD `PreSync` hook annotations instead,
+    which is an ArgoCD-only mode: see rule 19.
+
+    Helm applies a pre-upgrade hook BEFORE the release manifest, so everything
+    the Job references must already exist from the PREVIOUS release. The three
+    helpers take a `hook` flag that drops what `migration run` does not read:
+    `REDIS`, `SMTP` (their Secrets are release resources, and the migration
+    builds no cache or mail module) and the provisioning mount (`ProvisionerModule`
+    is registered by the start command only). What stays, stays for a reason:
+    the writable directory, because under the image's `NODE_ENV=production` the
+    logger opens `<writable>/http.log` before the first query and an uncreatable
+    path is a hard ENOENT; and the config file, because `migration run` loads
+    `authup.server.core.conf` unconditionally and its file-only db keys (`ssl`,
+    `socketPath`, `replication`, `extensions`) decide how the migration connects.
+    The Job reads that file from a hook-scoped COPY
+    (`server/configmap-migration-configuration.yaml`, weight -5) for the same
+    reason it inlines the env: the release ConfigMap is either absent or one
+    release stale when the hook runs. `CLIENT_SYSTEM_SECRET` goes the same way:
+    its key inside the auth Secret is conditional. `SECRETS_ENCRYPTION_KEY`
+    deliberately does NOT, even though its key is conditional too and the
+    migration does not read it today: rule 6's fail-closed posture outranks the
+    one-off break, so a write-once KEK gets its own upgrade. `DB_PASSWORD` is the
+    other residual, and only when an upgrade also switches database engine.
 11. **Checksum annotations roll pods on config or secret changes.** The server
     deployment checksums the env map plus every chart-managed secret it
     consumes (auth, external-db, redis, smtp, provisioning, configuration),
@@ -114,6 +137,19 @@ editing templates or values.
     `validations.yaml` fails that combination; `route.matches` / `route.filters`
     are the raw passthroughs that express it (authup always serves at `/`, so
     the prefix must be matched AND rewritten away).
+19. **`useHelmHooks=false` is an ArgoCD-only mode.** ArgoCD renders with
+    `helm template` and never executes Helm hooks, so it needs its own
+    `argocd.argoproj.io/hook` annotations. Flux is the opposite: helm-controller
+    runs a real `helm upgrade` and honours Helm hooks natively. Turning them off
+    there applies the migration Job as an ordinary release resource, and
+    `Job.spec.template` is immutable, so the next upgrade that touches the pod
+    template (image tag, `appVersion` label, a new env) fails to patch it. A
+    content-hashed Job name would make that apply-able but not correct: helm
+    orders a plain Job AFTER the Deployment and does not wait for it, which is
+    the ordering the Job exists to provide. So the value stays doc-scoped to
+    ArgoCD and NOTES warns when it is set. ArgoCD also maps Helm hooks onto its
+    own sync phases, so `true` works there as well; the flag only chooses which
+    annotation family drives the Job.
 
 ## Values conventions
 

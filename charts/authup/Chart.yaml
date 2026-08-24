@@ -37,3 +37,9 @@ annotations:
       description: Track authup v1.0.0-beta.63, whose image writes to /var/lib/authup
     - kind: added
       description: server.route.enabled / adminConsole.route.enabled accept a tpl-rendered string, so an umbrella chart can drive them from a global
+    - kind: fixed
+      description: The pre-upgrade migration Job no longer references release resources that do not exist when the hook runs; it drops the provisioning mount plus REDIS, SMTP and CLIENT_SYSTEM_SECRET, none of which migration run reads
+    - kind: fixed
+      description: The migration Job reads authup.server.core.conf from a hook-scoped copy, so it no longer runs against a missing or one-release-stale config file
+    - kind: changed
+      description: useHelmHooks=false is documented as ArgoCD-only; under Flux or plain helm it makes the Job a plain resource whose immutable pod template fails the next upgrade

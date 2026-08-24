@@ -83,6 +83,35 @@ flag, so all six read sites convert together: leave one raw and an umbrella-driv
 route renders unguarded. `ci/default-values.yaml` carries the false direction as
 the in-repo regression guard.
 
+The pre-upgrade migration Job must stay narrower than the Deployment. Helm
+applies a hook before the release manifest, so anything the Job references has
+to exist from the previous release:
+
+```bash
+helm template t charts/authup --set server.migration.enabled=true \
+  --set valkey.enabled=true --set smtp.connectionString=smtp://u:p@mail:25 \
+  --set auth.systemClientEnabled=true \
+  --set server.provisioning.enabled=true --set 'server.provisioning.files.realms\.json=[]' \
+  --set 'server.configuration=db: {ssl: true}' \
+  -s templates/server/migration-job.yaml
+```
+
+The Job must show env `DB_PASSWORD` / `USER_ADMIN_PASSWORD` but NO `REDIS`, no
+`SMTP` and no `CLIENT_SYSTEM_SECRET`; volumes `writable` / `tmp` /
+`configuration` but NO `provisioning`; and the configuration volume must name
+`<fullname>-server-migration-configuration`
+(the hook-scoped copy at weight -5), never `<fullname>-server-configuration`. The
+server Deployment in the same render must still carry all of them. Dropping the
+config file from the Job is NOT a valid simplification: `migration run` reads it
+and its file-only db keys (`ssl`, `socketPath`, `extensions`) govern the
+connection, so a missing mount migrates over a plaintext connection instead of
+failing.
+
+`useHelmHooks=false` must print the Flux/plain-helm warning in NOTES.txt, and
+must not print it with hooks on. NOTES is not reachable through `helm template`,
+so wrap it: copy the chart, append `templates/NOTES.txt` into a ConfigMap
+template, render that.
+
 Umbrella use is part of the contract: `global` must stay open. Render a throwaway
 parent chart with authup in `charts/` and an unrelated global (`global.myOrgKey`)
 whenever the schema generation changes; `ci/default-values.yaml` carries a stray
