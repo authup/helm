@@ -1,6 +1,6 @@
 {{- if and .Values.server.enabled .Values.server.migration.enabled .Values.server.configuration (not .Values.server.existingConfigmap) }}
 {{/*
-The migration Job's own copy of authup.server.core.conf.
+The migration Job's own copy of authup.yml.
 
 `migration run` loads the config file unconditionally, and the db options only
 the file can carry (ssl, socketPath, replication, extensions, poolSize) decide
@@ -34,6 +34,6 @@ metadata:
     argocd.argoproj.io/sync-wave: "-5"
     {{- end }}
 data:
-  authup.server.core.conf: |-
+  authup.yml: |-
     {{- include "authup.server.configurationContent" . | nindent 4 }}
 {{- end }}

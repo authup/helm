@@ -26,7 +26,6 @@ TRUST_PROXY: {{ .Values.server.trustProxy | toString | quote }}
 REGISTRATION_ENABLED: {{ .Values.server.features.registration | toString | quote }}
 PASSWORD_RECOVERY_ENABLED: {{ .Values.server.features.passwordRecovery | toString | quote }}
 EMAIL_VERIFICATION_ENABLED: {{ .Values.server.features.emailVerification | toString | quote }}
-ACCOUNT_CONSOLE_ENABLED: {{ .Values.server.features.accountConsole | toString | quote }}
 MFA_ENABLED: {{ .Values.server.mfa.enabled | toString | quote }}
 MFA_REQUIRED: {{ .Values.server.mfa.required | toString | quote }}
 {{- if .Values.auth.adminPasswordReset }}
@@ -38,15 +37,14 @@ CLIENT_SYSTEM_ENABLED: "true"
 CLIENT_SYSTEM_SECRET_RESET: "true"
 {{- end }}
 {{- end }}
-{{- /* Pinned to the path the volumeMounts use, not inherited from the image, whose default
-       moved here in v1.0.0-beta.63: a mount that stops matching it fails silently (logs on
-       the container layer, file provisioning scanning a directory that is not there). */}}
-WRITABLE_DIRECTORY_PATH: "/var/lib/authup"
-{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "WRITABLE_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
+{{- if .Values.server.provisioning.enabled }}
+PROVISIONING_DIRECTORY_PATH: "/etc/authup/provisioning"
+{{- end }}
+LOG_DIRECTORY_PATH: "/var/log/authup"
+{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "PROVISIONING_DIRECTORY_PATH" "LOG_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
 {{- range $key, $value := .Values.server.config }}
 {{- if has $key $reserved }}
-{{- $instead := ternary "server.extraEnvVars plus a matching server.extraVolumeMounts" "the dedicated value" (eq $key "WRITABLE_DIRECTORY_PATH") }}
-{{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through %s instead." $key $instead) }}
+{{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through the dedicated value instead." $key) }}
 {{- end }}
 {{ $key }}: {{ include "authup.tplvalues.render" (dict "value" ($value | toString) "context" $) | quote }}
 {{- end }}
@@ -125,12 +123,12 @@ DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 {{- end -}}
 
 {{/*
-Shared volumes / volumeMounts for the server container (writable dir, tmp,
+Shared volumes / volumeMounts for the server container (logs, tmp,
 provisioning files, config file).
 Usage: {{ include "authup.server.volumeMounts" (dict "context" $ "hook" true) }}
 The `required` on .context is load-bearing: helm renders with missingkey=zero, so
 a call site that passed a bare `.` would leave every guard below reading false and
-emit writable+tmp only, silently dropping the config file. Failing the render is
+emit logs+tmp only, silently dropping the config file. Failing the render is
 the chart's posture everywhere else.
 
 "hook" marks the pre-upgrade migration Job. It drops the provisioning mount,
@@ -144,7 +142,7 @@ image's NODE_ENV=production the logger opens <writable>/http.log and
 uncreatable path is a hard ENOENT failure.
 
 The config file stays for both as well, and mounting it is not optional:
-`migration run` loads authup.server.core.conf unconditionally, and the db keys
+`migration run` loads authup.yml unconditionally, and the db keys
 that only the file can carry (ssl, socketPath, replication, extensions, poolSize)
 decide how the migration connects and what it creates. Dropping it would silently
 migrate over a plaintext connection. The Job reads it from a hook-scoped copy
@@ -159,19 +157,19 @@ env, and THEME_* must stay in its reserved-key list either way).
 */}}
 {{- define "authup.server.volumeMounts" -}}
 {{- $ctx := required "authup.server.volumeMounts: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
-- name: writable
-  mountPath: /var/lib/authup
+- name: logs
+  mountPath: /var/log/authup
 - name: tmp
   mountPath: /tmp
 {{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
-  mountPath: /var/lib/authup/provisioning
+  mountPath: /etc/authup/provisioning
   readOnly: true
 {{- end }}
 {{- if or $ctx.Values.server.configuration $ctx.Values.server.existingConfigmap }}
 - name: configuration
-  mountPath: /usr/src/app/authup.server.core.conf
-  subPath: authup.server.core.conf
+  mountPath: /etc/authup/authup.yml
+  subPath: authup.yml
   readOnly: true
 {{- end }}
 {{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
@@ -183,7 +181,7 @@ env, and THEME_* must stay in its reserved-key list either way).
 
 {{- define "authup.server.volumes" -}}
 {{- $ctx := required "authup.server.volumes: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
-- name: writable
+- name: logs
   emptyDir: {}
 - name: tmp
   emptyDir: {}
@@ -451,7 +449,7 @@ looks exactly like an un-themed page.
 {{- end -}}
 
 {{/*
-ConfigMap carrying authup.server.core.conf for one consumer.
+ConfigMap carrying authup.yml for one consumer.
 Usage: {{ include "authup.server.configurationConfigMapName" (dict "context" $ "hook" true) }}
 
 "hook" resolves to the migration Job's own copy (templates/server/configmap-
@@ -475,7 +473,7 @@ outside the release and already exists when the hook runs.
 {{- end -}}
 
 {{/*
-Rendered content of authup.server.core.conf. One source for the release
+Rendered content of authup.yml. One source for the release
 ConfigMap and the hook copy, so the migration cannot run against a config file
 that differs from the one the server pods get.
 */}}

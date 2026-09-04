@@ -58,7 +58,6 @@ spec:
           securityContext: {{- include "authup.securityContext" .Values.server.containerSecurityContext | nindent 12 }}
           {{- end }}
           args:
-            - server/core
             - migration
             - run
           {{- if or .Values.server.extraEnvVarsCM .Values.server.extraEnvVarsSecret }}
