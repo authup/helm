@@ -21,18 +21,27 @@ server:
       cpu: 50m
       memory: 256Mi
 authConsole:
+  ingress:
+    enabled: true
+    hostname: auth.example.com
   resources:
     requests:
       cpu: 25m
       memory: 128Mi
 adminConsole:
   enabled: true
+  ingress:
+    enabled: true
+    hostname: auth.example.com
   resources:
     requests:
       cpu: 25m
       memory: 128Mi
 accountConsole:
   enabled: true
+  ingress:
+    enabled: true
+    hostname: auth.example.com
   resources:
     requests:
       cpu: 25m

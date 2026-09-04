@@ -1,5 +1,5 @@
-{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) }}
-{{- $route := .Values.adminConsole.route -}}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.accountConsole.enabled (include "authup.flag" (dict "value" .Values.accountConsole.route.enabled "context" $ "key" "accountConsole.route.enabled")) }}
+{{- $route := .Values.accountConsole.route -}}
 {{- $hostnames := $route.hostnames -}}
 {{- if not $hostnames -}}
 {{- $origin := include "authup.urlOrigin" (include "authup.server.publicUrl" .) -}}
@@ -10,9 +10,9 @@
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
 metadata:
-  name: {{ include "authup.adminConsole.fullname" . }}
+  name: {{ include "authup.accountConsole.fullname" . }}
   namespace: {{ include "authup.namespace" . | quote }}
-  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "account-console") | nindent 4 }}
   annotations:
     {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
     {{- if $route.annotations }}
@@ -37,7 +37,7 @@ spec:
         {{- else }}
         - path:
             type: PathPrefix
-            value: /console/admin
+            value: /console/account
         {{- end }}
       filters:
         {{- if $route.filters }}
@@ -50,6 +50,6 @@ spec:
               replacePrefixMatch: /
         {{- end }}
       backendRefs:
-        - name: {{ include "authup.adminConsole.fullname" . }}
-          port: {{ .Values.adminConsole.service.ports.http }}
+        - name: {{ include "authup.accountConsole.fullname" . }}
+          port: {{ .Values.accountConsole.service.ports.http }}
 {{- end }}

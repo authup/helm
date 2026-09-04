@@ -1,12 +1,12 @@
-{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled }}
-{{- $ingress := .Values.adminConsole.ingress -}}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.authConsole.enabled .Values.authConsole.ingress.enabled }}
+{{- $ingress := .Values.authConsole.ingress -}}
 {{- $hostname := $ingress.hostname | default .Values.server.ingress.hostname -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "authup.adminConsole.fullname" . }}
+  name: {{ include "authup.authConsole.fullname" . }}
   namespace: {{ include "authup.namespace" . | quote }}
-  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "auth-console") | nindent 4 }}
   annotations:
     {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
     {{- if $ingress.annotations }}
@@ -27,7 +27,7 @@ spec:
             pathType: ImplementationSpecific
             backend:
               service:
-                name: {{ include "authup.adminConsole.fullname" . }}
+                name: {{ include "authup.authConsole.fullname" . }}
                 port:
                   name: http
           {{- if $ingress.extraPaths }}
@@ -42,7 +42,7 @@ spec:
     {{- if and $hostname (or $ingress.tls $ingress.certManager) }}
     - hosts:
         - {{ include "authup.tplvalues.render" (dict "value" $hostname "context" $) | quote }}
-      secretName: {{ printf "%s-tls" (include "authup.adminConsole.fullname" .) | quote }}
+      secretName: {{ printf "%s-tls" (include "authup.authConsole.fullname" .) | quote }}
     {{- end }}
     {{- if $ingress.extraTls }}
     {{- include "authup.tplvalues.render" (dict "value" $ingress.extraTls "context" $) | nindent 4 }}

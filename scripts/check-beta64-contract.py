@@ -115,6 +115,17 @@ def component_deployments(documents):
     }
 
 
+def ingress_paths(ingress):
+    return ingress["spec"]["rules"][0]["http"]["paths"]
+
+
+def exact_backend(ingress, path):
+    matches = [item for item in ingress_paths(ingress) if item["path"] == path]
+    assert len(matches) == 1, f"expected one ingress path {path}, got {matches}"
+    assert matches[0]["pathType"] == "Exact"
+    return matches[0]["backend"]["service"]["name"]
+
+
 def check_base():
     documents = render()
     deployments = component_deployments(documents)
@@ -197,9 +208,78 @@ def check_split():
         )
 
 
+def check_routing():
+    documents = render(chart / "ci" / "split-values.yaml")
+    for component, name in (
+        ("auth-console", "auth"),
+        ("admin-console", "admin"),
+        ("account-console", "account"),
+    ):
+        ingress = one(documents, "Ingress", component)
+        annotations = ingress["metadata"]["annotations"]
+        assert annotations["nginx.ingress.kubernetes.io/use-regex"] == "true"
+        assert annotations["nginx.ingress.kubernetes.io/rewrite-target"] == "/$2"
+        assert ingress_paths(ingress)[0]["path"] == f"/console/{name}(/|$)(.*)"
+        assert ingress_paths(ingress)[0]["pathType"] == "ImplementationSpecific"
+
+    server_ingress = one(documents, "Ingress", "server")
+    for path in (
+        "/console/admin/login/start",
+        "/console/admin/callback",
+        "/console/account/login/start",
+        "/console/account/callback",
+    ):
+        assert exact_backend(server_ingress, path) == "test-authup-server"
+
+    route_values = {
+        "server": {
+            "publicUrl": "https://auth.example.com",
+            "splitConsoles": True,
+            "route": {"enabled": True, "parentRefs": [{"name": "gateway"}]},
+        },
+        "authConsole": {"route": {"enabled": True}},
+        "adminConsole": {"route": {"enabled": True}},
+        "accountConsole": {"route": {"enabled": True}},
+    }
+    routes = render(route_values)
+    for component, name in (
+        ("auth-console", "auth"),
+        ("admin-console", "admin"),
+        ("account-console", "account"),
+    ):
+        route = one(routes, "HTTPRoute", component)
+        rule = route["spec"]["rules"][0]
+        assert rule["matches"] == [
+            {"path": {"type": "PathPrefix", "value": f"/console/{name}"}}
+        ]
+        assert rule["filters"] == [
+            {
+                "type": "URLRewrite",
+                "urlRewrite": {
+                    "path": {
+                        "type": "ReplacePrefixMatch",
+                        "replacePrefixMatch": "/",
+                    }
+                },
+            }
+        ]
+
+    server_route = one(routes, "HTTPRoute", "server")
+    rules = server_route["spec"]["rules"]
+    expected_paths = [
+        "/console/admin/login/start",
+        "/console/admin/callback",
+        "/console/account/login/start",
+        "/console/account/callback",
+    ]
+    assert [rule["matches"][0]["path"]["value"] for rule in rules[:4]] == expected_paths
+    assert all(rule["matches"][0]["path"]["type"] == "Exact" for rule in rules[:4])
+
+
 checks = {
     "base": check_base,
     "split": check_split,
+    "routing": check_routing,
     "all": lambda: (check_base(), check_split()),
 }
 
