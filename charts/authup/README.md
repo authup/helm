@@ -90,24 +90,20 @@ server:
 authConsole:
   ingress:
     enabled: true
-    hostname: auth.example.com
-    tls: true
 adminConsole:
   enabled: true
   ingress:
     enabled: true
-    hostname: auth.example.com
-    tls: true
 accountConsole:
   enabled: true
   ingress:
     enabled: true
-    hostname: auth.example.com
-    tls: true
 ```
 
 The split auth console is required because it owns the login flow. Disable the
-admin or account console independently when those surfaces are not needed.
+admin or account console independently when those surfaces are not needed. The
+public URL must remain at the origin root; split mode reserves the `/console/*`
+prefixes shown above.
 
 Notable operational facts (enforced or warned about by the chart):
 
@@ -223,15 +219,13 @@ Kubernetes: `>=1.25.0-0`
 | accountConsole.hostAliases | list | `[]` | Pod host aliases |
 | accountConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
 | accountConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
-| accountConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split account console |
+| accountConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split account console (requires server.ingress.enabled) |
 | accountConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | accountConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | accountConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | accountConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
-| accountConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived UI public URL |
+| accountConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered; defaults to server.ingress.hostname) |
 | accountConsole.ingress.ingressClassName | string | `""` | Ingress class name |
-| accountConsole.ingress.path | string | `"/console/account"` | Public console path (the generated ingress strips it) |
-| accountConsole.ingress.pathType | string | `"Prefix"` | Ingress path type |
 | accountConsole.ingress.tls | bool | `false` | Enable TLS for the hostname |
 | accountConsole.initContainers | list | `[]` | Init containers (tpl-rendered) |
 | accountConsole.lifecycleHooks | object | `{}` | Container lifecycle hooks |
@@ -267,10 +261,8 @@ Kubernetes: `>=1.25.0-0`
 | accountConsole.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Account console container resources |
 | accountConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | accountConsole.route.annotations | object | `{}` | HTTPRoute annotations |
-| accountConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the account console (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
-| accountConsole.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
+| accountConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the account console (requires server.route.enabled; tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
 | accountConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl) |
-| accountConsole.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
 | accountConsole.route.parentRefs | list | `[]` | Gateway parentRefs |
 | accountConsole.schedulerName | string | `""` | Scheduler name |
 | accountConsole.service.annotations | object | `{}` | Service annotations (tpl-rendered) |
@@ -319,15 +311,13 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.hostAliases | list | `[]` | Pod host aliases |
 | adminConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
 | adminConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
-| adminConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split admin console |
+| adminConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split admin console (requires server.ingress.enabled) |
 | adminConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | adminConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | adminConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | adminConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
-| adminConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived UI public URL |
+| adminConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered; defaults to server.ingress.hostname) |
 | adminConsole.ingress.ingressClassName | string | `""` | Ingress class name |
-| adminConsole.ingress.path | string | `"/console/admin"` | Public console path (the generated ingress strips it) |
-| adminConsole.ingress.pathType | string | `"Prefix"` | Ingress path type |
 | adminConsole.ingress.tls | bool | `false` | Enable TLS for the hostname |
 | adminConsole.initContainers | list | `[]` | Init containers (tpl-rendered) |
 | adminConsole.lifecycleHooks | object | `{}` | Container lifecycle hooks |
@@ -363,10 +353,8 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Admin console container resources |
 | adminConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | adminConsole.route.annotations | object | `{}` | HTTPRoute annotations |
-| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the admin console (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
-| adminConsole.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
+| adminConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the admin console (requires server.route.enabled; tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
 | adminConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl) |
-| adminConsole.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
 | adminConsole.route.parentRefs | list | `[]` | Gateway parentRefs |
 | adminConsole.schedulerName | string | `""` | Scheduler name |
 | adminConsole.service.annotations | object | `{}` | Service annotations (tpl-rendered) |
@@ -426,15 +414,13 @@ Kubernetes: `>=1.25.0-0`
 | authConsole.hostAliases | list | `[]` | Pod host aliases |
 | authConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
 | authConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
-| authConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split auth console |
+| authConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split auth console (requires server.ingress.enabled) |
 | authConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | authConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | authConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | authConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
-| authConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered); also drives the derived UI public URL |
+| authConsole.ingress.hostname | string | `""` | Ingress hostname (tpl-rendered; defaults to server.ingress.hostname) |
 | authConsole.ingress.ingressClassName | string | `""` | Ingress class name |
-| authConsole.ingress.path | string | `"/console/auth"` | Public console path (the generated ingress strips it) |
-| authConsole.ingress.pathType | string | `"Prefix"` | Ingress path type |
 | authConsole.ingress.tls | bool | `false` | Enable TLS for the hostname |
 | authConsole.initContainers | list | `[]` | Init containers (tpl-rendered) |
 | authConsole.lifecycleHooks | object | `{}` | Container lifecycle hooks |
@@ -470,10 +456,8 @@ Kubernetes: `>=1.25.0-0`
 | authConsole.resources | object | `{"limits":{"memory":"512Mi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Auth console container resources |
 | authConsole.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | authConsole.route.annotations | object | `{}` | HTTPRoute annotations |
-| authConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the auth console (tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
-| authConsole.route.filters | list | `[]` | Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix |
+| authConsole.route.enabled | bool | `false` | Create a Gateway API HTTPRoute for the auth console (requires server.route.enabled; tpl-rendered: a string rendering to "true" enables it, so an umbrella chart can drive this from one of its own switches; "false" and "" disable it, anything else fails the render) |
 | authConsole.route.hostnames | list | `[]` | Route hostnames ([] = derived from server.publicUrl) |
-| authConsole.route.matches | list | `[]` | Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/" |
 | authConsole.route.parentRefs | list | `[]` | Gateway parentRefs |
 | authConsole.schedulerName | string | `""` | Scheduler name |
 | authConsole.service.annotations | object | `{}` | Service annotations (tpl-rendered) |
@@ -681,7 +665,7 @@ Kubernetes: `>=1.25.0-0`
 | server.service.sessionAffinityConfig | object | `{}` | Session affinity config |
 | server.service.type | string | `"ClusterIP"` | Service type |
 | server.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
-| server.splitConsoles | bool | `false` | Run API-only server pods and deploy the console workloads separately |
+| server.splitConsoles | bool | `false` | Run API-only server pods and deploy consoles separately (requires the public URL at the origin root because console prefixes are fixed) |
 | server.startupProbe.enabled | bool | `true` | Enable the startup probe (first boot runs database creation, migrations and provisioning) |
 | server.startupProbe.failureThreshold | int | `60` |  |
 | server.startupProbe.initialDelaySeconds | int | `5` |  |
@@ -739,7 +723,7 @@ Kubernetes: `>=1.25.0-0`
 | worker.command | list | `[]` | Override the container command |
 | worker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
 | worker.disableRestartOnChanges | bool | `false` | Disable checksum annotations that roll pods on configuration changes |
-| worker.enabled | bool | `false` | Deploy a dedicated background worker |
+| worker.enabled | bool | `false` | Deploy a dedicated background worker (requires server.enabled) |
 | worker.extraEnvVars | list | `[]` | Extra environment variables for the worker container |
 | worker.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
 | worker.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |

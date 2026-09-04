@@ -103,24 +103,20 @@ server:
 authConsole:
   ingress:
     enabled: true
-    hostname: auth.example.com
-    tls: true
 adminConsole:
   enabled: true
   ingress:
     enabled: true
-    hostname: auth.example.com
-    tls: true
 accountConsole:
   enabled: true
   ingress:
     enabled: true
-    hostname: auth.example.com
-    tls: true
 ```
 
 The split auth console is required because it owns the login flow. Disable the
-admin or account console independently when those surfaces are not needed.
+admin or account console independently when those surfaces are not needed. The
+public URL must remain at the origin root; split mode reserves the `/console/*`
+prefixes shown above.
 
 Notable operational facts (enforced or warned about by the chart):
 

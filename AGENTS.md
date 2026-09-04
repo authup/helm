@@ -28,7 +28,8 @@ helm template test charts/authup -f charts/authup/ci/mysql-values.yaml
 helm template test charts/authup -f charts/authup/ci/split-values.yaml
 ```
 
-- **helm** >= 3.14 and **docker** (for the pinned generator images) required.
+- **helm** >= 3.14, **python3** with PyYAML, and **docker** (for the pinned
+  generator images) required.
 - `charts/authup/README.md` and `charts/authup/values.schema.json` are
   GENERATED. Never edit them directly; edit `values.yaml` comments /
   `README.md.gotmpl` and run `make docs schema`. CI fails on drift

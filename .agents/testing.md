@@ -43,7 +43,8 @@ and cache, plus restrictive NetworkPolicies.
 - both inline and existing configuration ConfigMaps
 - invalid route flags, including flags on disabled roles
 - an HTTPRoute catch-all created accidentally from a sub-path public URL
-- `server.splitConsoles=true` without the server or auth console
+- `server.splitConsoles=true` without the server or auth console, and a worker
+  enabled without its shared server configuration
 - non-empty `server.features.accountConsole`, which moved to
   `accountConsole.enabled`
 - invalid theme manifests or dangerous trusted-origin globstars

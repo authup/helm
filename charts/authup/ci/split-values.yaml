@@ -36,7 +36,6 @@ authConsole:
     allowExternalEgress: false
   ingress:
     enabled: true
-    hostname: auth.example.com
   resources:
     requests:
       cpu: 25m
@@ -48,7 +47,6 @@ adminConsole:
     allowExternalEgress: false
   ingress:
     enabled: true
-    hostname: auth.example.com
   resources:
     requests:
       cpu: 25m
@@ -60,7 +58,6 @@ accountConsole:
     allowExternalEgress: false
   ingress:
     enabled: true
-    hostname: auth.example.com
   resources:
     requests:
       cpu: 25m

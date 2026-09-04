@@ -25,12 +25,12 @@ Runtime topology:
 Public URL / OIDC issuer: {{ $serverUrl }}
 OIDC discovery:           {{ $serverUrl }}/.well-known/openid-configuration
 {{- if .Values.server.splitConsoles }}
-Auth console:             {{ $serverUrl }}{{ .Values.authConsole.ingress.path }}
+Auth console:             {{ $serverUrl }}/console/auth
 {{- if .Values.adminConsole.enabled }}
-Admin console:            {{ $serverUrl }}{{ .Values.adminConsole.ingress.path }}
+Admin console:            {{ $serverUrl }}/console/admin
 {{- end }}
 {{- if .Values.accountConsole.enabled }}
-Account console:          {{ $serverUrl }}{{ .Values.accountConsole.ingress.path }}
+Account console:          {{ $serverUrl }}/console/account
 {{- end }}
 {{- end }}
 {{- else }}

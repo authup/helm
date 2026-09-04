@@ -368,10 +368,58 @@ def check_policy():
 
 
 def check_validations():
+    render(
+        {
+            "server": {
+                "splitConsoles": True,
+                "ingress": {"enabled": True, "hostname": "auth.example.com"},
+            },
+            "authConsole": {"ingress": {"enabled": True}},
+            "adminConsole": {"ingress": {"enabled": True}},
+            "accountConsole": {"ingress": {"enabled": True}},
+        }
+    )
     render_fails(
         {"server": {"features": {"accountConsole": False}}},
         "server.features.accountConsole moved to accountConsole.enabled",
     )
+    render_fails(
+        {
+            "server": {
+                "publicUrl": "https://auth.example.com",
+                "splitConsoles": True,
+            },
+            "adminConsole": {
+                "ingress": {"enabled": True, "hostname": "auth.example.com"}
+            },
+        },
+        "split console Ingress requires server.ingress.enabled=true",
+    )
+    render_fails(
+        {
+            "server": {
+                "publicUrl": "https://auth.example.com",
+                "splitConsoles": True,
+            },
+            "adminConsole": {"route": {"enabled": True}},
+        },
+        "split console HTTPRoute requires server.route.enabled=true",
+    )
+    for server in (
+        {"splitConsoles": True, "publicUrl": "https://auth.example.com/prefix"},
+        {
+            "splitConsoles": True,
+            "ingress": {
+                "enabled": True,
+                "hostname": "auth.example.com",
+                "path": "/prefix",
+            },
+        },
+    ):
+        render_fails(
+            {"server": server},
+            "server.splitConsoles requires server.publicUrl at the origin root",
+        )
     render_fails(
         {"server": {"enabled": False, "splitConsoles": True}},
         "server.splitConsoles requires server.enabled=true",
@@ -379,6 +427,10 @@ def check_validations():
     render_fails(
         {"server": {"splitConsoles": True}, "authConsole": {"enabled": False}},
         "server.splitConsoles requires authConsole.enabled=true",
+    )
+    render_fails(
+        {"server": {"enabled": False}, "worker": {"enabled": True}},
+        "worker.enabled requires server.enabled=true",
     )
     for component in ("authConsole", "adminConsole", "accountConsole"):
         render_fails(

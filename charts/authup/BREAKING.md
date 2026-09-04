@@ -28,7 +28,8 @@ land on the middle digit. Every entry lists the value migrations required.
   `/console/admin` and `/console/account`. The generated Ingress rules require
   ingress-nginx because they use regex prefix stripping. Gateway API users get
   portable `URLRewrite` filters. Exact admin/account login and callback paths
-  continue to route to the API.
+  continue to route to the API. Split mode does not support a path-prefixed
+  `server.publicUrl`.
 - `worker.enabled=true` creates the beta.64 background worker and sets
   `WORKER_ENABLED=false` on the API. The worker has no Service or HTTP probes.
 - When `server.networkPolicy.enabled=true`, the chart also creates hook-scoped

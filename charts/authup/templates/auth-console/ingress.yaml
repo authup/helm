@@ -23,7 +23,7 @@ spec:
     - host: {{ include "authup.tplvalues.render" (dict "value" $hostname "context" $) | quote }}
       http:
         paths:
-          - path: {{ printf "%s(/|$)(.*)" ($ingress.path | trimSuffix "/") }}
+          - path: /console/auth(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:

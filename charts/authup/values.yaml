@@ -403,7 +403,8 @@ smtp:
 server:
   # -- Deploy the server-core service
   enabled: true
-  # -- Run API-only server pods and deploy the console workloads separately
+  # -- Run API-only server pods and deploy consoles separately (requires the
+  # public URL at the origin root because console prefixes are fixed)
   splitConsoles: false
   # -- Number of server-core replicas (values > 1 REQUIRE a configured cache)
   replicaCount: 1
@@ -1030,14 +1031,10 @@ authConsole:
     # -- Extra service ports
     extraPorts: []
   ingress:
-    # -- Enable ingress-nginx routing for the split auth console
+    # -- Enable ingress-nginx routing for the split auth console (requires server.ingress.enabled)
     enabled: false
-    # -- Ingress hostname (tpl-rendered); also drives the derived UI public URL
+    # -- Ingress hostname (tpl-rendered; defaults to server.ingress.hostname)
     hostname: ""
-    # -- Public console path (the generated ingress strips it)
-    path: /console/auth
-    # -- Ingress path type
-    pathType: Prefix
     # -- Ingress class name
     ingressClassName: ""
     # @schema
@@ -1062,7 +1059,8 @@ authConsole:
     # type: [boolean, string]
     # required: true
     # @schema
-    # -- Create a Gateway API HTTPRoute for the auth console (tpl-rendered: a string rendering to
+    # -- Create a Gateway API HTTPRoute for the auth console (requires server.route.enabled;
+    # tpl-rendered: a string rendering to
     # "true" enables it, so an umbrella chart can drive this from one of its own switches;
     # "false" and "" disable it, anything else fails the render)
     enabled: false
@@ -1075,10 +1073,6 @@ authConsole:
     # @schema
     # -- HTTPRoute annotations
     annotations: {}
-    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
-    matches: []
-    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
-    filters: []
   pdb:
     # -- Create a PodDisruptionBudget for the UI
     create: false
@@ -1309,14 +1303,10 @@ adminConsole:
     # -- Extra service ports
     extraPorts: []
   ingress:
-    # -- Enable ingress-nginx routing for the split admin console
+    # -- Enable ingress-nginx routing for the split admin console (requires server.ingress.enabled)
     enabled: false
-    # -- Ingress hostname (tpl-rendered); also drives the derived UI public URL
+    # -- Ingress hostname (tpl-rendered; defaults to server.ingress.hostname)
     hostname: ""
-    # -- Public console path (the generated ingress strips it)
-    path: /console/admin
-    # -- Ingress path type
-    pathType: Prefix
     # -- Ingress class name
     ingressClassName: ""
     # @schema
@@ -1341,7 +1331,8 @@ adminConsole:
     # type: [boolean, string]
     # required: true
     # @schema
-    # -- Create a Gateway API HTTPRoute for the admin console (tpl-rendered: a string rendering to
+    # -- Create a Gateway API HTTPRoute for the admin console (requires server.route.enabled;
+    # tpl-rendered: a string rendering to
     # "true" enables it, so an umbrella chart can drive this from one of its own switches;
     # "false" and "" disable it, anything else fails the render)
     enabled: false
@@ -1354,10 +1345,6 @@ adminConsole:
     # @schema
     # -- HTTPRoute annotations
     annotations: {}
-    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
-    matches: []
-    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
-    filters: []
   pdb:
     # -- Create a PodDisruptionBudget for the UI
     create: false
@@ -1588,14 +1575,10 @@ accountConsole:
     # -- Extra service ports
     extraPorts: []
   ingress:
-    # -- Enable ingress-nginx routing for the split account console
+    # -- Enable ingress-nginx routing for the split account console (requires server.ingress.enabled)
     enabled: false
-    # -- Ingress hostname (tpl-rendered); also drives the derived UI public URL
+    # -- Ingress hostname (tpl-rendered; defaults to server.ingress.hostname)
     hostname: ""
-    # -- Public console path (the generated ingress strips it)
-    path: /console/account
-    # -- Ingress path type
-    pathType: Prefix
     # -- Ingress class name
     ingressClassName: ""
     # @schema
@@ -1620,7 +1603,8 @@ accountConsole:
     # type: [boolean, string]
     # required: true
     # @schema
-    # -- Create a Gateway API HTTPRoute for the account console (tpl-rendered: a string rendering to
+    # -- Create a Gateway API HTTPRoute for the account console (requires server.route.enabled;
+    # tpl-rendered: a string rendering to
     # "true" enables it, so an umbrella chart can drive this from one of its own switches;
     # "false" and "" disable it, anything else fails the render)
     enabled: false
@@ -1633,10 +1617,6 @@ accountConsole:
     # @schema
     # -- HTTPRoute annotations
     annotations: {}
-    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
-    matches: []
-    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
-    filters: []
   pdb:
     # -- Create a PodDisruptionBudget for the UI
     create: false
@@ -1681,7 +1661,7 @@ accountConsole:
 ## @section Worker
 
 worker:
-  # -- Deploy a dedicated background worker
+  # -- Deploy a dedicated background worker (requires server.enabled)
   enabled: false
   # -- Number of worker replicas (one is normally sufficient)
   replicaCount: 1

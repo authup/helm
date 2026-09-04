@@ -20,7 +20,8 @@ operational invariants that template changes must preserve.
 4. **Worker ownership is explicit.** `worker.enabled=true` sets
    `WORKER_ENABLED=true` on the worker and `WORKER_ENABLED=false` on the server.
    The worker gets database and Redis credentials, but not SMTP, bootstrap
-   identity secrets, migrations, or console secrets.
+   identity secrets, migrations, or console secrets. It requires the server
+   because both roles share chart-managed configuration and credentials.
 5. **The filesystem contract is fixed.** Configuration is `authup.yml` at
    `/etc/authup/authup.yml`, provisioning is `/etc/authup/provisioning`, and
    logs are `/var/log/authup`. There is no chart-managed writable root and no
@@ -67,6 +68,9 @@ operational invariants that template changes must preserve.
     resources use ingress-nginx regex rewrites. Gateway API routes use
     `URLRewrite` with `ReplacePrefixMatch`. Exact admin/account login and
     callback paths must remain on the API before broader console prefixes.
+    A generated console Ingress or HTTPRoute requires the matching server
+    resource so those core-owned paths cannot disappear. Split mode rejects a
+    path-prefixed server public URL.
 16. **HTTPRoute flags are strict.** `route.enabled` accepts a boolean or a
     template-rendered boolean string. `authup.flag` validates every role even
     when that role is disabled, because a non-empty string `"false"` is truthy

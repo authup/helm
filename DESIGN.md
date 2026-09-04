@@ -108,6 +108,12 @@ Generated Kubernetes Ingress resources deliberately target ingress-nginx and
 use its regex rewrite annotations. Gateway API HTTPRoutes use portable
 `URLRewrite` filters with `ReplacePrefixMatch`.
 
+The three public console prefixes are fixed parts of the Authup beta.64
+contract, not chart values. Enabling a generated console Ingress or HTTPRoute
+requires the corresponding server resource, which carries both the API and the
+core-owned login/callback exceptions. A path-prefixed deployment-wide public
+URL is rejected in split mode because it cannot preserve these root prefixes.
+
 Each split console gets the shared `PUBLIC_URL` plus an `INTERNAL_URL` pointing
 at the core Service for server-side calls. Database, Redis, SMTP and bootstrap
 identity secrets never enter console pods.

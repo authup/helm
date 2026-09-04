@@ -32,23 +32,15 @@ spec:
   {{- end }}
   rules:
     - matches:
-        {{- if $route.matches }}
-        {{- include "authup.tplvalues.render" (dict "value" $route.matches "context" $) | nindent 8 }}
-        {{- else }}
         - path:
             type: PathPrefix
             value: /console/admin
-        {{- end }}
       filters:
-        {{- if $route.filters }}
-        {{- include "authup.tplvalues.render" (dict "value" $route.filters "context" $) | nindent 8 }}
-        {{- else }}
         - type: URLRewrite
           urlRewrite:
             path:
               type: ReplacePrefixMatch
               replacePrefixMatch: /
-        {{- end }}
       backendRefs:
         - name: {{ include "authup.adminConsole.fullname" . }}
           port: {{ .Values.adminConsole.service.ports.http }}
