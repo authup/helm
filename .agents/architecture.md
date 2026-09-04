@@ -1,214 +1,131 @@
 # Architecture
 
-`DESIGN.md` at the repo root holds the full design rationale with evidence.
-This file lists the operational invariants an agent must not break when
-editing templates or values.
+`DESIGN.md` is the authoritative rationale. This file is the compact list of
+operational invariants that template changes must preserve.
 
-## Load-bearing rules
+## Authup beta.64 runtime contract
 
-1. **containerPort is always 3000, for both services.** The authup image
-   entrypoint force-exports `PORT=3000` / `NUXT_PORT=3000`; a chart-set `PORT`
-   env is dead. Never surface a containerPort value.
-2. **Strict booleans render quoted.** authup's `readBoolStrict` env reader
-   (`EVENT_LOG_*`, `MFA_*`, `LOGIN_ATTEMPT_THROTTLE_ENABLED`) crashes the boot
-   on unparsable values. Every boolean env in `authup.server.configEnv` goes
-   through `toString | quote`.
-3. **The cache env var is `REDIS`** (a full connection URL), not `REDIS_URL`
-   (a documentation ghost that never existed in authup source). The URL embeds
-   the password, so it always lives in a Secret and reaches the pod via
-   `valueFrom.secretKeyRef`.
-4. **A database is mandatory.** The published image bakes
-   `NODE_ENV=production`, which forbids sqlite. `validations.yaml` hard-fails
-   when neither a built-in engine nor `externalDatabase.host` is configured.
-5. **replicas > 1 requires a cache.** Without redis, authup falls back to a
-   per-process memory cache: authorization codes, token revocations and MFA
-   challenges break across replicas (functional breakage, not just
-   performance). `validations.yaml` enforces this.
-6. **`SECRETS_ENCRYPTION_KEY` is write-once and never generated.** Losing or
-   rotating it bricks wrapped MFA seeds and signing keys. From an existing
-   secret it requires the explicit `auth.secretsEncryptionKeyEnabled` opt-in,
-   and the secretKeyRef is never `optional:` (a silently missing KEK would
-   fail open into plaintext-at-rest).
-7. **URL values must carry a scheme, asserted twice.** `validations.yaml`
-   checks literal values; the `_urls.tpl` helpers re-assert AFTER tpl
-   rendering (`authup.assertUrlScheme`), because a template-valued URL only
-   materializes there. `authup.urlOrigin` returns "" unless both scheme and
-   host parse, so a broken origin can never reach `TRUSTED_ORIGINS`.
-8. **Selectors are immutable and minimal.** `authup.matchLabels` emits only
-   name + instance + component. `commonLabels` / `podLabels` must never leak
-   into a selector. `app.kubernetes.io/component` separates the two services'
-   Services within one release.
-9. **Component fullnames truncate the base BEFORE suffixing, on a budget
-   derived from the suffix.** `authup.component.fullname`
-   (`dict "context" $ "suffix" "server"`) is the single implementation; every
-   component name and the migration Job go through it. Truncating first is what
-   keeps names DISTINCT (a 63-char fullname would otherwise collapse every
-   component onto one name); deriving the budget is what keeps them LEGAL.
+1. **One image, explicit roles.** The supported default args are `start` for the
+   combined server, `start core` for the split API, `start console auth|admin|account`
+   for split consoles, `start worker` for the worker, and `migration run` for the
+   upgrade Job. Do not restore `server/core`, `client/admin-console`, or a second
+   image.
+2. **Combined is the default.** `server.splitConsoles=false` creates one server
+   Deployment. Split mode changes the server role to core and creates console
+   Deployments. The auth console is required in split mode because it owns login;
+   admin and account remain independently optional.
+3. **Role ports come from Authup.** Core listens on 3000. Split auth, admin and
+   account consoles listen on 3020, 3021 and 3022. The worker has no listener,
+   Service, or HTTP probe.
+4. **Worker ownership is explicit.** `worker.enabled=true` sets
+   `WORKER_ENABLED=true` on the worker and `WORKER_ENABLED=false` on the server.
+   The worker gets database and Redis credentials, but not SMTP, bootstrap
+   identity secrets, migrations, or console secrets.
+5. **The filesystem contract is fixed.** Configuration is `authup.yml` at
+   `/etc/authup/authup.yml`, provisioning is `/etc/authup/provisioning`, and
+   logs are `/var/log/authup`. There is no chart-managed writable root and no
+   `WRITABLE_DIRECTORY_PATH`.
 
-   The ceiling is 63, not the 253 a ConfigMap allows, wherever a name becomes a
-   DNS-1035 label (Service) or a label value (a Job name is copied into the
-   `job-name` pod labels). The old flat `trunc 52` ignored that: `-admin-console`
-   rendered a 66-char Service, so any release name from ~43 characters up could
-   not install at all, and appending `-migration` to the `-server` name reached
-   69. Both are now `min 52 (63 - len(suffix) - 1)`.
+## Configuration and state
 
-   `min 52` is the load-bearing half. The derived budget is WIDER than 52 for
-   short suffixes, and widening RENAMES resources on releases whose fullname
-   lands between 53 and 55 characters. A renamed Secret carrying
-   `helm.sh/resource-policy: keep` orphans the old one and generates a new admin
-   password: a silent credential rotation on upgrade. **The budget may only ever
-   tighten**, which by construction touches only names too long to exist. Assert
-   that when changing it (see testing.md), do not assume it.
-10. **The migration Job shares the deployment's env by construction, minus
-    what a hook cannot see.** `authup.server.configEnv` (map),
-    `authup.server.secretEnv` (list) and the two volume helpers are the single
-    sources consumed by both `server/deployment.yaml` and
-    `server/migration-job.yaml`; the Job INLINES the config map (a pre-upgrade
-    hook would otherwise run against the previous release's ConfigMap). The
-    Job is pre-upgrade ONLY (never pre-install: hooks run before backing
-    services exist; authup migrates at boot on fresh installs). With
-    `useHelmHooks=false` it renders ArgoCD `PreSync` hook annotations instead,
-    which is an ArgoCD-only mode: see rule 19.
+6. **Strict booleans render quoted.** Authup's strict env reader fails boot on
+   malformed values. First-class boolean env values go through
+   `toString | quote`.
+7. **The cache env var is `REDIS`.** It is a full connection URL, not
+   `REDIS_URL`. Because it embeds credentials, it comes from a Secret through
+   `secretKeyRef`.
+8. **A database is mandatory.** The production image cannot use SQLite.
+   `validations.yaml` fails unless built-in PostgreSQL, built-in MySQL, or
+   `externalDatabase.host` is configured.
+9. **Multiple API replicas require shared cache.** Without Redis, Authup falls
+   back to per-process state for authorization codes, revocations and MFA
+   challenges. Replica counts above one and HPA therefore fail without cache.
+10. **`SECRETS_ENCRYPTION_KEY` is write-once and never generated.** Losing or
+    rotating it makes wrapped rows unreadable. Existing-secret use requires an
+    explicit opt-in and the reference is never optional.
+11. **No config-schema mirror.** First-class values cover load-bearing options;
+    `server.config`, extra env carriers and `server.configuration` cover the
+    long tail. `server.config` keys that collide with a first-class variable
+    fail the render. The small theme manifest is the only deliberate mirrored
+    file format.
+12. **Secrets never render as pod env literals.** Inline secret values are
+    stored in chart-managed Secrets and referenced with `secretKeyRef`. An
+    external database password is never invented.
+13. **Generated credentials use lookup-or-generate.** The chart-managed auth
+    Secret is lookup-stable under Helm and kept with a resource policy. Pure
+    template GitOps cannot preserve generated values, so those users must set
+    explicit values or existing Secrets.
 
-    Helm applies a pre-upgrade hook BEFORE the release manifest, so every
-    NON-HOOK resource the Job references must already exist from the PREVIOUS
-    release. A hook resource at a lower weight is the one exception: it is
-    created earlier in the same hook phase, which is exactly what the config
-    copy below relies on. Four
-    helpers take a `hook` flag (`secretEnv`, the two volume helpers and
-    `configurationConfigMapName`; `configEnv` does not, it is inlined instead)
-    and drop what `migration run` does not read. That flag is the ONE mechanism
-    for this: the theme volume used to be a pair of deployment-only defines
-    carved out for the same reason, and two conventions in one `volumeMounts:`
-    block is how the next mount ends up on the wrong side. `themeEnv` stays
-    separate because it splits along a different axis. Dropped:
-    `REDIS`, `SMTP` (their Secrets are release resources, and the migration
-    builds no cache or mail module) and the provisioning mount (`ProvisionerModule`
-    is registered by the start command only). What stays, stays for a reason:
-    the writable directory, because under the image's `NODE_ENV=production` the
-    logger opens `<writable>/http.log` before the first query and an uncreatable
-    path is a hard ENOENT; and the config file, because `migration run` loads
-    `authup.server.core.conf` unconditionally and its file-only db keys (`ssl`,
-    `socketPath`, `replication`, `extensions`) decide how the migration connects.
-    The Job reads that file from a hook-scoped COPY
-    (`server/configmap-migration-configuration.yaml`, weight -5) for the same
-    reason it inlines the env: the release ConfigMap is either absent or one
-    release stale when the hook runs. `USER_ADMIN_PASSWORD` and
-    `CLIENT_SYSTEM_SECRET` go the same way: no identity or provisioning module
-    on the migration path, and the auth Secret they read is itself a release
-    resource. `SECRETS_ENCRYPTION_KEY` deliberately does NOT, even though its
-    key is conditional too and the migration does not read it today: rule 6's
-    fail-closed posture outranks the one-off break, so a write-once KEK gets its
-    own upgrade.
+## URLs and routing
 
-    What the flag cannot reach, i.e. the residuals to keep in mind when adding
-    anything to the Job: `DB_PASSWORD` (the Secret behind it changes on an engine
-    switch, on adopting a built-in engine after `externalDatabase`, and on a
-    first inline `externalDatabase.password`, since `secret-db.yaml` is a release
-    resource too); the `serviceAccountName`, whose ServiceAccount renders only
-    under `serviceAccount.create`, so flipping that on fails pod ADMISSION with
-    no container status to read; and the `extraEnvVarsCM` / `extraEnvVarsSecret`
-    / `extraVolumes` passthroughs, whose targets are operator-owned unless the
-    operator ships them through `extraDeploy`, which renders them into the
-    release manifest and therefore after the hook.
-11. **Checksum annotations roll pods on config or secret changes.** The server
-    deployment checksums the env map plus every chart-managed secret it
-    consumes (auth, external-db, redis, smtp, provisioning, configuration),
-    each guarded by the same condition the secret renders under.
-    `disableRestartOnChanges` opts out.
-12. **Secrets never render as pod env literals.** Inline values land in
-    chart-managed Secrets referenced via `secretKeyRef`; the external-db
-    password is never generated (render-time fail instead: the chart does not
-    invent credentials for a database it does not manage).
-13. **Generated credentials use lookup-or-generate** (`authup.secret.rawValue`)
-    with `helm.sh/resource-policy: keep`. This is incompatible with pure
-    GitOps renders (lookup is inert under `helm template` / ArgoCD): NOTES and
-    the README warn; GitOps users set explicit values or `existingSecret`.
-    Values that feed BOTH a password key and a composed connection string
-    (valkey) are resolved once per render inside a single Secret template so
-    the two keys cannot diverge on fresh installs.
-14. **No config-file re-templating.** authup is env-configured; the chart
-    renders env vars plus escape hatches (`server.config`,
-    `extraEnvVars`/`extraEnvVarsCM`/`extraEnvVarsSecret`,
-    `server.configuration` file mount). Never mirror authup's config schema in
-    templates (Authelia's 714-line configMap treadmill is the cautionary tale).
-    `server.config` keys colliding with first-class env names fail the render.
-    The ONE mirrored schema is the theme manifest (`server.theme.title` /
-    `logo` / `tokens` / ... compose `theme.json`), and it earns the exception
-    on three counts: the file is a fixed 8-key document rather than a growing
-    config surface, authup fails the BOOT on an unknown key or a malformed
-    token so a typo has no cheaper detector, and the alternative is a JSON
-    blob inside a YAML string with no schema at all. It stays worth it only
-    while the manifest stays small: `files` remains the escape hatch, and a
-    hand-written `theme.json` there is still supported (the two are mutually
-    exclusive by validation).
-15. **URL derivation is the chart's core UX.** `PUBLIC_URL`,
-    `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_PUBLIC_URL` derive from the two
-    ingress blocks; the UI origin is auto-appended to `TRUSTED_ORIGINS`
-    (`server.trustedOriginsAppendAdminConsole`). A missing trusted origin is the #1
-    dead-login misconfiguration. The chart never sets
-    `NUXT_PUBLIC_COOKIE_DOMAIN`: sharing a cookie domain between client-admin-console
-    and the hosted auth pages is unsupported by authup.
-16. **Every list/map passthrough is tpl-rendered** via
-    `authup.tplvalues.render`, so umbrella charts can inject template
-    expressions (the PrivateAIM lesson: their untemplatable `existingSecret`
-    forced a hardcoded-names table).
-    `server.route.enabled` / `adminConsole.route.enabled` extend this to a
-    BOOLEAN, read through `authup.flag`. That reader is strict by necessity:
-    the schema is widened to `[boolean, string]` so it no longer rejects
-    garbage, and a rendered `"false"` is a non-empty (truthy) string, so a
-    plain `if` would create the route exactly when the parent switched it off.
-    All six read sites (2 HTTPRoutes, 2 validations, 2 NOTES) convert together
-    or the sub-path catch-all guard of rule 18 stops covering umbrella users.
-17. **`global` must stay open in the schema.** helm copies a parent chart's
-    ENTIRE `global` map into every subchart before validating that subchart's
-    schema, so `additionalProperties: false` there makes the chart
-    uninstallable as a dependency of any umbrella that sets a global this
-    chart does not declare. `values.yaml` carries the
-    `# @schema additionalProperties: true` opt-out and `ci/default-values.yaml`
-    a stray global key as the regression guard. The chart reads only
-    `imageRegistry` / `imagePullSecrets` / `defaultStorageClass` and ignores
-    the rest.
-18. **An HTTPRoute rule with no `matches` is a catch-all.** The Gateway API
-    defaults an empty `matches` to PathPrefix `/`, and route hostnames come
-    from the public URL's ORIGIN (the path is dropped), so a sub-path
-    deployment would silently take over the whole shared hostname.
-    `validations.yaml` fails that combination; `route.matches` / `route.filters`
-    are the raw passthroughs that express it (authup always serves at `/`, so
-    the prefix must be matched AND rewritten away).
-19. **`useHelmHooks=false` is an ArgoCD-only mode.** ArgoCD renders with
-    `helm template` and never executes Helm hooks, so it needs its own
-    `argocd.argoproj.io/hook` annotations. Flux is the opposite: helm-controller
-    runs a real `helm upgrade` and honours Helm hooks natively. Turning them off
-    there applies the migration Job as an ordinary release resource, and
-    `Job.spec.template` is immutable, so the next upgrade that touches the pod
-    template (image tag, `appVersion` label, a new env) fails to patch it. A
-    content-hashed Job name would make that apply-able but not correct: helm
-    orders a plain Job AFTER the Deployment and does not wait for it, which is
-    the ordering the Job exists to provide. So the value stays doc-scoped to
-    ArgoCD and NOTES warns when it is set. ArgoCD also maps Helm hooks onto its
-    own sync phases, so `true` works there as well; the flag only chooses which
-    annotation family drives the Job.
+14. **Every browser-facing role shares `server.publicUrl`.** It is either set
+    explicitly or derived from server Ingress. Literal and template-rendered
+    URLs are both checked for an HTTP scheme. Split consoles receive the same
+    `PUBLIC_URL` and use an in-cluster `INTERNAL_URL` for server-side API calls.
+15. **Split consoles preserve one origin.** They are exposed under
+    `/console/auth`, `/console/admin` and `/console/account`. Generated Ingress
+    resources use ingress-nginx regex rewrites. Gateway API routes use
+    `URLRewrite` with `ReplacePrefixMatch`. Exact admin/account login and
+    callback paths must remain on the API before broader console prefixes.
+16. **HTTPRoute flags are strict.** `route.enabled` accepts a boolean or a
+    template-rendered boolean string. `authup.flag` validates every role even
+    when that role is disabled, because a non-empty string `"false"` is truthy
+    to Go templates.
+17. **An empty HTTPRoute match is a catch-all.** A server public URL carrying a
+    path requires explicit match and rewrite rules. The validation prevents a
+    sub-path deployment from taking over the full hostname.
 
-## Values conventions
+## Workload and hook safety
 
-- bitnami-shaped keys: `fullnameOverride`, `existingSecret` + `secretKeys`
-  key-mapping, `extraEnvVars`/`extraEnvVarsCM`/`extraEnvVarsSecret`,
-  `extraVolumes`/`extraVolumeMounts`, `initContainers`/`sidecars`,
-  `extraDeploy`, `commonLabels`/`commonAnnotations`, `diagnosticMode`,
-  `useHelmHooks`.
-- `values.yaml` is the single documentation source: `# --` comments feed
-  helm-docs, `# @schema` blocks feed helm-schema. Every free-form or
-  extensible map carries `# @schema additionalProperties: true` - the
-  generated schema is strict (`additionalProperties: false`) everywhere else,
-  which is what turns value typos into install-time errors. When adding a new
-  map value that users extend (annotations, selectors, resources-like), add
-  the annotation or the schema will silently forbid its use.
-- Cross-field rules that the JSON schema cannot express live in
-  `templates/validations.yaml` (render-nothing fail-fast guards). When a value
-  moves, add a tripwire there that names the new location, and record the
-  migration in `BREAKING.md`.
-- **Values-coverage audit**: every `.Values.*` path referenced by any template
-  must resolve in `values.yaml` (`scripts/check-values-coverage.py`, run by
-  `make lint-values-coverage` and CI). Strict schema + a missing key = a
-  silently unusable feature (the Authelia HPA-metrics trap).
+18. **Selectors are immutable and minimal.** `authup.matchLabels` emits only
+    name, instance and component. User labels never enter selectors. Component
+    labels distinguish server, each console, worker and migration pods.
+19. **Component names truncate before suffixing.** The suffix-specific budget
+    keeps every Service name and label value at 63 characters while preserving
+    existing valid resource names. Never widen the `min 52` budget without a
+    cross-revision name audit; a renamed kept Secret rotates credentials.
+20. **The migration Job is pre-upgrade only.** Fresh installs need regular
+    backing resources before the server can initialize the database. On
+    upgrades, the Job runs before the rollout. The server sets
+    `MIGRATION_ENABLED=false` only during upgrades when this Job owns migration.
+21. **Hook inputs must exist before regular resources.** The migration Job
+    inlines non-secret config, narrows secrets to database password and optional
+    encryption key, skips provisioning, and mounts a hook-scoped copy of
+    `authup.yml`. The configuration ConfigMap and migration NetworkPolicy have
+    weight -5; the Job has weight 0.
+22. **`useHelmHooks=false` is ArgoCD-only.** It emits PreSync resources. Flux
+    and plain Helm need native hooks or they apply an immutable Job as a normal
+    resource without correct ordering.
+23. **Checksum annotations follow every consumed input.** Deployments roll on
+    chart-managed env, Secret, provisioning, configuration and theme changes.
+    `disableRestartOnChanges` is the explicit escape hatch.
+
+## Network and platform behavior
+
+24. **Policies follow roles.** The server policy accepts enabled split consoles.
+    Console policies reach the server. Worker and migration policies provide
+    DNS plus release-local database/cache access when external egress is denied.
+    External services require the corresponding `extraEgress` rules.
+25. **The migration policy is a hook.** A regular NetworkPolicy created after a
+    pre-upgrade Job cannot protect that Job. Keep its hook family and ordering
+    aligned with the migration Job for Helm and ArgoCD.
+26. **Built-in stores are minimal conveniences.** PostgreSQL, MySQL and Valkey
+    are vendored single-instance StatefulSets on official images. Production
+    users should prefer external or operator-managed services.
+27. **`global` stays schema-open.** Helm passes a parent's complete global map
+    into subcharts before schema validation. Closing this node makes the chart
+    unusable under unrelated umbrella globals.
+28. **Every list and map passthrough is tpl-rendered.** Umbrella charts rely on
+    this. Free-form maps need `# @schema additionalProperties: true`.
+
+## Validation and generated artifacts
+
+- Cross-field rules and moved-value tombstones live in
+  `templates/validations.yaml`.
+- `values.yaml` is the source for both generated README value tables and the
+  strict JSON schema.
+- Every `.Values.*` template path must exist in `values.yaml`; the coverage
+  script enforces it.
+- `scripts/check-beta64-contract.py` renders real manifests and asserts the
+  CLI, env, mount, routing, policy and migration contracts. Add an assertion
+  there before changing one of those boundaries.

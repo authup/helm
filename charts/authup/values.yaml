@@ -54,7 +54,7 @@ diagnosticMode:
 image:
   # -- Authup image registry
   registry: docker.io
-  # -- Authup image repository (one image serves both services)
+  # -- Authup image repository (one image serves every application role)
   repository: authup/authup
   # -- Authup image tag (defaults to the chart appVersion)
   tag: ""
@@ -1819,7 +1819,7 @@ worker:
 ## @section Service account
 
 serviceAccount:
-  # -- Create a ServiceAccount (shared by both services)
+  # -- Create a ServiceAccount (shared by all application roles)
   create: true
   # -- ServiceAccount name ("" = generated from the fullname)
   name: ""

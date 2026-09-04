@@ -3540,7 +3540,7 @@
         },
         "repository": {
           "default": "authup/authup",
-          "description": "Authup image repository (one image serves both services)",
+          "description": "Authup image repository (one image serves every application role)",
           "required": [],
           "title": "repository",
           "type": "string"
@@ -5675,7 +5675,7 @@
         },
         "create": {
           "default": true,
-          "description": "Create a ServiceAccount (shared by both services)",
+          "description": "Create a ServiceAccount (shared by all application roles)",
           "required": [],
           "title": "create",
           "type": "boolean"
