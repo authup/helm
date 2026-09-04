@@ -76,7 +76,7 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-            {{- include "authup.server.secretEnv" (dict "context" $ "hook" true) | nindent 12 }}
+            {{- include "authup.server.secretEnv" (dict "context" $ "role" "migration") | nindent 12 }}
             {{- if .Values.server.extraEnvVars }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVars "context" $) | nindent 12 }}
             {{- end }}
@@ -84,11 +84,11 @@ spec:
           {{- if $resources }}
           resources: {{- toYaml $resources | nindent 12 }}
           {{- end }}
-          volumeMounts: {{- include "authup.server.volumeMounts" (dict "context" $ "hook" true) | nindent 12 }}
+          volumeMounts: {{- include "authup.server.volumeMounts" (dict "context" $ "role" "migration") | nindent 12 }}
             {{- if .Values.server.extraVolumeMounts }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumeMounts "context" $) | nindent 12 }}
             {{- end }}
-      volumes: {{- include "authup.server.volumes" (dict "context" $ "hook" true) | nindent 8 }}
+      volumes: {{- include "authup.server.volumes" (dict "context" $ "role" "migration") | nindent 8 }}
         {{- if .Values.server.extraVolumes }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraVolumes "context" $) | nindent 8 }}
         {{- end }}

@@ -1680,6 +1680,144 @@ accountConsole:
     # -- Extra egress rules
     extraEgress: []
 
+## @section Worker
+
+worker:
+  # -- Deploy a dedicated background worker
+  enabled: false
+  # -- Number of worker replicas (one is normally sufficient)
+  replicaCount: 1
+  # -- Override the container command
+  command: []
+  # -- Override the container args
+  args: []
+  # -- Extra environment variables for the worker container
+  extraEnvVars: []
+  # -- Extra ConfigMap with environment variables (tpl-rendered name)
+  extraEnvVarsCM: ""
+  # -- Extra Secret with environment variables (tpl-rendered name)
+  extraEnvVarsSecret: ""
+  # -- Extra volumes (tpl-rendered)
+  extraVolumes: []
+  # -- Extra volume mounts (tpl-rendered)
+  extraVolumeMounts: []
+  # -- Init containers (tpl-rendered)
+  initContainers: []
+  # -- Sidecar containers (tpl-rendered)
+  sidecars: []
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Container lifecycle hooks
+  lifecycleHooks: {}
+  # -- Pod host aliases
+  hostAliases: []
+  # -- Pod termination grace period
+  terminationGracePeriodSeconds: 30
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Deployment update strategy
+  updateStrategy:
+    type: RollingUpdate
+  # -- Deployment revision history limit
+  revisionHistoryLimit: 3
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod annotations (tpl-rendered)
+  podAnnotations: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod labels (tpl-rendered)
+  podLabels: {}
+  # -- Disable checksum annotations that roll pods on configuration changes
+  disableRestartOnChanges: false
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod security context
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1000
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Container security context
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 0
+    runAsNonRoot: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+    readOnlyRootFilesystem: false
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Worker container resources
+  resources:
+    # @schema
+    # additionalProperties: true
+    # @schema
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    # @schema
+    # additionalProperties: true
+    # @schema
+    limits:
+      memory: 1Gi
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Affinity (overrides the anti-affinity preset when set)
+  affinity: {}
+  # -- Pod anti-affinity preset: soft, hard or ""
+  podAntiAffinityPreset: soft
+  # -- Topology spread constraints
+  topologySpreadConstraints: []
+  # -- Priority class name
+  priorityClassName: ""
+  # -- Scheduler name
+  schedulerName: ""
+  pdb:
+    # -- Create a PodDisruptionBudget for the worker
+    create: false
+    # -- Minimum available pods
+    minAvailable: ""
+    # -- Maximum unavailable pods (defaults to 1 when both are empty)
+    maxUnavailable: ""
+  autoscaling:
+    hpa:
+      # -- Enable HPA for the worker
+      enabled: false
+      # -- Minimum replicas
+      minReplicas: 1
+      # -- Maximum replicas
+      maxReplicas: 3
+      # -- Target CPU utilization percentage
+      targetCPU: 75
+      # -- Target memory utilization percentage
+      targetMemory: ""
+  networkPolicy:
+    # -- Create an egress NetworkPolicy for the worker
+    enabled: false
+    # -- Allow all egress
+    allowExternalEgress: true
+    # -- Extra egress rules
+    extraEgress: []
+
 ## @section Service account
 
 serviceAccount:

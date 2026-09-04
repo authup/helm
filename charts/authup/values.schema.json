@@ -6032,6 +6032,526 @@
       ],
       "title": "valkey",
       "type": "object"
+    },
+    "worker": {
+      "additionalProperties": false,
+      "description": "#",
+      "properties": {
+        "affinity": {
+          "additionalProperties": true,
+          "description": "Affinity (overrides the anti-affinity preset when set)",
+          "required": [],
+          "title": "affinity"
+        },
+        "args": {
+          "description": "Override the container args",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "args",
+          "type": "array"
+        },
+        "autoscaling": {
+          "additionalProperties": false,
+          "properties": {
+            "hpa": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enable HPA for the worker",
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "maxReplicas": {
+                  "default": 3,
+                  "description": "Maximum replicas",
+                  "required": [],
+                  "title": "maxReplicas",
+                  "type": "integer"
+                },
+                "minReplicas": {
+                  "default": 1,
+                  "description": "Minimum replicas",
+                  "required": [],
+                  "title": "minReplicas",
+                  "type": "integer"
+                },
+                "targetCPU": {
+                  "default": 75,
+                  "description": "Target CPU utilization percentage",
+                  "required": [],
+                  "title": "targetCPU",
+                  "type": "integer"
+                },
+                "targetMemory": {
+                  "default": "",
+                  "description": "Target memory utilization percentage",
+                  "required": [],
+                  "title": "targetMemory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "enabled",
+                "minReplicas",
+                "maxReplicas",
+                "targetCPU",
+                "targetMemory"
+              ],
+              "title": "hpa",
+              "type": "object"
+            }
+          },
+          "required": [
+            "hpa"
+          ],
+          "title": "autoscaling",
+          "type": "object"
+        },
+        "command": {
+          "description": "Override the container command",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "command",
+          "type": "array"
+        },
+        "containerSecurityContext": {
+          "additionalProperties": true,
+          "description": "Container security context",
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "default": false,
+              "required": [],
+              "title": "allowPrivilegeEscalation",
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "drop": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "required": [],
+                        "type": "string"
+                      }
+                    ],
+                    "required": []
+                  },
+                  "required": [],
+                  "title": "drop",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "drop"
+              ],
+              "title": "capabilities",
+              "type": "object"
+            },
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "readOnlyRootFilesystem": {
+              "default": false,
+              "required": [],
+              "title": "readOnlyRootFilesystem",
+              "type": "boolean"
+            },
+            "runAsNonRoot": {
+              "default": false,
+              "required": [],
+              "title": "runAsNonRoot",
+              "type": "boolean"
+            },
+            "runAsUser": {
+              "default": 0,
+              "required": [],
+              "title": "runAsUser",
+              "type": "integer"
+            },
+            "seccompProfile": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "default": "RuntimeDefault",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "title": "seccompProfile",
+              "type": "object"
+            }
+          },
+          "required": [
+            "enabled",
+            "runAsUser",
+            "runAsNonRoot",
+            "allowPrivilegeEscalation",
+            "capabilities",
+            "seccompProfile",
+            "readOnlyRootFilesystem"
+          ],
+          "title": "containerSecurityContext"
+        },
+        "disableRestartOnChanges": {
+          "default": false,
+          "description": "Disable checksum annotations that roll pods on configuration changes",
+          "required": [],
+          "title": "disableRestartOnChanges",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Deploy a dedicated background worker",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "extraEnvVars": {
+          "description": "Extra environment variables for the worker container",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraEnvVars",
+          "type": "array"
+        },
+        "extraEnvVarsCM": {
+          "default": "",
+          "description": "Extra ConfigMap with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsCM",
+          "type": "string"
+        },
+        "extraEnvVarsSecret": {
+          "default": "",
+          "description": "Extra Secret with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsSecret",
+          "type": "string"
+        },
+        "extraVolumeMounts": {
+          "description": "Extra volume mounts (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumeMounts",
+          "type": "array"
+        },
+        "extraVolumes": {
+          "description": "Extra volumes (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumes",
+          "type": "array"
+        },
+        "hostAliases": {
+          "description": "Pod host aliases",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "hostAliases",
+          "type": "array"
+        },
+        "initContainers": {
+          "description": "Init containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "initContainers",
+          "type": "array"
+        },
+        "lifecycleHooks": {
+          "additionalProperties": true,
+          "description": "Container lifecycle hooks",
+          "required": [],
+          "title": "lifecycleHooks"
+        },
+        "networkPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowExternalEgress": {
+              "default": true,
+              "description": "Allow all egress",
+              "required": [],
+              "title": "allowExternalEgress",
+              "type": "boolean"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create an egress NetworkPolicy for the worker",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "extraEgress": {
+              "description": "Extra egress rules",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraEgress",
+              "type": "array"
+            }
+          },
+          "required": [
+            "enabled",
+            "allowExternalEgress",
+            "extraEgress"
+          ],
+          "title": "networkPolicy",
+          "type": "object"
+        },
+        "nodeSelector": {
+          "additionalProperties": true,
+          "description": "Node selector",
+          "required": [],
+          "title": "nodeSelector"
+        },
+        "pdb": {
+          "additionalProperties": false,
+          "properties": {
+            "create": {
+              "default": false,
+              "description": "Create a PodDisruptionBudget for the worker",
+              "required": [],
+              "title": "create",
+              "type": "boolean"
+            },
+            "maxUnavailable": {
+              "default": "",
+              "description": "Maximum unavailable pods (defaults to 1 when both are empty)",
+              "required": [],
+              "title": "maxUnavailable",
+              "type": "string"
+            },
+            "minAvailable": {
+              "default": "",
+              "description": "Minimum available pods",
+              "required": [],
+              "title": "minAvailable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "create",
+            "minAvailable",
+            "maxUnavailable"
+          ],
+          "title": "pdb",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": true,
+          "description": "Pod annotations (tpl-rendered)",
+          "required": [],
+          "title": "podAnnotations"
+        },
+        "podAntiAffinityPreset": {
+          "default": "soft",
+          "description": "Pod anti-affinity preset: soft, hard or \"\"",
+          "required": [],
+          "title": "podAntiAffinityPreset",
+          "type": "string"
+        },
+        "podLabels": {
+          "additionalProperties": true,
+          "description": "Pod labels (tpl-rendered)",
+          "required": [],
+          "title": "podLabels"
+        },
+        "podSecurityContext": {
+          "additionalProperties": true,
+          "description": "Pod security context",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "fsGroup": {
+              "default": 1000,
+              "required": [],
+              "title": "fsGroup",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "fsGroup"
+          ],
+          "title": "podSecurityContext"
+        },
+        "priorityClassName": {
+          "default": "",
+          "description": "Priority class name",
+          "required": [],
+          "title": "priorityClassName",
+          "type": "string"
+        },
+        "replicaCount": {
+          "default": 1,
+          "description": "Number of worker replicas (one is normally sufficient)",
+          "required": [],
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": true,
+          "description": "Worker container resources",
+          "properties": {
+            "limits": {
+              "additionalProperties": true,
+              "properties": {
+                "memory": {
+                  "default": "1Gi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "title": "limits"
+            },
+            "requests": {
+              "additionalProperties": true,
+              "properties": {
+                "cpu": {
+                  "default": "100m",
+                  "required": [],
+                  "title": "cpu",
+                  "type": "string"
+                },
+                "memory": {
+                  "default": "256Mi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cpu",
+                "memory"
+              ],
+              "title": "requests"
+            }
+          },
+          "required": [],
+          "title": "resources"
+        },
+        "revisionHistoryLimit": {
+          "default": 3,
+          "description": "Deployment revision history limit",
+          "required": [],
+          "title": "revisionHistoryLimit",
+          "type": "integer"
+        },
+        "schedulerName": {
+          "default": "",
+          "description": "Scheduler name",
+          "required": [],
+          "title": "schedulerName",
+          "type": "string"
+        },
+        "sidecars": {
+          "description": "Sidecar containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "sidecars",
+          "type": "array"
+        },
+        "terminationGracePeriodSeconds": {
+          "default": 30,
+          "description": "Pod termination grace period",
+          "required": [],
+          "title": "terminationGracePeriodSeconds",
+          "type": "integer"
+        },
+        "tolerations": {
+          "description": "Tolerations",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tolerations",
+          "type": "array"
+        },
+        "topologySpreadConstraints": {
+          "description": "Topology spread constraints",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "topologySpreadConstraints",
+          "type": "array"
+        },
+        "updateStrategy": {
+          "additionalProperties": true,
+          "description": "Deployment update strategy",
+          "properties": {
+            "type": {
+              "default": "RollingUpdate",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "updateStrategy"
+        }
+      },
+      "required": [
+        "enabled",
+        "replicaCount",
+        "command",
+        "args",
+        "extraEnvVars",
+        "extraEnvVarsCM",
+        "extraEnvVarsSecret",
+        "extraVolumes",
+        "extraVolumeMounts",
+        "initContainers",
+        "sidecars",
+        "hostAliases",
+        "terminationGracePeriodSeconds",
+        "revisionHistoryLimit",
+        "disableRestartOnChanges",
+        "tolerations",
+        "podAntiAffinityPreset",
+        "topologySpreadConstraints",
+        "priorityClassName",
+        "schedulerName",
+        "pdb",
+        "autoscaling",
+        "networkPolicy"
+      ],
+      "title": "worker",
+      "type": "object"
     }
   },
   "required": [
@@ -6054,6 +6574,7 @@
     "authConsole",
     "adminConsole",
     "accountConsole",
+    "worker",
     "serviceAccount"
   ],
   "type": "object"

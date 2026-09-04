@@ -207,6 +207,29 @@ def check_split():
             & set(environment)
         )
 
+    worker = one(documents, "Deployment", "worker")
+    worker_container = container(worker)
+    assert worker_container["args"] == ["start", "worker"]
+    assert "ports" not in worker_container
+    assert not (
+        {"startupProbe", "livenessProbe", "readinessProbe"}
+        & set(worker_container)
+    )
+    worker_env = effective_env(worker, documents)
+    assert worker_env["WORKER_ENABLED"] == "true"
+    assert effective_env(deployments["server"], documents)["WORKER_ENABLED"] == "false"
+    assert "DB_PASSWORD" in worker_env
+    assert "REDIS" in worker_env
+    assert "SMTP" not in worker_env
+    assert "USER_ADMIN_PASSWORD" not in worker_env
+    assert "CLIENT_SYSTEM_SECRET" not in worker_env
+    assert "MIGRATION_ENABLED" not in worker_env
+
+    upgrade = render(chart / "ci" / "split-values.yaml", "--is-upgrade")
+    upgrade_server = one(upgrade, "Deployment", "server")
+    assert effective_env(upgrade_server, upgrade)["MIGRATION_ENABLED"] == "false"
+    assert "MIGRATION_ENABLED" not in effective_env(deployments["server"], documents)
+
 
 def check_routing():
     documents = render(chart / "ci" / "split-values.yaml")

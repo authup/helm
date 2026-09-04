@@ -124,6 +124,10 @@ spec:
                 name: {{ include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVarsSecret "context" $) }}
             {{- end }}
           env: {{- include "authup.server.secretEnv" (dict "context" $) | nindent 12 }}
+            {{- if .Values.worker.enabled }}
+            - name: WORKER_ENABLED
+              value: "false"
+            {{- end }}
             {{- if and .Values.server.migration.enabled .Release.IsUpgrade }}
             - name: MIGRATION_ENABLED
               value: "false"

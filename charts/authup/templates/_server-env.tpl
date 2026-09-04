@@ -71,34 +71,36 @@ CLIENT_SYSTEM_SECRET's key being conditional. The hook keeps exactly two:
 DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 */}}
 {{- define "authup.server.secretEnv" -}}
-{{- $ctx := required "authup.server.secretEnv: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
+{{- $ctx := required "authup.server.secretEnv: context is required" .context -}}
+{{- $role := .role | default "server" -}}
+{{- $server := eq $role "server" -}}
 - name: DB_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.database.secretName" $ctx }}
       key: {{ include "authup.database.passwordKey" $ctx }}
-{{- if and (not .hook) (include "authup.redis.enabled" $ctx) }}
+{{- if and (ne $role "migration") (include "authup.redis.enabled" $ctx) }}
 - name: REDIS
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.redis.secretName" $ctx }}
       key: {{ include "authup.redis.secretKey" $ctx }}
 {{- end }}
-{{- if and (not .hook) (include "authup.smtp.enabled" $ctx) }}
+{{- if and $server (include "authup.smtp.enabled" $ctx) }}
 - name: SMTP
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.smtp.secretName" $ctx }}
       key: {{ include "authup.smtp.secretKey" $ctx }}
 {{- end }}
-{{- if not .hook }}
+{{- if $server }}
 - name: USER_ADMIN_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.auth.secretName" $ctx }}
       key: {{ $ctx.Values.auth.secretKeys.adminPasswordKey }}
 {{- end }}
-{{- if and (not .hook) $ctx.Values.auth.systemClientEnabled }}
+{{- if and $server $ctx.Values.auth.systemClientEnabled }}
 - name: CLIENT_SYSTEM_SECRET
   valueFrom:
     secretKeyRef:
@@ -158,12 +160,14 @@ axis (configEnv is one define shared by the env ConfigMap and the Job's inlined
 env, and THEME_* must stay in its reserved-key list either way).
 */}}
 {{- define "authup.server.volumeMounts" -}}
-{{- $ctx := required "authup.server.volumeMounts: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
+{{- $ctx := required "authup.server.volumeMounts: context is required" .context -}}
+{{- $role := .role | default "server" -}}
+{{- $server := eq $role "server" -}}
 - name: logs
   mountPath: /var/log/authup
 - name: tmp
   mountPath: /tmp
-{{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
+{{- if and $server $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
   mountPath: /etc/authup/provisioning
   readOnly: true
@@ -174,7 +178,7 @@ env, and THEME_* must stay in its reserved-key list either way).
   subPath: authup.yml
   readOnly: true
 {{- end }}
-{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+{{- if and $server (include "authup.server.themeMounted" $ctx) }}
 - name: theme
   mountPath: {{ include "authup.server.themeMountPath" $ctx }}
   readOnly: true
@@ -182,12 +186,14 @@ env, and THEME_* must stay in its reserved-key list either way).
 {{- end -}}
 
 {{- define "authup.server.volumes" -}}
-{{- $ctx := required "authup.server.volumes: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
+{{- $ctx := required "authup.server.volumes: context is required" .context -}}
+{{- $role := .role | default "server" -}}
+{{- $server := eq $role "server" -}}
 - name: logs
   emptyDir: {}
 - name: tmp
   emptyDir: {}
-{{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
+{{- if and $server $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
   {{- if $ctx.Values.server.provisioning.existingSecret }}
   secret:
@@ -200,9 +206,9 @@ env, and THEME_* must stay in its reserved-key list either way).
 {{- if or $ctx.Values.server.configuration $ctx.Values.server.existingConfigmap }}
 - name: configuration
   configMap:
-    name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ctx "hook" .hook) }}
+    name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ctx "hook" (eq $role "migration")) }}
 {{- end }}
-{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+{{- if and $server (include "authup.server.themeMounted" $ctx) }}
 - name: theme
   configMap:
     name: {{ include "authup.server.themeConfigMapName" $ctx }}
