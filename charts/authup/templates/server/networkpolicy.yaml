@@ -18,8 +18,20 @@ spec:
           protocol: TCP
       {{- if not .Values.server.networkPolicy.allowExternal }}
       from:
+        {{- if .Values.server.splitConsoles }}
+        {{- if .Values.authConsole.enabled }}
+        - podSelector:
+            matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "auth-console") | nindent 14 }}
+        {{- end }}
+        {{- if .Values.adminConsole.enabled }}
         - podSelector:
             matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "admin-console") | nindent 14 }}
+        {{- end }}
+        {{- if .Values.accountConsole.enabled }}
+        - podSelector:
+            matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "account-console") | nindent 14 }}
+        {{- end }}
+        {{- end }}
         {{- if .Values.server.networkPolicy.ingressPodMatchLabels }}
         - podSelector:
             matchLabels: {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.ingressPodMatchLabels "context" $) | nindent 14 }}

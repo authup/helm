@@ -15,6 +15,7 @@ server:
     tls: true
   networkPolicy:
     enabled: true
+    allowExternal: false
     allowExternalEgress: false
   resources:
     requests:
@@ -22,11 +23,17 @@ server:
       memory: 256Mi
 worker:
   enabled: true
+  networkPolicy:
+    enabled: true
+    allowExternalEgress: false
   resources:
     requests:
       cpu: 25m
       memory: 128Mi
 authConsole:
+  networkPolicy:
+    enabled: true
+    allowExternalEgress: false
   ingress:
     enabled: true
     hostname: auth.example.com
@@ -36,6 +43,9 @@ authConsole:
       memory: 128Mi
 adminConsole:
   enabled: true
+  networkPolicy:
+    enabled: true
+    allowExternalEgress: false
   ingress:
     enabled: true
     hostname: auth.example.com
@@ -45,6 +55,9 @@ adminConsole:
       memory: 128Mi
 accountConsole:
   enabled: true
+  networkPolicy:
+    enabled: true
+    allowExternalEgress: false
   ingress:
     enabled: true
     hostname: auth.example.com

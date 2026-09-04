@@ -126,6 +126,19 @@ def exact_backend(ingress, path):
     return matches[0]["backend"]["service"]["name"]
 
 
+def peer_components(policy, direction):
+    components = set()
+    peer_key = "from" if direction == "ingress" else "to"
+    for rule in policy["spec"].get(direction, []):
+        for peer in rule.get(peer_key, []):
+            component = peer.get("podSelector", {}).get("matchLabels", {}).get(
+                "app.kubernetes.io/component"
+            )
+            if component:
+                components.add(component)
+    return components
+
+
 def check_base():
     documents = render()
     deployments = component_deployments(documents)
@@ -299,11 +312,49 @@ def check_routing():
     assert all(rule["matches"][0]["path"]["type"] == "Exact" for rule in rules[:4])
 
 
+def check_policy():
+    documents = render(chart / "ci" / "split-values.yaml")
+    migration = one(documents, "NetworkPolicy", "migration")
+    assert migration["spec"]["podSelector"]["matchLabels"][
+        "app.kubernetes.io/component"
+    ] == "migration"
+    annotations = migration["metadata"]["annotations"]
+    assert annotations["helm.sh/hook"] == "pre-upgrade"
+    assert annotations["helm.sh/hook-weight"] == "-5"
+    assert migration["spec"]["policyTypes"] == ["Egress"]
+
+    worker = one(documents, "NetworkPolicy", "worker")
+    assert worker["spec"]["policyTypes"] == ["Egress"]
+
+    for component in ("auth-console", "admin-console", "account-console"):
+        policy = one(documents, "NetworkPolicy", component)
+        assert peer_components(policy, "egress") == {"server"}
+
+    server = one(documents, "NetworkPolicy", "server")
+    assert {
+        "auth-console",
+        "admin-console",
+        "account-console",
+    } <= peer_components(server, "ingress")
+
+    argocd_documents = render(
+        chart / "ci" / "split-values.yaml",
+        "--set",
+        "useHelmHooks=false",
+    )
+    argocd = one(argocd_documents, "NetworkPolicy", "migration")
+    annotations = argocd["metadata"]["annotations"]
+    assert annotations["argocd.argoproj.io/hook"] == "PreSync"
+    assert annotations["argocd.argoproj.io/sync-wave"] == "-5"
+    assert "helm.sh/hook" not in annotations
+
+
 checks = {
     "base": check_base,
     "split": check_split,
     "routing": check_routing,
-    "all": lambda: (check_base(), check_split()),
+    "policy": check_policy,
+    "all": lambda: (check_base(), check_split(), check_routing(), check_policy()),
 }
 
 if case not in checks:

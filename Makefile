@@ -33,4 +33,4 @@ template:
 	done
 	@echo "all ci values render"
 
-test: lint template lint-values-coverage
+test: lint template lint-values-coverage lint-beta64-contract
