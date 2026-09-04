@@ -13,12 +13,11 @@ chart = Path(sys.argv[1] if len(sys.argv) > 1 else "charts/authup")
 case = sys.argv[2] if len(sys.argv) > 2 else "all"
 
 
-def render(values=None, *args):
+def render_result(values=None, *args):
     command = ["helm", "template", "test", str(chart)]
     if isinstance(values, (str, Path)):
-        result = subprocess.run(
+        return subprocess.run(
             [*command, "-f", str(values), *args],
-            check=True,
             capture_output=True,
             text=True,
         )
@@ -26,20 +25,28 @@ def render(values=None, *args):
         with tempfile.NamedTemporaryFile("w", suffix=".yaml") as handle:
             yaml.safe_dump(values, handle)
             handle.flush()
-            result = subprocess.run(
+            return subprocess.run(
                 [*command, "-f", handle.name, *args],
-                check=True,
                 capture_output=True,
                 text=True,
             )
-    else:
-        result = subprocess.run(
-            [*command, *args],
-            check=True,
-            capture_output=True,
-            text=True,
-        )
+    return subprocess.run(
+        [*command, *args],
+        capture_output=True,
+        text=True,
+    )
+
+
+def render(values=None, *args):
+    result = render_result(values, *args)
+    result.check_returncode()
     return [document for document in yaml.safe_load_all(result.stdout) if document]
+
+
+def render_fails(values, message):
+    result = render_result(values)
+    assert result.returncode != 0, f"expected render failure containing {message!r}"
+    assert message in result.stderr, result.stderr
 
 
 def one(documents, kind, component, suffix=None):
@@ -243,6 +250,17 @@ def check_split():
     assert effective_env(upgrade_server, upgrade)["MIGRATION_ENABLED"] == "false"
     assert "MIGRATION_ENABLED" not in effective_env(deployments["server"], documents)
 
+    rendered = render_result(chart / "ci" / "split-values.yaml").stdout
+    for retired in (
+        "server/core",
+        "client/admin-console",
+        "NUXT_",
+        "WRITABLE_DIRECTORY_PATH",
+        "/var/lib/authup",
+        "authup.server.core.conf",
+    ):
+        assert retired not in rendered, f"retired runtime contract remains: {retired}"
+
 
 def check_routing():
     documents = render(chart / "ci" / "split-values.yaml")
@@ -349,12 +367,44 @@ def check_policy():
     assert "helm.sh/hook" not in annotations
 
 
+def check_validations():
+    render_fails(
+        {"server": {"features": {"accountConsole": False}}},
+        "server.features.accountConsole moved to accountConsole.enabled",
+    )
+    render_fails(
+        {"server": {"enabled": False, "splitConsoles": True}},
+        "server.splitConsoles requires server.enabled=true",
+    )
+    render_fails(
+        {"server": {"splitConsoles": True}, "authConsole": {"enabled": False}},
+        "server.splitConsoles requires authConsole.enabled=true",
+    )
+    for component in ("authConsole", "adminConsole", "accountConsole"):
+        render_fails(
+            {component: {"enabled": False, "route": {"enabled": "invalid"}}},
+            f"{component}.route.enabled must be true or false",
+        )
+    for name in ("ADMIN_CONSOLE_ENABLED", "WORKER_ENABLED", "MIGRATION_ENABLED"):
+        render_fails(
+            {"server": {"config": {name: "false"}}},
+            f"server.config.{name} collides with a first-class chart value",
+        )
+
+
 checks = {
     "base": check_base,
     "split": check_split,
     "routing": check_routing,
     "policy": check_policy,
-    "all": lambda: (check_base(), check_split(), check_routing(), check_policy()),
+    "validations": check_validations,
+    "all": lambda: (
+        check_base(),
+        check_split(),
+        check_routing(),
+        check_policy(),
+        check_validations(),
+    ),
 }
 
 if case not in checks:

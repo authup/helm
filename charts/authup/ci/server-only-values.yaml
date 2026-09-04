@@ -1,8 +1,11 @@
-# Headless IdP: server-core without the admin UI.
+# Combined server with the optional admin and account surfaces disabled. The
+# auth pages remain available because they own the login flow.
 postgresql:
   persistence:
     enabled: false
 adminConsole:
+  enabled: false
+accountConsole:
   enabled: false
 server:
   resources:

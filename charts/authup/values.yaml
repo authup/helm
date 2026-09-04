@@ -407,7 +407,8 @@ server:
   splitConsoles: false
   # -- Number of server-core replicas (values > 1 REQUIRE a configured cache)
   replicaCount: 1
-  # -- Public URL of server-core (PUBLIC_URL) — the OIDC issuer origin.
+  # -- Public URL of Authup (PUBLIC_URL), shared by the API and consoles and
+  # used as the OIDC issuer origin.
   # "" = derived from server.ingress when enabled. Changing it later breaks
   # enrolled WebAuthn credentials and the OIDC issuer.
   publicUrl: ""
@@ -418,9 +419,6 @@ server:
   # (https://*.example.com); "**" in a host is rejected by authup at boot.
   # List or comma-separated string; tpl-rendered.
   trustedOrigins: []
-  # -- Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the
-  # most common dead-login misconfiguration)
-  trustedOriginsAppendAdminConsole: true
   # -- TRUST_PROXY setting. The chart defaults to one trusted hop (the ingress),
   # not authup's spoofable trust-everything default
   trustProxy: "1"
@@ -451,11 +449,11 @@ server:
   # with your own build (pair them with extraVolumes; the substituted package
   # owns the login flow, so use server.theme for branding instead)
   config: {}
-  # -- Content of an authup.server.core.conf mounted into the working directory
-  # for file-only options (middleware objects, per-field SMTP, CORS allowlist).
-  # Environment variables always win over file values.
+  # -- Content of authup.yml mounted at /etc/authup/authup.yml for file-only
+  # options (middleware objects, per-field SMTP, CORS allowlist). Environment
+  # variables always win over file values.
   configuration: ""
-  # -- Existing ConfigMap holding authup.server.core.conf (tpl-rendered)
+  # -- Existing ConfigMap holding authup.yml (tpl-rendered)
   existingConfigmap: ""
   provisioning:
     # -- Mount provisioning files consumed at boot (fail-closed: an invalid file aborts startup)
@@ -526,7 +524,7 @@ server:
     # unsanitized markup on the identity provider origin, so it is opt-in
     fragmentsEnabled: false
   migration:
-    # -- Run `server/core migration run` as a pre-upgrade hook Job. Recommended
+    # -- Run `migration run` as a pre-upgrade hook Job. Recommended
     # for multi-replica deployments (serializes DDL before pods roll). Fresh
     # installs migrate at boot regardless.
     enabled: false
@@ -601,9 +599,9 @@ server:
   # @schema
   # additionalProperties: true
   # @schema
-  # -- Container security context. The upstream image runs as root and needs a
-  # writable npm cache; the chart mounts emptyDirs at /var/lib/authup and
-  # /tmp to keep readOnlyRootFilesystem viable.
+  # -- Container security context. The upstream image runs as root and needs
+  # writable log and npm cache paths; the chart mounts emptyDirs at
+  # /var/log/authup and /tmp.
   containerSecurityContext:
     enabled: true
     runAsUser: 0

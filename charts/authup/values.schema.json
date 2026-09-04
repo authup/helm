@@ -4317,14 +4317,14 @@
         },
         "configuration": {
           "default": "",
-          "description": "Content of an authup.server.core.conf mounted into the working directory\nfor file-only options (middleware objects, per-field SMTP, CORS allowlist).\nEnvironment variables always win over file values.",
+          "description": "Content of authup.yml mounted at /etc/authup/authup.yml for file-only\noptions (middleware objects, per-field SMTP, CORS allowlist). Environment\nvariables always win over file values.",
           "required": [],
           "title": "configuration",
           "type": "string"
         },
         "containerSecurityContext": {
           "additionalProperties": true,
-          "description": "Container security context. The upstream image runs as root and needs a\nwritable npm cache; the chart mounts emptyDirs at /var/lib/authup and\n/tmp to keep readOnlyRootFilesystem viable.",
+          "description": "Container security context. The upstream image runs as root and needs\nwritable log and npm cache paths; the chart mounts emptyDirs at\n/var/log/authup and /tmp.",
           "properties": {
             "allowPrivilegeEscalation": {
               "default": false,
@@ -4442,7 +4442,7 @@
         },
         "existingConfigmap": {
           "default": "",
-          "description": "Existing ConfigMap holding authup.server.core.conf (tpl-rendered)",
+          "description": "Existing ConfigMap holding authup.yml (tpl-rendered)",
           "required": [],
           "title": "existingConfigmap",
           "type": "string"
@@ -4850,7 +4850,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Run `server/core migration run` as a pre-upgrade hook Job. Recommended\nfor multi-replica deployments (serializes DDL before pods roll). Fresh\ninstalls migrate at boot regardless.",
+              "description": "Run `migration run` as a pre-upgrade hook Job. Recommended\nfor multi-replica deployments (serializes DDL before pods roll). Fresh\ninstalls migrate at boot regardless.",
               "required": [],
               "title": "enabled",
               "type": "boolean"
@@ -5077,7 +5077,7 @@
         },
         "publicUrl": {
           "default": "",
-          "description": "Public URL of server-core (PUBLIC_URL) — the OIDC issuer origin.\n\"\" = derived from server.ingress when enabled. Changing it later breaks\nenrolled WebAuthn credentials and the OIDC issuer.",
+          "description": "Public URL of Authup (PUBLIC_URL), shared by the API and consoles and\nused as the OIDC issuer origin.\n\"\" = derived from server.ingress when enabled. Changing it later breaks\nenrolled WebAuthn credentials and the OIDC issuer.",
           "required": [],
           "title": "publicUrl",
           "type": "string"
@@ -5593,13 +5593,6 @@
           "title": "trustedOrigins",
           "type": "array"
         },
-        "trustedOriginsAppendAdminConsole": {
-          "default": true,
-          "description": "Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the\nmost common dead-login misconfiguration)",
-          "required": [],
-          "title": "trustedOriginsAppendAdminConsole",
-          "type": "boolean"
-        },
         "updateStrategy": {
           "additionalProperties": true,
           "description": "Deployment update strategy",
@@ -5623,7 +5616,6 @@
         "replicaCount",
         "publicUrl",
         "trustedOrigins",
-        "trustedOriginsAppendAdminConsole",
         "trustProxy",
         "features",
         "mfa",

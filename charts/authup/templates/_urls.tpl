@@ -33,15 +33,6 @@ scheme-less result can never reach an env var or origin derivation.
 {{- end -}}
 {{- end -}}
 
-{{/* Compatibility aliases for templates migrated in later slices. */}}
-{{- define "authup.adminConsole.publicUrl" -}}
-{{- include "authup.server.publicUrl" . -}}
-{{- end -}}
-
-{{- define "authup.adminConsole.apiUrl" -}}
-{{- include "authup.server.publicUrl" . -}}
-{{- end -}}
-
 {{/*
 Extract the origin (scheme://host[:port]) from a URL.
 */}}

@@ -45,6 +45,17 @@ database is configured while the mounted file is the operator's.
 {{- fail "authup: server.configuration and server.existingConfigmap are mutually exclusive. The existing ConfigMap is the one that gets mounted, so the inline content would be silently dropped: move it into that ConfigMap, or drop server.existingConfigmap." }}
 {{- end }}
 
+{{- if not (eq (toString .Values.server.features.accountConsole) "") }}
+{{- fail "authup: server.features.accountConsole moved to accountConsole.enabled in the beta.64 topology." }}
+{{- end }}
+
+{{- if and .Values.server.splitConsoles (not .Values.server.enabled) }}
+{{- fail "authup: server.splitConsoles requires server.enabled=true." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles (not .Values.authConsole.enabled) }}
+{{- fail "authup: server.splitConsoles requires authConsole.enabled=true because the auth console owns the login flow." }}
+{{- end }}
+
 {{/* An external database password must be deliberate — never silently generated for a database the chart does not own. */}}
 {{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host (not .Values.externalDatabase.password) (not .Values.externalDatabase.existingSecret) }}
 {{- fail "authup: externalDatabase.host is set but neither externalDatabase.password nor externalDatabase.existingSecret is — the chart will not invent a password for a database it does not manage." }}
@@ -53,8 +64,14 @@ database is configured while the mounted file is the operator's.
 {{- if and .Values.server.ingress.enabled (not .Values.server.ingress.hostname) (not .Values.server.ingress.extraHosts) (not .Values.server.ingress.extraRules) }}
 {{- fail "authup: server.ingress.enabled requires server.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.adminConsole.ingress.extraHosts) (not .Values.adminConsole.ingress.extraRules) }}
+{{- if and .Values.server.splitConsoles .Values.authConsole.enabled .Values.authConsole.ingress.enabled (not .Values.authConsole.ingress.hostname) (not .Values.authConsole.ingress.extraHosts) (not .Values.authConsole.ingress.extraRules) }}
+{{- fail "authup: authConsole.ingress.enabled requires authConsole.ingress.hostname (or extraHosts / extraRules)." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.adminConsole.ingress.extraHosts) (not .Values.adminConsole.ingress.extraRules) }}
 {{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname (or extraHosts / extraRules)." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles .Values.accountConsole.enabled .Values.accountConsole.ingress.enabled (not .Values.accountConsole.ingress.hostname) (not .Values.accountConsole.ingress.extraHosts) (not .Values.accountConsole.ingress.extraRules) }}
+{{- fail "authup: accountConsole.ingress.enabled requires accountConsole.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
 
 {{/*
@@ -65,7 +82,9 @@ reject a bad value either way, and widening it to [boolean, string] moved that
 job into the template.
 */}}
 {{- $_ := include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled") }}
+{{- $_ = include "authup.flag" (dict "value" .Values.authConsole.route.enabled "context" $ "key" "authConsole.route.enabled") }}
 {{- $_ = include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled") }}
+{{- $_ = include "authup.flag" (dict "value" .Values.accountConsole.route.enabled "context" $ "key" "accountConsole.route.enabled") }}
 
 {{/*
 A Gateway API HTTPRoute rule without `matches` defaults to PathPrefix "/", i.e. it

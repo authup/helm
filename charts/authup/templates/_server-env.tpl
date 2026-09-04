@@ -43,7 +43,7 @@ CLIENT_SYSTEM_SECRET_RESET: "true"
 PROVISIONING_DIRECTORY_PATH: "/etc/authup/provisioning"
 {{- end }}
 LOG_DIRECTORY_PATH: "/var/log/authup"
-{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "PROVISIONING_DIRECTORY_PATH" "LOG_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
+{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "ADMIN_CONSOLE_ENABLED" "WORKER_ENABLED" "MIGRATION_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "PROVISIONING_DIRECTORY_PATH" "LOG_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
 {{- range $key, $value := .Values.server.config }}
 {{- if has $key $reserved }}
 {{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through the dedicated value instead." $key) }}
@@ -55,9 +55,9 @@ LOG_DIRECTORY_PATH: "/var/log/authup"
 {{/*
 Secret-backed server-core env entries (valueFrom.secretKeyRef list).
 Shared by the Deployment and the migration Job.
-Usage: {{ include "authup.server.secretEnv" (dict "context" $ "hook" true) }}
+Usage: {{ include "authup.server.secretEnv" (dict "context" $ "role" "migration") }}
 
-"hook" marks the pre-upgrade migration Job and drops REDIS and SMTP. Not
+The migration role drops REDIS and SMTP. Not
 tidiness: both Secrets are ordinary release resources, and helm applies a
 pre-upgrade hook BEFORE the release manifest, so the upgrade that first enables
 valkey or SMTP would schedule a hook pod whose secretKeyRef target does not
@@ -129,21 +129,19 @@ DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 {{/*
 Shared volumes / volumeMounts for the server container (logs, tmp,
 provisioning files, config file).
-Usage: {{ include "authup.server.volumeMounts" (dict "context" $ "hook" true) }}
+Usage: {{ include "authup.server.volumeMounts" (dict "context" $ "role" "migration") }}
 The `required` on .context is load-bearing: helm renders with missingkey=zero, so
 a call site that passed a bare `.` would leave every guard below reading false and
 emit logs+tmp only, silently dropping the config file. Failing the render is
 the chart's posture everywhere else.
 
-"hook" marks the pre-upgrade migration Job. It drops the provisioning mount,
+The migration role drops the provisioning mount,
 whose ConfigMap/Secret is an ordinary release resource that helm applies AFTER
 the hook: the upgrade that first sets server.provisioning.files would leave the
 hook pod in ContainerCreating on a "configmap not found" until it times out, and
 `migration run` never reads those files anyway (ProvisionerModule is registered
-by the start command only). The writable directory stays for BOTH: under the
-image's NODE_ENV=production the logger opens <writable>/http.log and
-<writable>/error.log before the migration touches the database, and an
-uncreatable path is a hard ENOENT failure.
+by the start command only). Every server role keeps the log mount because the
+logger opens files before the role-specific modules start.
 
 The config file stays for both as well, and mounting it is not optional:
 `migration run` loads authup.yml unconditionally, and the db keys
