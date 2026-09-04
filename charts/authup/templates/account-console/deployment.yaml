@@ -1,0 +1,162 @@
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.accountConsole.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "authup.accountConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "account-console") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if not .Values.accountConsole.autoscaling.hpa.enabled }}
+  replicas: {{ .Values.accountConsole.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.accountConsole.revisionHistoryLimit }}
+  {{- if .Values.accountConsole.updateStrategy }}
+  strategy: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.updateStrategy "context" $) | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "account-console") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "account-console") | nindent 8 }}
+        {{- if .Values.accountConsole.podLabels }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if not .Values.accountConsole.disableRestartOnChanges }}
+        checksum/env: {{ include "authup.console.configEnv" (dict "context" $ "values" .Values.accountConsole "key" "accountConsole" "prefix" "ACCOUNT") | sha256sum }}
+        {{- if .Values.server.configuration }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and .Values.server.theme.enabled (or .Values.server.theme.files (include "authup.server.themeManifestConfigured" .)) }}
+        checksum/theme: {{ include (print $.Template.BasePath "/server/configmap-theme.yaml") . | sha256sum }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.accountConsole.podAnnotations }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.podAnnotations "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "authup.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.accountConsole.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.accountConsole.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.accountConsole.priorityClassName }}
+      priorityClassName: {{ .Values.accountConsole.priorityClassName }}
+      {{- end }}
+      {{- if .Values.accountConsole.schedulerName }}
+      schedulerName: {{ .Values.accountConsole.schedulerName }}
+      {{- end }}
+      {{- if .Values.accountConsole.hostAliases }}
+      hostAliases: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.hostAliases "context" $) | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.accountConsole.terminationGracePeriodSeconds }}
+      {{- if .Values.accountConsole.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.affinity "context" $) | nindent 8 }}
+      {{- else if .Values.accountConsole.podAntiAffinityPreset }}
+      affinity: {{- include "authup.podAntiAffinity" (dict "context" $ "component" "account-console" "preset" .Values.accountConsole.podAntiAffinityPreset) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.accountConsole.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.accountConsole.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.accountConsole.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- include "authup.topologySpreadConstraints" (dict "context" $ "component" "account-console" "constraints" .Values.accountConsole.topologySpreadConstraints) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.accountConsole.initContainers }}
+      initContainers: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.initContainers "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: account-console
+          image: {{ include "authup.appImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.accountConsole.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.accountConsole.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- if .Values.accountConsole.command }}
+          command: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.command "context" $) | nindent 12 }}
+          {{- end }}
+          {{- if .Values.accountConsole.args }}
+          args: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.args "context" $) | nindent 12 }}
+          {{- else }}
+          args:
+            - start
+            - console
+            - account
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ printf "%s-env" (include "authup.accountConsole.fullname" .) }}
+            {{- if .Values.accountConsole.extraEnvVarsCM }}
+            - configMapRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.accountConsole.extraEnvVarsCM "context" $) }}
+            {{- end }}
+            {{- if .Values.accountConsole.extraEnvVarsSecret }}
+            - secretRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.accountConsole.extraEnvVarsSecret "context" $) }}
+            {{- end }}
+          env:
+            - name: npm_config_cache
+              value: /tmp/.npm-cache
+            {{- if .Values.accountConsole.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.accountConsole.containerPorts.http }}
+              protocol: TCP
+          {{- if not .Values.diagnosticMode.enabled }}
+          {{- if .Values.accountConsole.customStartupProbe }}
+          startupProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.customStartupProbe "context" $) | nindent 12 }}
+          {{- else if .Values.accountConsole.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /healthy
+              port: http
+            {{- omit .Values.accountConsole.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.accountConsole.customLivenessProbe }}
+          livenessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.customLivenessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.accountConsole.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /healthy
+              port: http
+            {{- omit .Values.accountConsole.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.accountConsole.customReadinessProbe }}
+          readinessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.customReadinessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.accountConsole.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /healthy
+              port: http
+            {{- omit .Values.accountConsole.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
+          {{- if .Values.accountConsole.resources }}
+          resources: {{- toYaml .Values.accountConsole.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.accountConsole.lifecycleHooks }}
+          lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.lifecycleHooks "context" $) | nindent 12 }}
+          {{- end }}
+          volumeMounts: {{- include "authup.console.volumeMounts" (dict "context" $) | nindent 12 }}
+            {{- if .Values.accountConsole.extraVolumeMounts }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.extraVolumeMounts "context" $) | nindent 12 }}
+            {{- end }}
+        {{- if .Values.accountConsole.sidecars }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.sidecars "context" $) | nindent 8 }}
+        {{- end }}
+      volumes: {{- include "authup.console.volumes" (dict "context" $) | nindent 8 }}
+        {{- if .Values.accountConsole.extraVolumes }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.extraVolumes "context" $) | nindent 8 }}
+        {{- end }}
+{{- end }}

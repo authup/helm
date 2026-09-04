@@ -403,6 +403,8 @@ smtp:
 server:
   # -- Deploy the server-core service
   enabled: true
+  # -- Run API-only server pods and deploy the console workloads separately
+  splitConsoles: false
   # -- Number of server-core replicas (values > 1 REQUIRE a configured cache)
   replicaCount: 1
   # -- Public URL of server-core (PUBLIC_URL) — the OIDC issuer origin.
@@ -429,10 +431,12 @@ server:
     passwordRecovery: false
     # -- Enable email verification (EMAIL_VERIFICATION_ENABLED; requires SMTP)
     emailVerification: false
-    # -- Serve the account self-service console at <publicUrl>/account
-    # (profile, password, authenticators, sessions, applications).
-    # ACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal
-    accountConsole: true
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Deprecated: use accountConsole.enabled. Any non-empty value fails.
+    accountConsole: ""
   mfa:
     # -- Enable multi-factor authentication (MFA_ENABLED)
     enabled: false
@@ -838,21 +842,16 @@ server:
     # -- Extra egress rules
     extraEgress: []
 
-## @section client-admin-console (admin UI)
+## @section Split console workloads
 
-adminConsole:
-  # -- Deploy the client-admin-console admin UI (false = headless IdP)
+authConsole:
+  # -- Enable the auth console and deploy it separately in split-console mode
   enabled: true
-  # -- Number of UI replicas (fully stateless, scale freely)
+  # -- Number of auth console replicas
   replicaCount: 1
-  # -- Public URL of the UI (NUXT_PUBLIC_PUBLIC_URL). "" = derived from adminConsole.ingress
-  publicUrl: ""
-  # -- Browser-facing server-core URL (NUXT_PUBLIC_API_URL). "" = the server public URL.
-  # Must be reachable from the user's browser, never a cluster-internal DNS name
-  apiUrl: ""
-  # -- Server-side (SSR) API URL override (NUXT_API_URL), e.g. the in-cluster
-  # service URL to keep SSR traffic off the ingress
-  internalApiUrl: ""
+  containerPorts:
+    # -- Auth console listener port
+    http: 3020
   # @schema
   # additionalProperties: true
   # @schema
@@ -862,7 +861,7 @@ adminConsole:
   command: []
   # -- Override the container args
   args: []
-  # -- Extra environment variables for the UI container
+  # -- Extra environment variables for the auth console container
   extraEnvVars: []
   # -- Extra ConfigMap with environment variables (tpl-rendered name)
   extraEnvVarsCM: ""
@@ -929,7 +928,7 @@ adminConsole:
   # @schema
   # additionalProperties: true
   # @schema
-  # -- UI container resources
+  # -- Auth console container resources
   resources:
     # @schema
     # additionalProperties: true
@@ -1005,8 +1004,8 @@ adminConsole:
     # -- Service type
     type: ClusterIP
     ports:
-      # -- Service HTTP port (the container port is fixed at 3000)
-      http: 3000
+      # -- Service HTTP port
+      http: 3020
     nodePorts:
       # -- Node port ("" = auto-assign)
       http: ""
@@ -1033,12 +1032,12 @@ adminConsole:
     # -- Extra service ports
     extraPorts: []
   ingress:
-    # -- Enable ingress for the UI
+    # -- Enable ingress-nginx routing for the split auth console
     enabled: false
     # -- Ingress hostname (tpl-rendered); also drives the derived UI public URL
     hostname: ""
-    # -- Ingress path
-    path: /
+    # -- Public console path (the generated ingress strips it)
+    path: /console/auth
     # -- Ingress path type
     pathType: Prefix
     # -- Ingress class name
@@ -1065,12 +1064,569 @@ adminConsole:
     # type: [boolean, string]
     # required: true
     # @schema
-    # -- Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to
+    # -- Create a Gateway API HTTPRoute for the auth console (tpl-rendered: a string rendering to
     # "true" enables it, so an umbrella chart can drive this from one of its own switches;
     # "false" and "" disable it, anything else fails the render)
     enabled: false
-    # -- Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public
-    # URL path is dropped and needs its own matches entry)
+    # -- Route hostnames ([] = derived from server.publicUrl)
+    hostnames: []
+    # -- Gateway parentRefs
+    parentRefs: []
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- HTTPRoute annotations
+    annotations: {}
+    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
+    matches: []
+    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
+    filters: []
+  pdb:
+    # -- Create a PodDisruptionBudget for the UI
+    create: false
+    # -- Minimum available pods
+    minAvailable: ""
+    # -- Maximum unavailable pods (defaults to 1 when both are empty)
+    maxUnavailable: ""
+  autoscaling:
+    hpa:
+      # -- Enable HPA for the UI
+      enabled: false
+      # -- Minimum replicas
+      minReplicas: 2
+      # -- Maximum replicas
+      maxReplicas: 5
+      # -- Target CPU utilization percentage
+      targetCPU: 75
+      # -- Target memory utilization percentage
+      targetMemory: ""
+  networkPolicy:
+    # -- Create a NetworkPolicy for the UI
+    enabled: false
+    # -- Allow ingress from anywhere
+    allowExternal: true
+    # -- Allow all egress
+    allowExternalEgress: true
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Pod labels allowed to connect when allowExternal is false
+    ingressPodMatchLabels: {}
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Namespace labels allowed to connect when allowExternal is false
+    ingressNSMatchLabels: {}
+    # -- Extra ingress rules
+    extraIngress: []
+    # -- Extra egress rules
+    extraEgress: []
+
+
+adminConsole:
+  # -- Enable the admin console and deploy it separately in split-console mode
+  enabled: true
+  # -- Number of admin console replicas
+  replicaCount: 1
+  containerPorts:
+    # -- Admin console listener port
+    http: 3021
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Extra environment variables rendered literally into the env ConfigMap
+  config: {}
+  # -- Override the container command
+  command: []
+  # -- Override the container args
+  args: []
+  # -- Extra environment variables for the admin console container
+  extraEnvVars: []
+  # -- Extra ConfigMap with environment variables (tpl-rendered name)
+  extraEnvVarsCM: ""
+  # -- Extra Secret with environment variables (tpl-rendered name)
+  extraEnvVarsSecret: ""
+  # -- Extra volumes (tpl-rendered)
+  extraVolumes: []
+  # -- Extra volume mounts (tpl-rendered)
+  extraVolumeMounts: []
+  # -- Init containers (tpl-rendered)
+  initContainers: []
+  # -- Sidecar containers (tpl-rendered)
+  sidecars: []
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Container lifecycle hooks
+  lifecycleHooks: {}
+  # -- Pod host aliases
+  hostAliases: []
+  # -- Pod termination grace period
+  terminationGracePeriodSeconds: 30
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Deployment update strategy
+  updateStrategy:
+    type: RollingUpdate
+  # -- Deployment revision history limit
+  revisionHistoryLimit: 3
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod annotations (tpl-rendered)
+  podAnnotations: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod labels (tpl-rendered)
+  podLabels: {}
+  # -- Disable the checksum annotations that roll pods on config changes
+  disableRestartOnChanges: false
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod security context
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1000
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Container security context (same root-image caveat as the server)
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 0
+    runAsNonRoot: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+    readOnlyRootFilesystem: false
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Admin console container resources
+  resources:
+    # @schema
+    # additionalProperties: true
+    # @schema
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    # @schema
+    # additionalProperties: true
+    # @schema
+    limits:
+      memory: 512Mi
+  startupProbe:
+    # -- Enable the startup probe
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 24
+    successThreshold: 1
+  livenessProbe:
+    # -- Enable the liveness probe
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    # -- Enable the readiness probe
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Custom startup probe
+  customStartupProbe: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Custom liveness probe
+  customLivenessProbe: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Custom readiness probe
+  customReadinessProbe: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Affinity (overrides the anti-affinity preset when set)
+  affinity: {}
+  # -- Pod anti-affinity preset: soft, hard or ""
+  podAntiAffinityPreset: soft
+  # -- Topology spread constraints
+  topologySpreadConstraints: []
+  # -- Priority class name
+  priorityClassName: ""
+  # -- Scheduler name
+  schedulerName: ""
+  service:
+    # -- Service type
+    type: ClusterIP
+    ports:
+      # -- Service HTTP port
+      http: 3021
+    nodePorts:
+      # -- Node port ("" = auto-assign)
+      http: ""
+    # -- Static cluster IP
+    clusterIP: ""
+    # -- LoadBalancer IP
+    loadBalancerIP: ""
+    # -- LoadBalancer source ranges
+    loadBalancerSourceRanges: []
+    # -- External traffic policy
+    externalTrafficPolicy: Cluster
+    # -- Session affinity
+    sessionAffinity: None
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Session affinity config
+    sessionAffinityConfig: {}
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Service annotations (tpl-rendered)
+    annotations: {}
+    # -- Extra service ports
+    extraPorts: []
+  ingress:
+    # -- Enable ingress-nginx routing for the split admin console
+    enabled: false
+    # -- Ingress hostname (tpl-rendered); also drives the derived UI public URL
+    hostname: ""
+    # -- Public console path (the generated ingress strips it)
+    path: /console/admin
+    # -- Ingress path type
+    pathType: Prefix
+    # -- Ingress class name
+    ingressClassName: ""
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Ingress annotations (tpl-rendered)
+    annotations: {}
+    # -- Enable TLS for the hostname
+    tls: false
+    # -- Request a cert-manager certificate (adds kubernetes.io/tls-acme)
+    certManager: false
+    # -- Extra hosts
+    extraHosts: []
+    # -- Extra paths for the primary host
+    extraPaths: []
+    # -- Extra TLS entries
+    extraTls: []
+    # -- Full custom rules (tpl-rendered; appended after the generated rules)
+    extraRules: []
+  route:
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Create a Gateway API HTTPRoute for the admin console (tpl-rendered: a string rendering to
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches;
+    # "false" and "" disable it, anything else fails the render)
+    enabled: false
+    # -- Route hostnames ([] = derived from server.publicUrl)
+    hostnames: []
+    # -- Gateway parentRefs
+    parentRefs: []
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- HTTPRoute annotations
+    annotations: {}
+    # -- Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix "/"
+    matches: []
+    # -- Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix
+    filters: []
+  pdb:
+    # -- Create a PodDisruptionBudget for the UI
+    create: false
+    # -- Minimum available pods
+    minAvailable: ""
+    # -- Maximum unavailable pods (defaults to 1 when both are empty)
+    maxUnavailable: ""
+  autoscaling:
+    hpa:
+      # -- Enable HPA for the UI
+      enabled: false
+      # -- Minimum replicas
+      minReplicas: 2
+      # -- Maximum replicas
+      maxReplicas: 5
+      # -- Target CPU utilization percentage
+      targetCPU: 75
+      # -- Target memory utilization percentage
+      targetMemory: ""
+  networkPolicy:
+    # -- Create a NetworkPolicy for the UI
+    enabled: false
+    # -- Allow ingress from anywhere
+    allowExternal: true
+    # -- Allow all egress
+    allowExternalEgress: true
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Pod labels allowed to connect when allowExternal is false
+    ingressPodMatchLabels: {}
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Namespace labels allowed to connect when allowExternal is false
+    ingressNSMatchLabels: {}
+    # -- Extra ingress rules
+    extraIngress: []
+    # -- Extra egress rules
+    extraEgress: []
+
+
+accountConsole:
+  # -- Enable the account console and deploy it separately in split-console mode
+  enabled: true
+  # -- Number of account console replicas
+  replicaCount: 1
+  containerPorts:
+    # -- Account console listener port
+    http: 3022
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Extra environment variables rendered literally into the env ConfigMap
+  config: {}
+  # -- Override the container command
+  command: []
+  # -- Override the container args
+  args: []
+  # -- Extra environment variables for the account console container
+  extraEnvVars: []
+  # -- Extra ConfigMap with environment variables (tpl-rendered name)
+  extraEnvVarsCM: ""
+  # -- Extra Secret with environment variables (tpl-rendered name)
+  extraEnvVarsSecret: ""
+  # -- Extra volumes (tpl-rendered)
+  extraVolumes: []
+  # -- Extra volume mounts (tpl-rendered)
+  extraVolumeMounts: []
+  # -- Init containers (tpl-rendered)
+  initContainers: []
+  # -- Sidecar containers (tpl-rendered)
+  sidecars: []
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Container lifecycle hooks
+  lifecycleHooks: {}
+  # -- Pod host aliases
+  hostAliases: []
+  # -- Pod termination grace period
+  terminationGracePeriodSeconds: 30
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Deployment update strategy
+  updateStrategy:
+    type: RollingUpdate
+  # -- Deployment revision history limit
+  revisionHistoryLimit: 3
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod annotations (tpl-rendered)
+  podAnnotations: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod labels (tpl-rendered)
+  podLabels: {}
+  # -- Disable the checksum annotations that roll pods on config changes
+  disableRestartOnChanges: false
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Pod security context
+  podSecurityContext:
+    enabled: true
+    fsGroup: 1000
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Container security context (same root-image caveat as the server)
+  containerSecurityContext:
+    enabled: true
+    runAsUser: 0
+    runAsNonRoot: false
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+    readOnlyRootFilesystem: false
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Account console container resources
+  resources:
+    # @schema
+    # additionalProperties: true
+    # @schema
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    # @schema
+    # additionalProperties: true
+    # @schema
+    limits:
+      memory: 512Mi
+  startupProbe:
+    # -- Enable the startup probe
+    enabled: true
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 24
+    successThreshold: 1
+  livenessProbe:
+    # -- Enable the liveness probe
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  readinessProbe:
+    # -- Enable the readiness probe
+    enabled: true
+    initialDelaySeconds: 0
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+    successThreshold: 1
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Custom startup probe
+  customStartupProbe: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Custom liveness probe
+  customLivenessProbe: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Custom readiness probe
+  customReadinessProbe: {}
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Node selector
+  nodeSelector: {}
+  # -- Tolerations
+  tolerations: []
+  # @schema
+  # additionalProperties: true
+  # @schema
+  # -- Affinity (overrides the anti-affinity preset when set)
+  affinity: {}
+  # -- Pod anti-affinity preset: soft, hard or ""
+  podAntiAffinityPreset: soft
+  # -- Topology spread constraints
+  topologySpreadConstraints: []
+  # -- Priority class name
+  priorityClassName: ""
+  # -- Scheduler name
+  schedulerName: ""
+  service:
+    # -- Service type
+    type: ClusterIP
+    ports:
+      # -- Service HTTP port
+      http: 3022
+    nodePorts:
+      # -- Node port ("" = auto-assign)
+      http: ""
+    # -- Static cluster IP
+    clusterIP: ""
+    # -- LoadBalancer IP
+    loadBalancerIP: ""
+    # -- LoadBalancer source ranges
+    loadBalancerSourceRanges: []
+    # -- External traffic policy
+    externalTrafficPolicy: Cluster
+    # -- Session affinity
+    sessionAffinity: None
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Session affinity config
+    sessionAffinityConfig: {}
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Service annotations (tpl-rendered)
+    annotations: {}
+    # -- Extra service ports
+    extraPorts: []
+  ingress:
+    # -- Enable ingress-nginx routing for the split account console
+    enabled: false
+    # -- Ingress hostname (tpl-rendered); also drives the derived UI public URL
+    hostname: ""
+    # -- Public console path (the generated ingress strips it)
+    path: /console/account
+    # -- Ingress path type
+    pathType: Prefix
+    # -- Ingress class name
+    ingressClassName: ""
+    # @schema
+    # additionalProperties: true
+    # @schema
+    # -- Ingress annotations (tpl-rendered)
+    annotations: {}
+    # -- Enable TLS for the hostname
+    tls: false
+    # -- Request a cert-manager certificate (adds kubernetes.io/tls-acme)
+    certManager: false
+    # -- Extra hosts
+    extraHosts: []
+    # -- Extra paths for the primary host
+    extraPaths: []
+    # -- Extra TLS entries
+    extraTls: []
+    # -- Full custom rules (tpl-rendered; appended after the generated rules)
+    extraRules: []
+  route:
+    # @schema
+    # type: [boolean, string]
+    # required: true
+    # @schema
+    # -- Create a Gateway API HTTPRoute for the account console (tpl-rendered: a string rendering to
+    # "true" enables it, so an umbrella chart can drive this from one of its own switches;
+    # "false" and "" disable it, anything else fails the render)
+    enabled: false
+    # -- Route hostnames ([] = derived from server.publicUrl)
     hostnames: []
     # -- Gateway parentRefs
     parentRefs: []

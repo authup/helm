@@ -1,0 +1,47 @@
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.authConsole.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "authup.authConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "auth-console") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- if .Values.authConsole.service.annotations }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.authConsole.service.annotations "context" $) | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.authConsole.service.type }}
+  {{- if and .Values.authConsole.service.clusterIP (eq .Values.authConsole.service.type "ClusterIP") }}
+  clusterIP: {{ .Values.authConsole.service.clusterIP }}
+  {{- end }}
+  {{- if eq .Values.authConsole.service.type "LoadBalancer" }}
+  {{- if .Values.authConsole.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.authConsole.service.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.authConsole.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml .Values.authConsole.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- if or (eq .Values.authConsole.service.type "LoadBalancer") (eq .Values.authConsole.service.type "NodePort") }}
+  externalTrafficPolicy: {{ .Values.authConsole.service.externalTrafficPolicy | quote }}
+  {{- end }}
+  {{- if .Values.authConsole.service.sessionAffinity }}
+  sessionAffinity: {{ .Values.authConsole.service.sessionAffinity }}
+  {{- end }}
+  {{- if .Values.authConsole.service.sessionAffinityConfig }}
+  sessionAffinityConfig: {{- toYaml .Values.authConsole.service.sessionAffinityConfig | nindent 4 }}
+  {{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.authConsole.service.ports.http }}
+      targetPort: http
+      protocol: TCP
+      {{- if and (or (eq .Values.authConsole.service.type "NodePort") (eq .Values.authConsole.service.type "LoadBalancer")) .Values.authConsole.service.nodePorts.http }}
+      nodePort: {{ .Values.authConsole.service.nodePorts.http }}
+      {{- end }}
+    {{- if .Values.authConsole.service.extraPorts }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.authConsole.service.extraPorts "context" $) | nindent 4 }}
+    {{- end }}
+  selector: {{- include "authup.matchLabels" (dict "context" $ "component" "auth-console") | nindent 4 }}
+{{- end }}

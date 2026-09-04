@@ -1,0 +1,47 @@
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.accountConsole.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "authup.accountConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "account-console") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- if .Values.accountConsole.service.annotations }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.service.annotations "context" $) | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.accountConsole.service.type }}
+  {{- if and .Values.accountConsole.service.clusterIP (eq .Values.accountConsole.service.type "ClusterIP") }}
+  clusterIP: {{ .Values.accountConsole.service.clusterIP }}
+  {{- end }}
+  {{- if eq .Values.accountConsole.service.type "LoadBalancer" }}
+  {{- if .Values.accountConsole.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.accountConsole.service.loadBalancerIP }}
+  {{- end }}
+  {{- if .Values.accountConsole.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges: {{- toYaml .Values.accountConsole.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
+  {{- end }}
+  {{- if or (eq .Values.accountConsole.service.type "LoadBalancer") (eq .Values.accountConsole.service.type "NodePort") }}
+  externalTrafficPolicy: {{ .Values.accountConsole.service.externalTrafficPolicy | quote }}
+  {{- end }}
+  {{- if .Values.accountConsole.service.sessionAffinity }}
+  sessionAffinity: {{ .Values.accountConsole.service.sessionAffinity }}
+  {{- end }}
+  {{- if .Values.accountConsole.service.sessionAffinityConfig }}
+  sessionAffinityConfig: {{- toYaml .Values.accountConsole.service.sessionAffinityConfig | nindent 4 }}
+  {{- end }}
+  ports:
+    - name: http
+      port: {{ .Values.accountConsole.service.ports.http }}
+      targetPort: http
+      protocol: TCP
+      {{- if and (or (eq .Values.accountConsole.service.type "NodePort") (eq .Values.accountConsole.service.type "LoadBalancer")) .Values.accountConsole.service.nodePorts.http }}
+      nodePort: {{ .Values.accountConsole.service.nodePorts.http }}
+      {{- end }}
+    {{- if .Values.accountConsole.service.extraPorts }}
+    {{- include "authup.tplvalues.render" (dict "value" .Values.accountConsole.service.extraPorts "context" $) | nindent 4 }}
+    {{- end }}
+  selector: {{- include "authup.matchLabels" (dict "context" $ "component" "account-console") | nindent 4 }}
+{{- end }}

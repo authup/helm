@@ -26,6 +26,8 @@ TRUST_PROXY: {{ .Values.server.trustProxy | toString | quote }}
 REGISTRATION_ENABLED: {{ .Values.server.features.registration | toString | quote }}
 PASSWORD_RECOVERY_ENABLED: {{ .Values.server.features.passwordRecovery | toString | quote }}
 EMAIL_VERIFICATION_ENABLED: {{ .Values.server.features.emailVerification | toString | quote }}
+ACCOUNT_CONSOLE_ENABLED: {{ .Values.accountConsole.enabled | toString | quote }}
+ADMIN_CONSOLE_ENABLED: {{ .Values.adminConsole.enabled | toString | quote }}
 MFA_ENABLED: {{ .Values.server.mfa.enabled | toString | quote }}
 MFA_REQUIRED: {{ .Values.server.mfa.required | toString | quote }}
 {{- if .Values.auth.adminPasswordReset }}

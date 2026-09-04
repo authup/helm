@@ -57,6 +57,14 @@ Usage: {{ include "authup.component.fullname" (dict "context" $ "suffix" "server
 {{- include "authup.component.fullname" (dict "context" . "suffix" "admin-console") -}}
 {{- end -}}
 
+{{- define "authup.authConsole.fullname" -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "auth-console") -}}
+{{- end -}}
+
+{{- define "authup.accountConsole.fullname" -}}
+{{- include "authup.component.fullname" (dict "context" . "suffix" "account-console") -}}
+{{- end -}}
+
 {{- define "authup.postgresql.fullname" -}}
 {{- include "authup.component.fullname" (dict "context" . "suffix" "postgresql") -}}
 {{- end -}}

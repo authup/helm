@@ -1,4 +1,4 @@
-{{- if .Values.adminConsole.enabled }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled }}
 apiVersion: v1
 kind: Service
 metadata:

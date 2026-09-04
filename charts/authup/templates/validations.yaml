@@ -45,10 +45,6 @@ database is configured while the mounted file is the operator's.
 {{- fail "authup: server.configuration and server.existingConfigmap are mutually exclusive. The existing ConfigMap is the one that gets mounted, so the inline content would be silently dropped: move it into that ConfigMap, or drop server.existingConfigmap." }}
 {{- end }}
 
-{{- if and .Values.adminConsole.enabled (not .Values.server.enabled) (not .Values.adminConsole.apiUrl) }}
-{{- fail "authup: adminConsole.enabled without server.enabled requires adminConsole.apiUrl (the browser-reachable URL of an external authup server-core)." }}
-{{- end }}
-
 {{/* An external database password must be deliberate — never silently generated for a database the chart does not own. */}}
 {{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host (not .Values.externalDatabase.password) (not .Values.externalDatabase.existingSecret) }}
 {{- fail "authup: externalDatabase.host is set but neither externalDatabase.password nor externalDatabase.existingSecret is — the chart will not invent a password for a database it does not manage." }}
@@ -84,15 +80,8 @@ serves at "/" and expects the proxy to strip the prefix, hence match AND rewrite
 {{- fail (printf "authup: the server public URL carries the path %q but server.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). authup serves at \"/\" and expects the proxy to strip the prefix, so set both:\n  server.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  server.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
 {{- end }}
 {{- end }}
-{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) (not .Values.adminConsole.route.matches) }}
-{{- $path := (urlParse (include "authup.adminConsole.publicUrl" .)).path }}
-{{- if and $path (ne $path "/") }}
-{{- fail (printf "authup: the admin console public URL carries the path %q but adminConsole.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). Set both:\n  adminConsole.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  adminConsole.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
-{{- end }}
-{{- end }}
-
-{{/* URL values must carry a scheme — a scheme-less value would derive a broken "://" origin into TRUSTED_ORIGINS and crash-loop server-core. */}}
-{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl "adminConsole.publicUrl" .Values.adminConsole.publicUrl "adminConsole.apiUrl" .Values.adminConsole.apiUrl "adminConsole.internalApiUrl" .Values.adminConsole.internalApiUrl }}
+{{/* URL values must carry a scheme. */}}
+{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl }}
 {{- if and $value (not (contains "{{" $value)) (not (regexMatch "^https?://" $value)) }}
 {{- fail (printf "authup: %s must be a full URL including the http(s):// scheme (got %q)." $key $value) }}
 {{- end }}

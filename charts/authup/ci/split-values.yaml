@@ -1,0 +1,39 @@
+# Split API, console and worker topology against the bundled services.
+postgresql:
+  persistence:
+    enabled: false
+valkey:
+  enabled: true
+server:
+  splitConsoles: true
+  replicaCount: 2
+  migration:
+    enabled: true
+  ingress:
+    enabled: true
+    hostname: auth.example.com
+    tls: true
+  networkPolicy:
+    enabled: true
+    allowExternalEgress: false
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+authConsole:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+adminConsole:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi
+accountConsole:
+  enabled: true
+  resources:
+    requests:
+      cpu: 25m
+      memory: 128Mi

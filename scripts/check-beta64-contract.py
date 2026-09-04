@@ -15,7 +15,14 @@ case = sys.argv[2] if len(sys.argv) > 2 else "all"
 
 def render(values=None, *args):
     command = ["helm", "template", "test", str(chart)]
-    if values is not None:
+    if isinstance(values, (str, Path)):
+        result = subprocess.run(
+            [*command, "-f", str(values), *args],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    elif values is not None:
         with tempfile.NamedTemporaryFile("w", suffix=".yaml") as handle:
             yaml.safe_dump(values, handle)
             handle.flush()
@@ -80,8 +87,38 @@ def env_config(workload, documents):
     return matches[0]["data"]
 
 
+def effective_env(workload, documents):
+    values = {}
+    for source in container(workload).get("envFrom", []):
+        reference = source.get("configMapRef")
+        if reference:
+            matches = [
+                document for document in documents
+                if document.get("kind") == "ConfigMap"
+                and document["metadata"]["name"] == reference["name"]
+            ]
+            if matches:
+                values.update(matches[0].get("data", {}))
+    for entry in container(workload).get("env", []):
+        values[entry["name"]] = entry.get("value", "<valueFrom>")
+    return values
+
+
+def component_deployments(documents):
+    return {
+        document["metadata"]["labels"]["app.kubernetes.io/component"]: document
+        for document in documents
+        if document.get("kind") == "Deployment"
+        and document.get("metadata", {}).get("labels", {}).get(
+            "app.kubernetes.io/component"
+        )
+    }
+
+
 def check_base():
     documents = render()
+    deployments = component_deployments(documents)
+    assert not ({"auth-console", "admin-console", "account-console"} & set(deployments))
     server = one(documents, "Deployment", "server")
     assert container(server)["args"] == ["start"]
     assert env_value(container(server), "WORKER_ENABLED") is None
@@ -129,9 +166,41 @@ def check_base():
     assert migration_mounts["logs"][0] == "/var/log/authup"
 
 
+def check_split():
+    documents = render(chart / "ci" / "split-values.yaml")
+    deployments = component_deployments(documents)
+    expected = {
+        "server": ["start", "core"],
+        "auth-console": ["start", "console", "auth"],
+        "admin-console": ["start", "console", "admin"],
+        "account-console": ["start", "console", "account"],
+    }
+    assert {
+        component: container(deployments[component])["args"]
+        for component in expected
+    } == expected
+
+    expected_ports = {
+        "auth-console": 3020,
+        "admin-console": 3021,
+        "account-console": 3022,
+    }
+    for component, port in expected_ports.items():
+        ports = container(deployments[component])["ports"]
+        assert ports == [{"name": "http", "containerPort": port, "protocol": "TCP"}]
+        environment = effective_env(deployments[component], documents)
+        assert environment["PUBLIC_URL"] == "https://auth.example.com"
+        assert environment["INTERNAL_URL"] == "http://test-authup-server:3000"
+        assert not (
+            {"DB_PASSWORD", "REDIS", "SMTP", "USER_ADMIN_PASSWORD", "CLIENT_SYSTEM_SECRET"}
+            & set(environment)
+        )
+
+
 checks = {
     "base": check_base,
-    "all": check_base,
+    "split": check_split,
+    "all": lambda: (check_base(), check_split()),
 }
 
 if case not in checks:

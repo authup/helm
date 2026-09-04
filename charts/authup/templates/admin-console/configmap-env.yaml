@@ -1,4 +1,4 @@
-{{- if .Values.adminConsole.enabled }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,5 +6,5 @@ metadata:
   namespace: {{ include "authup.namespace" . | quote }}
   labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
   annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
-data: {{- include "authup.adminConsole.configEnv" . | nindent 2 }}
+data: {{- include "authup.console.configEnv" (dict "context" $ "values" .Values.adminConsole "key" "adminConsole" "prefix" "ADMIN") | nindent 2 }}
 {{- end }}

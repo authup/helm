@@ -107,6 +107,9 @@ spec:
           {{- else }}
           args:
             - start
+            {{- if .Values.server.splitConsoles }}
+            - core
+            {{- end }}
           {{- end }}
           {{- end }}
           envFrom:
