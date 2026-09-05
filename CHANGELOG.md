@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.4.0](https://github.com/authup/helm/compare/root-0.3.0...root-0.4.0) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **authup:** Authup beta.64 changes CLI arguments, configuration paths, console topology, and several values. See charts/authup/BREAKING.md for migration steps.
+
+### Features
+
+* **authup:** support the beta.64 runtime topology ([#29](https://github.com/authup/helm/issues/29)) ([226f784](https://github.com/authup/helm/commit/226f784745d34f12454c54ea9b31f05d0d4339c3))
+
 ## [0.3.0](https://github.com/authup/helm/compare/root-0.2.2...root-0.3.0) (2026-08-24)
 
 
