@@ -1,0 +1,20 @@
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.accountConsole.enabled .Values.accountConsole.pdb.create }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "authup.accountConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "account-console") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if .Values.accountConsole.pdb.minAvailable }}
+  minAvailable: {{ .Values.accountConsole.pdb.minAvailable }}
+  {{- end }}
+  {{- if .Values.accountConsole.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.accountConsole.pdb.maxUnavailable }}
+  {{- else if not .Values.accountConsole.pdb.minAvailable }}
+  maxUnavailable: 1
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "account-console") | nindent 6 }}
+{{- end }}

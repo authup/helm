@@ -1,4 +1,4 @@
-# Baseline: built-in PostgreSQL, both services.
+# Baseline: combined server with built-in PostgreSQL.
 # The stray global key is a regression guard: helm copies a parent chart's whole
 # global map into every subchart before schema validation, so the schema must not
 # reject globals this chart does not declare.
@@ -16,10 +16,6 @@ server:
     requests:
       cpu: 50m
       memory: 256Mi
-adminConsole:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 128Mi
+authConsole:
   route:
     enabled: '{{ .Values.global.gatewayApiProbe }}'

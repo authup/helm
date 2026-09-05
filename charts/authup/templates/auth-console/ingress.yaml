@@ -1,0 +1,54 @@
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.authConsole.enabled .Values.authConsole.ingress.enabled }}
+{{- $ingress := .Values.authConsole.ingress -}}
+{{- $hostname := $ingress.hostname | default .Values.server.ingress.hostname -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "authup.authConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "auth-console") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- with omit ($ingress.annotations | default dict) "nginx.ingress.kubernetes.io/use-regex" "nginx.ingress.kubernetes.io/rewrite-target" }}
+    {{- include "authup.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if $ingress.certManager }}
+    kubernetes.io/tls-acme: "true"
+    {{- end }}
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  {{- if $ingress.ingressClassName }}
+  ingressClassName: {{ $ingress.ingressClassName | quote }}
+  {{- end }}
+  rules:
+    {{- if $hostname }}
+    - host: {{ include "authup.tplvalues.render" (dict "value" $hostname "context" $) | quote }}
+      http:
+        paths:
+          - path: /console/auth(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "authup.authConsole.fullname" . }}
+                port:
+                  name: http
+          {{- if $ingress.extraPaths }}
+          {{- include "authup.tplvalues.render" (dict "value" $ingress.extraPaths "context" $) | nindent 10 }}
+          {{- end }}
+    {{- end }}
+    {{- if $ingress.extraRules }}
+    {{- include "authup.tplvalues.render" (dict "value" $ingress.extraRules "context" $) | nindent 4 }}
+    {{- end }}
+  {{- if or (and $hostname (or $ingress.tls $ingress.certManager)) $ingress.extraTls }}
+  tls:
+    {{- if and $hostname (or $ingress.tls $ingress.certManager) }}
+    - hosts:
+        - {{ include "authup.tplvalues.render" (dict "value" $hostname "context" $) | quote }}
+      secretName: {{ printf "%s-tls" (include "authup.authConsole.fullname" .) | quote }}
+    {{- end }}
+    {{- if $ingress.extraTls }}
+    {{- include "authup.tplvalues.render" (dict "value" $ingress.extraTls "context" $) | nindent 4 }}
+    {{- end }}
+  {{- end }}
+{{- end }}

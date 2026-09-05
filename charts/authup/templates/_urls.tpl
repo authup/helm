@@ -1,6 +1,6 @@
 {{/*
-URL derivation. server.publicUrl / adminConsole.publicUrl always win; otherwise the URL is
-derived from the component's ingress (scheme from tls/certManager, host, path).
+URL derivation. server.publicUrl wins; otherwise the URL is derived from the
+server ingress (scheme from tls/certManager, host, path).
 Returns "" when nothing can be derived.
 */}}
 
@@ -33,25 +33,6 @@ scheme-less result can never reach an env var or origin derivation.
 {{- end -}}
 {{- end -}}
 
-{{- define "authup.adminConsole.publicUrl" -}}
-{{- if .Values.adminConsole.publicUrl -}}
-{{- include "authup.assertUrlScheme" (dict "key" "adminConsole.publicUrl" "url" (include "authup.tplvalues.render" (dict "value" .Values.adminConsole.publicUrl "context" $) | trimSuffix "/")) -}}
-{{- else -}}
-{{- include "authup.ingress.derivedUrl" (dict "ingress" .Values.adminConsole.ingress "context" $) -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Browser-facing server-core URL for the UI (NUXT_PUBLIC_API_URL).
-*/}}
-{{- define "authup.adminConsole.apiUrl" -}}
-{{- if .Values.adminConsole.apiUrl -}}
-{{- include "authup.assertUrlScheme" (dict "key" "adminConsole.apiUrl" "url" (include "authup.tplvalues.render" (dict "value" .Values.adminConsole.apiUrl "context" $) | trimSuffix "/")) -}}
-{{- else -}}
-{{- include "authup.server.publicUrl" . -}}
-{{- end -}}
-{{- end -}}
-
 {{/*
 Extract the origin (scheme://host[:port]) from a URL.
 */}}
@@ -65,8 +46,7 @@ Extract the origin (scheme://host[:port]) from a URL.
 {{- end -}}
 
 {{/*
-TRUSTED_ORIGINS: the user-supplied list/string, plus the UI origin unless
-disabled or already covered by the server public URL's origin.
+TRUSTED_ORIGINS from the user-supplied list/string.
 */}}
 {{- define "authup.server.trustedOrigins" -}}
 {{- $origins := list -}}
@@ -80,13 +60,6 @@ disabled or already covered by the server public URL's origin.
 {{- else -}}
 {{- range $configured -}}
 {{- $origins = append $origins (trim (include "authup.tplvalues.render" (dict "value" . "context" $))) -}}
-{{- end -}}
-{{- end -}}
-{{- if and .Values.adminConsole.enabled .Values.server.trustedOriginsAppendAdminConsole -}}
-{{- $uiOrigin := include "authup.urlOrigin" (include "authup.adminConsole.publicUrl" .) -}}
-{{- $serverOrigin := include "authup.urlOrigin" (include "authup.server.publicUrl" .) -}}
-{{- if and $uiOrigin (ne $uiOrigin $serverOrigin) -}}
-{{- $origins = append $origins $uiOrigin -}}
 {{- end -}}
 {{- end -}}
 {{- $origins = $origins | uniq -}}

@@ -1,4 +1,4 @@
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.autoscaling.hpa.enabled }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.autoscaling.hpa.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:

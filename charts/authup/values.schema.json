@@ -2,22 +2,14 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": false,
   "properties": {
-    "adminConsole": {
+    "accountConsole": {
       "additionalProperties": false,
-      "description": "#",
       "properties": {
         "affinity": {
           "additionalProperties": true,
           "description": "Affinity (overrides the anti-affinity preset when set)",
           "required": [],
           "title": "affinity"
-        },
-        "apiUrl": {
-          "default": "",
-          "description": "Browser-facing server-core URL (NUXT_PUBLIC_API_URL). \"\" = the server public URL.\nMust be reachable from the user's browser, never a cluster-internal DNS name",
-          "required": [],
-          "title": "apiUrl",
-          "type": "string"
         },
         "args": {
           "description": "Override the container args",
@@ -36,7 +28,7 @@
               "properties": {
                 "enabled": {
                   "default": false,
-                  "description": "Enable HPA for the UI",
+                  "description": "Enable HPA for the account console",
                   "required": [],
                   "title": "enabled",
                   "type": "boolean"
@@ -101,6 +93,23 @@
           "description": "Extra environment variables rendered literally into the env ConfigMap",
           "required": [],
           "title": "config"
+        },
+        "containerPorts": {
+          "additionalProperties": false,
+          "properties": {
+            "http": {
+              "default": 3022,
+              "description": "Account console listener port",
+              "required": [],
+              "title": "http",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "http"
+          ],
+          "title": "containerPorts",
+          "type": "object"
         },
         "containerSecurityContext": {
           "additionalProperties": true,
@@ -215,13 +224,13 @@
         },
         "enabled": {
           "default": true,
-          "description": "Deploy the client-admin-console admin UI (false = headless IdP)",
+          "description": "Enable the account console and deploy it separately in split-console mode",
           "required": [],
           "title": "enabled",
           "type": "boolean"
         },
         "extraEnvVars": {
-          "description": "Extra environment variables for the UI container",
+          "description": "Extra environment variables for the account console container",
           "items": {
             "required": []
           },
@@ -275,7 +284,7 @@
           "properties": {
             "annotations": {
               "additionalProperties": true,
-              "description": "Ingress annotations (tpl-rendered)",
+              "description": "Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned)",
               "required": [],
               "title": "annotations"
             },
@@ -288,19 +297,10 @@
             },
             "enabled": {
               "default": false,
-              "description": "Enable ingress for the UI",
+              "description": "Enable ingress-nginx routing for the split account console (requires server.ingress.enabled)",
               "required": [],
               "title": "enabled",
               "type": "boolean"
-            },
-            "extraHosts": {
-              "description": "Extra hosts",
-              "items": {
-                "required": []
-              },
-              "required": [],
-              "title": "extraHosts",
-              "type": "array"
             },
             "extraPaths": {
               "description": "Extra paths for the primary host",
@@ -331,7 +331,7 @@
             },
             "hostname": {
               "default": "",
-              "description": "Ingress hostname (tpl-rendered); also drives the derived UI public URL",
+              "description": "Ingress hostname (tpl-rendered; defaults to server.ingress.hostname)",
               "required": [],
               "title": "hostname",
               "type": "string"
@@ -341,20 +341,6 @@
               "description": "Ingress class name",
               "required": [],
               "title": "ingressClassName",
-              "type": "string"
-            },
-            "path": {
-              "default": "/",
-              "description": "Ingress path",
-              "required": [],
-              "title": "path",
-              "type": "string"
-            },
-            "pathType": {
-              "default": "Prefix",
-              "description": "Ingress path type",
-              "required": [],
-              "title": "pathType",
               "type": "string"
             },
             "tls": {
@@ -368,12 +354,9 @@
           "required": [
             "enabled",
             "hostname",
-            "path",
-            "pathType",
             "ingressClassName",
             "tls",
             "certManager",
-            "extraHosts",
             "extraPaths",
             "extraTls",
             "extraRules"
@@ -389,13 +372,6 @@
           "required": [],
           "title": "initContainers",
           "type": "array"
-        },
-        "internalApiUrl": {
-          "default": "",
-          "description": "Server-side (SSR) API URL override (NUXT_API_URL), e.g. the in-cluster\nservice URL to keep SSR traffic off the ingress",
-          "required": [],
-          "title": "internalApiUrl",
-          "type": "string"
         },
         "lifecycleHooks": {
           "additionalProperties": true,
@@ -474,7 +450,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a NetworkPolicy for the UI",
+              "description": "Create a NetworkPolicy for the account console",
               "required": [],
               "title": "enabled",
               "type": "boolean"
@@ -531,7 +507,7 @@
           "properties": {
             "create": {
               "default": false,
-              "description": "Create a PodDisruptionBudget for the UI",
+              "description": "Create a PodDisruptionBudget for the account console",
               "required": [],
               "title": "create",
               "type": "boolean"
@@ -608,13 +584,6 @@
           "title": "priorityClassName",
           "type": "string"
         },
-        "publicUrl": {
-          "default": "",
-          "description": "Public URL of the UI (NUXT_PUBLIC_PUBLIC_URL). \"\" = derived from adminConsole.ingress",
-          "required": [],
-          "title": "publicUrl",
-          "type": "string"
-        },
         "readinessProbe": {
           "additionalProperties": false,
           "properties": {
@@ -669,14 +638,14 @@
         },
         "replicaCount": {
           "default": 1,
-          "description": "Number of UI replicas (fully stateless, scale freely)",
+          "description": "Number of account console replicas",
           "required": [],
           "title": "replicaCount",
           "type": "integer"
         },
         "resources": {
           "additionalProperties": true,
-          "description": "UI container resources",
+          "description": "Account console container resources",
           "properties": {
             "limits": {
               "additionalProperties": true,
@@ -737,7 +706,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a Gateway API HTTPRoute for the UI (tpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches;\n\"false\" and \"\" disable it, anything else fails the render)",
+              "description": "Create a Gateway API HTTPRoute for the account console (requires server.route.enabled;\ntpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches;\n\"false\" and \"\" disable it, anything else fails the render)",
               "required": [],
               "title": "enabled",
               "type": [
@@ -745,31 +714,13 @@
                 "string"
               ]
             },
-            "filters": {
-              "description": "Rule filters (tpl-rendered), e.g. a URLRewrite stripping a path prefix",
-              "items": {
-                "required": []
-              },
-              "required": [],
-              "title": "filters",
-              "type": "array"
-            },
             "hostnames": {
-              "description": "Route hostnames ([] = derived from adminConsole.publicUrl / ingress hostname; only the host is kept, a public\nURL path is dropped and needs its own matches entry)",
+              "description": "Route hostnames ([] = derived from server.publicUrl)",
               "items": {
                 "required": []
               },
               "required": [],
               "title": "hostnames",
-              "type": "array"
-            },
-            "matches": {
-              "description": "Rule matches (tpl-rendered); [] is the Gateway API default, PathPrefix \"/\"",
-              "items": {
-                "required": []
-              },
-              "required": [],
-              "title": "matches",
               "type": "array"
             },
             "parentRefs": {
@@ -785,9 +736,7 @@
           "required": [
             "enabled",
             "hostnames",
-            "parentRefs",
-            "matches",
-            "filters"
+            "parentRefs"
           ],
           "title": "route",
           "type": "object"
@@ -868,8 +817,8 @@
               "additionalProperties": false,
               "properties": {
                 "http": {
-                  "default": 3000,
-                  "description": "Service HTTP port (the container port is fixed at 3000)",
+                  "default": 3022,
+                  "description": "Service HTTP port",
                   "required": [],
                   "title": "http",
                   "type": "integer"
@@ -1022,9 +971,1008 @@
       "required": [
         "enabled",
         "replicaCount",
-        "publicUrl",
-        "apiUrl",
-        "internalApiUrl",
+        "containerPorts",
+        "command",
+        "args",
+        "extraEnvVars",
+        "extraEnvVarsCM",
+        "extraEnvVarsSecret",
+        "extraVolumes",
+        "extraVolumeMounts",
+        "initContainers",
+        "sidecars",
+        "hostAliases",
+        "terminationGracePeriodSeconds",
+        "revisionHistoryLimit",
+        "disableRestartOnChanges",
+        "startupProbe",
+        "livenessProbe",
+        "readinessProbe",
+        "tolerations",
+        "podAntiAffinityPreset",
+        "topologySpreadConstraints",
+        "priorityClassName",
+        "schedulerName",
+        "service",
+        "ingress",
+        "route",
+        "pdb",
+        "autoscaling",
+        "networkPolicy"
+      ],
+      "title": "accountConsole",
+      "type": "object"
+    },
+    "adminConsole": {
+      "additionalProperties": false,
+      "properties": {
+        "affinity": {
+          "additionalProperties": true,
+          "description": "Affinity (overrides the anti-affinity preset when set)",
+          "required": [],
+          "title": "affinity"
+        },
+        "args": {
+          "description": "Override the container args",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "args",
+          "type": "array"
+        },
+        "autoscaling": {
+          "additionalProperties": false,
+          "properties": {
+            "hpa": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enable HPA for the admin console",
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "maxReplicas": {
+                  "default": 5,
+                  "description": "Maximum replicas",
+                  "required": [],
+                  "title": "maxReplicas",
+                  "type": "integer"
+                },
+                "minReplicas": {
+                  "default": 2,
+                  "description": "Minimum replicas",
+                  "required": [],
+                  "title": "minReplicas",
+                  "type": "integer"
+                },
+                "targetCPU": {
+                  "default": 75,
+                  "description": "Target CPU utilization percentage",
+                  "required": [],
+                  "title": "targetCPU",
+                  "type": "integer"
+                },
+                "targetMemory": {
+                  "default": "",
+                  "description": "Target memory utilization percentage",
+                  "required": [],
+                  "title": "targetMemory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "enabled",
+                "minReplicas",
+                "maxReplicas",
+                "targetCPU",
+                "targetMemory"
+              ],
+              "title": "hpa",
+              "type": "object"
+            }
+          },
+          "required": [
+            "hpa"
+          ],
+          "title": "autoscaling",
+          "type": "object"
+        },
+        "command": {
+          "description": "Override the container command",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "command",
+          "type": "array"
+        },
+        "config": {
+          "additionalProperties": true,
+          "description": "Extra environment variables rendered literally into the env ConfigMap",
+          "required": [],
+          "title": "config"
+        },
+        "containerPorts": {
+          "additionalProperties": false,
+          "properties": {
+            "http": {
+              "default": 3021,
+              "description": "Admin console listener port",
+              "required": [],
+              "title": "http",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "http"
+          ],
+          "title": "containerPorts",
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "additionalProperties": true,
+          "description": "Container security context (same root-image caveat as the server)",
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "default": false,
+              "required": [],
+              "title": "allowPrivilegeEscalation",
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "drop": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "required": [],
+                        "type": "string"
+                      }
+                    ],
+                    "required": []
+                  },
+                  "required": [],
+                  "title": "drop",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "drop"
+              ],
+              "title": "capabilities",
+              "type": "object"
+            },
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "readOnlyRootFilesystem": {
+              "default": false,
+              "required": [],
+              "title": "readOnlyRootFilesystem",
+              "type": "boolean"
+            },
+            "runAsNonRoot": {
+              "default": false,
+              "required": [],
+              "title": "runAsNonRoot",
+              "type": "boolean"
+            },
+            "runAsUser": {
+              "default": 0,
+              "required": [],
+              "title": "runAsUser",
+              "type": "integer"
+            },
+            "seccompProfile": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "default": "RuntimeDefault",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "title": "seccompProfile",
+              "type": "object"
+            }
+          },
+          "required": [
+            "enabled",
+            "runAsUser",
+            "runAsNonRoot",
+            "allowPrivilegeEscalation",
+            "capabilities",
+            "seccompProfile",
+            "readOnlyRootFilesystem"
+          ],
+          "title": "containerSecurityContext"
+        },
+        "customLivenessProbe": {
+          "additionalProperties": true,
+          "description": "Custom liveness probe",
+          "required": [],
+          "title": "customLivenessProbe"
+        },
+        "customReadinessProbe": {
+          "additionalProperties": true,
+          "description": "Custom readiness probe",
+          "required": [],
+          "title": "customReadinessProbe"
+        },
+        "customStartupProbe": {
+          "additionalProperties": true,
+          "description": "Custom startup probe",
+          "required": [],
+          "title": "customStartupProbe"
+        },
+        "disableRestartOnChanges": {
+          "default": false,
+          "description": "Disable the checksum annotations that roll pods on config changes",
+          "required": [],
+          "title": "disableRestartOnChanges",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Enable the admin console and deploy it separately in split-console mode",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "extraEnvVars": {
+          "description": "Extra environment variables for the admin console container",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraEnvVars",
+          "type": "array"
+        },
+        "extraEnvVarsCM": {
+          "default": "",
+          "description": "Extra ConfigMap with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsCM",
+          "type": "string"
+        },
+        "extraEnvVarsSecret": {
+          "default": "",
+          "description": "Extra Secret with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsSecret",
+          "type": "string"
+        },
+        "extraVolumeMounts": {
+          "description": "Extra volume mounts (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumeMounts",
+          "type": "array"
+        },
+        "extraVolumes": {
+          "description": "Extra volumes (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumes",
+          "type": "array"
+        },
+        "hostAliases": {
+          "description": "Pod host aliases",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "hostAliases",
+          "type": "array"
+        },
+        "ingress": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": true,
+              "description": "Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned)",
+              "required": [],
+              "title": "annotations"
+            },
+            "certManager": {
+              "default": false,
+              "description": "Request a cert-manager certificate (adds kubernetes.io/tls-acme)",
+              "required": [],
+              "title": "certManager",
+              "type": "boolean"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Enable ingress-nginx routing for the split admin console (requires server.ingress.enabled)",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "extraPaths": {
+              "description": "Extra paths for the primary host",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraPaths",
+              "type": "array"
+            },
+            "extraRules": {
+              "description": "Full custom rules (tpl-rendered; appended after the generated rules)",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraRules",
+              "type": "array"
+            },
+            "extraTls": {
+              "description": "Extra TLS entries",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraTls",
+              "type": "array"
+            },
+            "hostname": {
+              "default": "",
+              "description": "Ingress hostname (tpl-rendered; defaults to server.ingress.hostname)",
+              "required": [],
+              "title": "hostname",
+              "type": "string"
+            },
+            "ingressClassName": {
+              "default": "",
+              "description": "Ingress class name",
+              "required": [],
+              "title": "ingressClassName",
+              "type": "string"
+            },
+            "tls": {
+              "default": false,
+              "description": "Enable TLS for the hostname",
+              "required": [],
+              "title": "tls",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled",
+            "hostname",
+            "ingressClassName",
+            "tls",
+            "certManager",
+            "extraPaths",
+            "extraTls",
+            "extraRules"
+          ],
+          "title": "ingress",
+          "type": "object"
+        },
+        "initContainers": {
+          "description": "Init containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "initContainers",
+          "type": "array"
+        },
+        "lifecycleHooks": {
+          "additionalProperties": true,
+          "description": "Container lifecycle hooks",
+          "required": [],
+          "title": "lifecycleHooks"
+        },
+        "livenessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the liveness probe",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "failureThreshold": {
+              "default": 3,
+              "required": [],
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 0,
+              "required": [],
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 30,
+              "required": [],
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "required": [],
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "livenessProbe",
+          "type": "object"
+        },
+        "networkPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowExternal": {
+              "default": true,
+              "description": "Allow ingress from anywhere",
+              "required": [],
+              "title": "allowExternal",
+              "type": "boolean"
+            },
+            "allowExternalEgress": {
+              "default": true,
+              "description": "Allow all egress",
+              "required": [],
+              "title": "allowExternalEgress",
+              "type": "boolean"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create a NetworkPolicy for the admin console",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "extraEgress": {
+              "description": "Extra egress rules",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraEgress",
+              "type": "array"
+            },
+            "extraIngress": {
+              "description": "Extra ingress rules",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraIngress",
+              "type": "array"
+            },
+            "ingressNSMatchLabels": {
+              "additionalProperties": true,
+              "description": "Namespace labels allowed to connect when allowExternal is false",
+              "required": [],
+              "title": "ingressNSMatchLabels"
+            },
+            "ingressPodMatchLabels": {
+              "additionalProperties": true,
+              "description": "Pod labels allowed to connect when allowExternal is false",
+              "required": [],
+              "title": "ingressPodMatchLabels"
+            }
+          },
+          "required": [
+            "enabled",
+            "allowExternal",
+            "allowExternalEgress",
+            "extraIngress",
+            "extraEgress"
+          ],
+          "title": "networkPolicy",
+          "type": "object"
+        },
+        "nodeSelector": {
+          "additionalProperties": true,
+          "description": "Node selector",
+          "required": [],
+          "title": "nodeSelector"
+        },
+        "pdb": {
+          "additionalProperties": false,
+          "properties": {
+            "create": {
+              "default": false,
+              "description": "Create a PodDisruptionBudget for the admin console",
+              "required": [],
+              "title": "create",
+              "type": "boolean"
+            },
+            "maxUnavailable": {
+              "default": "",
+              "description": "Maximum unavailable pods (defaults to 1 when both are empty)",
+              "required": [],
+              "title": "maxUnavailable",
+              "type": "string"
+            },
+            "minAvailable": {
+              "default": "",
+              "description": "Minimum available pods",
+              "required": [],
+              "title": "minAvailable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "create",
+            "minAvailable",
+            "maxUnavailable"
+          ],
+          "title": "pdb",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": true,
+          "description": "Pod annotations (tpl-rendered)",
+          "required": [],
+          "title": "podAnnotations"
+        },
+        "podAntiAffinityPreset": {
+          "default": "soft",
+          "description": "Pod anti-affinity preset: soft, hard or \"\"",
+          "required": [],
+          "title": "podAntiAffinityPreset",
+          "type": "string"
+        },
+        "podLabels": {
+          "additionalProperties": true,
+          "description": "Pod labels (tpl-rendered)",
+          "required": [],
+          "title": "podLabels"
+        },
+        "podSecurityContext": {
+          "additionalProperties": true,
+          "description": "Pod security context",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "fsGroup": {
+              "default": 1000,
+              "required": [],
+              "title": "fsGroup",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "fsGroup"
+          ],
+          "title": "podSecurityContext"
+        },
+        "priorityClassName": {
+          "default": "",
+          "description": "Priority class name",
+          "required": [],
+          "title": "priorityClassName",
+          "type": "string"
+        },
+        "readinessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the readiness probe",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "failureThreshold": {
+              "default": 3,
+              "required": [],
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 0,
+              "required": [],
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 10,
+              "required": [],
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "required": [],
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "readinessProbe",
+          "type": "object"
+        },
+        "replicaCount": {
+          "default": 1,
+          "description": "Number of admin console replicas",
+          "required": [],
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": true,
+          "description": "Admin console container resources",
+          "properties": {
+            "limits": {
+              "additionalProperties": true,
+              "properties": {
+                "memory": {
+                  "default": "512Mi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "title": "limits"
+            },
+            "requests": {
+              "additionalProperties": true,
+              "properties": {
+                "cpu": {
+                  "default": "100m",
+                  "required": [],
+                  "title": "cpu",
+                  "type": "string"
+                },
+                "memory": {
+                  "default": "256Mi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cpu",
+                "memory"
+              ],
+              "title": "requests"
+            }
+          },
+          "required": [],
+          "title": "resources"
+        },
+        "revisionHistoryLimit": {
+          "default": 3,
+          "description": "Deployment revision history limit",
+          "required": [],
+          "title": "revisionHistoryLimit",
+          "type": "integer"
+        },
+        "route": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": true,
+              "description": "HTTPRoute annotations",
+              "required": [],
+              "title": "annotations"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create a Gateway API HTTPRoute for the admin console (requires server.route.enabled;\ntpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches;\n\"false\" and \"\" disable it, anything else fails the render)",
+              "required": [],
+              "title": "enabled",
+              "type": [
+                "boolean",
+                "string"
+              ]
+            },
+            "hostnames": {
+              "description": "Route hostnames ([] = derived from server.publicUrl)",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "hostnames",
+              "type": "array"
+            },
+            "parentRefs": {
+              "description": "Gateway parentRefs",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "parentRefs",
+              "type": "array"
+            }
+          },
+          "required": [
+            "enabled",
+            "hostnames",
+            "parentRefs"
+          ],
+          "title": "route",
+          "type": "object"
+        },
+        "schedulerName": {
+          "default": "",
+          "description": "Scheduler name",
+          "required": [],
+          "title": "schedulerName",
+          "type": "string"
+        },
+        "service": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": true,
+              "description": "Service annotations (tpl-rendered)",
+              "required": [],
+              "title": "annotations"
+            },
+            "clusterIP": {
+              "default": "",
+              "description": "Static cluster IP",
+              "required": [],
+              "title": "clusterIP",
+              "type": "string"
+            },
+            "externalTrafficPolicy": {
+              "default": "Cluster",
+              "description": "External traffic policy",
+              "required": [],
+              "title": "externalTrafficPolicy",
+              "type": "string"
+            },
+            "extraPorts": {
+              "description": "Extra service ports",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraPorts",
+              "type": "array"
+            },
+            "loadBalancerIP": {
+              "default": "",
+              "description": "LoadBalancer IP",
+              "required": [],
+              "title": "loadBalancerIP",
+              "type": "string"
+            },
+            "loadBalancerSourceRanges": {
+              "description": "LoadBalancer source ranges",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "loadBalancerSourceRanges",
+              "type": "array"
+            },
+            "nodePorts": {
+              "additionalProperties": false,
+              "properties": {
+                "http": {
+                  "default": "",
+                  "description": "Node port (\"\" = auto-assign)",
+                  "required": [],
+                  "title": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "http"
+              ],
+              "title": "nodePorts",
+              "type": "object"
+            },
+            "ports": {
+              "additionalProperties": false,
+              "properties": {
+                "http": {
+                  "default": 3021,
+                  "description": "Service HTTP port",
+                  "required": [],
+                  "title": "http",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "http"
+              ],
+              "title": "ports",
+              "type": "object"
+            },
+            "sessionAffinity": {
+              "default": "None",
+              "description": "Session affinity",
+              "required": [],
+              "title": "sessionAffinity",
+              "type": "string"
+            },
+            "sessionAffinityConfig": {
+              "additionalProperties": true,
+              "description": "Session affinity config",
+              "required": [],
+              "title": "sessionAffinityConfig"
+            },
+            "type": {
+              "default": "ClusterIP",
+              "description": "Service type",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ports",
+            "nodePorts",
+            "clusterIP",
+            "loadBalancerIP",
+            "loadBalancerSourceRanges",
+            "externalTrafficPolicy",
+            "sessionAffinity",
+            "extraPorts"
+          ],
+          "title": "service",
+          "type": "object"
+        },
+        "sidecars": {
+          "description": "Sidecar containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "sidecars",
+          "type": "array"
+        },
+        "startupProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the startup probe",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "failureThreshold": {
+              "default": 24,
+              "required": [],
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 5,
+              "required": [],
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "required": [],
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "startupProbe",
+          "type": "object"
+        },
+        "terminationGracePeriodSeconds": {
+          "default": 30,
+          "description": "Pod termination grace period",
+          "required": [],
+          "title": "terminationGracePeriodSeconds",
+          "type": "integer"
+        },
+        "tolerations": {
+          "description": "Tolerations",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tolerations",
+          "type": "array"
+        },
+        "topologySpreadConstraints": {
+          "description": "Topology spread constraints",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "topologySpreadConstraints",
+          "type": "array"
+        },
+        "updateStrategy": {
+          "additionalProperties": true,
+          "description": "Deployment update strategy",
+          "properties": {
+            "type": {
+              "default": "RollingUpdate",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "updateStrategy"
+        }
+      },
+      "required": [
+        "enabled",
+        "replicaCount",
+        "containerPorts",
         "command",
         "args",
         "extraEnvVars",
@@ -1162,6 +2110,1008 @@
         "secretKeys"
       ],
       "title": "auth",
+      "type": "object"
+    },
+    "authConsole": {
+      "additionalProperties": false,
+      "description": "#",
+      "properties": {
+        "affinity": {
+          "additionalProperties": true,
+          "description": "Affinity (overrides the anti-affinity preset when set)",
+          "required": [],
+          "title": "affinity"
+        },
+        "args": {
+          "description": "Override the container args",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "args",
+          "type": "array"
+        },
+        "autoscaling": {
+          "additionalProperties": false,
+          "properties": {
+            "hpa": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enable HPA for the auth console",
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "maxReplicas": {
+                  "default": 5,
+                  "description": "Maximum replicas",
+                  "required": [],
+                  "title": "maxReplicas",
+                  "type": "integer"
+                },
+                "minReplicas": {
+                  "default": 2,
+                  "description": "Minimum replicas",
+                  "required": [],
+                  "title": "minReplicas",
+                  "type": "integer"
+                },
+                "targetCPU": {
+                  "default": 75,
+                  "description": "Target CPU utilization percentage",
+                  "required": [],
+                  "title": "targetCPU",
+                  "type": "integer"
+                },
+                "targetMemory": {
+                  "default": "",
+                  "description": "Target memory utilization percentage",
+                  "required": [],
+                  "title": "targetMemory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "enabled",
+                "minReplicas",
+                "maxReplicas",
+                "targetCPU",
+                "targetMemory"
+              ],
+              "title": "hpa",
+              "type": "object"
+            }
+          },
+          "required": [
+            "hpa"
+          ],
+          "title": "autoscaling",
+          "type": "object"
+        },
+        "command": {
+          "description": "Override the container command",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "command",
+          "type": "array"
+        },
+        "config": {
+          "additionalProperties": true,
+          "description": "Extra environment variables rendered literally into the env ConfigMap",
+          "required": [],
+          "title": "config"
+        },
+        "containerPorts": {
+          "additionalProperties": false,
+          "properties": {
+            "http": {
+              "default": 3020,
+              "description": "Auth console listener port",
+              "required": [],
+              "title": "http",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "http"
+          ],
+          "title": "containerPorts",
+          "type": "object"
+        },
+        "containerSecurityContext": {
+          "additionalProperties": true,
+          "description": "Container security context (same root-image caveat as the server)",
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "default": false,
+              "required": [],
+              "title": "allowPrivilegeEscalation",
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "drop": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "required": [],
+                        "type": "string"
+                      }
+                    ],
+                    "required": []
+                  },
+                  "required": [],
+                  "title": "drop",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "drop"
+              ],
+              "title": "capabilities",
+              "type": "object"
+            },
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "readOnlyRootFilesystem": {
+              "default": false,
+              "required": [],
+              "title": "readOnlyRootFilesystem",
+              "type": "boolean"
+            },
+            "runAsNonRoot": {
+              "default": false,
+              "required": [],
+              "title": "runAsNonRoot",
+              "type": "boolean"
+            },
+            "runAsUser": {
+              "default": 0,
+              "required": [],
+              "title": "runAsUser",
+              "type": "integer"
+            },
+            "seccompProfile": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "default": "RuntimeDefault",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "title": "seccompProfile",
+              "type": "object"
+            }
+          },
+          "required": [
+            "enabled",
+            "runAsUser",
+            "runAsNonRoot",
+            "allowPrivilegeEscalation",
+            "capabilities",
+            "seccompProfile",
+            "readOnlyRootFilesystem"
+          ],
+          "title": "containerSecurityContext"
+        },
+        "customLivenessProbe": {
+          "additionalProperties": true,
+          "description": "Custom liveness probe",
+          "required": [],
+          "title": "customLivenessProbe"
+        },
+        "customReadinessProbe": {
+          "additionalProperties": true,
+          "description": "Custom readiness probe",
+          "required": [],
+          "title": "customReadinessProbe"
+        },
+        "customStartupProbe": {
+          "additionalProperties": true,
+          "description": "Custom startup probe",
+          "required": [],
+          "title": "customStartupProbe"
+        },
+        "disableRestartOnChanges": {
+          "default": false,
+          "description": "Disable the checksum annotations that roll pods on config changes",
+          "required": [],
+          "title": "disableRestartOnChanges",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": true,
+          "description": "Deploy the auth console as its own workload in split-console mode. Must\nstay true: the auth console owns login and cannot be disabled (ignored in\ncombined mode)",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "extraEnvVars": {
+          "description": "Extra environment variables for the auth console container",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraEnvVars",
+          "type": "array"
+        },
+        "extraEnvVarsCM": {
+          "default": "",
+          "description": "Extra ConfigMap with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsCM",
+          "type": "string"
+        },
+        "extraEnvVarsSecret": {
+          "default": "",
+          "description": "Extra Secret with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsSecret",
+          "type": "string"
+        },
+        "extraVolumeMounts": {
+          "description": "Extra volume mounts (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumeMounts",
+          "type": "array"
+        },
+        "extraVolumes": {
+          "description": "Extra volumes (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumes",
+          "type": "array"
+        },
+        "hostAliases": {
+          "description": "Pod host aliases",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "hostAliases",
+          "type": "array"
+        },
+        "ingress": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": true,
+              "description": "Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned)",
+              "required": [],
+              "title": "annotations"
+            },
+            "certManager": {
+              "default": false,
+              "description": "Request a cert-manager certificate (adds kubernetes.io/tls-acme)",
+              "required": [],
+              "title": "certManager",
+              "type": "boolean"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Enable ingress-nginx routing for the split auth console (requires server.ingress.enabled)",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "extraPaths": {
+              "description": "Extra paths for the primary host",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraPaths",
+              "type": "array"
+            },
+            "extraRules": {
+              "description": "Full custom rules (tpl-rendered; appended after the generated rules)",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraRules",
+              "type": "array"
+            },
+            "extraTls": {
+              "description": "Extra TLS entries",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraTls",
+              "type": "array"
+            },
+            "hostname": {
+              "default": "",
+              "description": "Ingress hostname (tpl-rendered; defaults to server.ingress.hostname)",
+              "required": [],
+              "title": "hostname",
+              "type": "string"
+            },
+            "ingressClassName": {
+              "default": "",
+              "description": "Ingress class name",
+              "required": [],
+              "title": "ingressClassName",
+              "type": "string"
+            },
+            "tls": {
+              "default": false,
+              "description": "Enable TLS for the hostname",
+              "required": [],
+              "title": "tls",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled",
+            "hostname",
+            "ingressClassName",
+            "tls",
+            "certManager",
+            "extraPaths",
+            "extraTls",
+            "extraRules"
+          ],
+          "title": "ingress",
+          "type": "object"
+        },
+        "initContainers": {
+          "description": "Init containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "initContainers",
+          "type": "array"
+        },
+        "lifecycleHooks": {
+          "additionalProperties": true,
+          "description": "Container lifecycle hooks",
+          "required": [],
+          "title": "lifecycleHooks"
+        },
+        "livenessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the liveness probe",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "failureThreshold": {
+              "default": 3,
+              "required": [],
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 0,
+              "required": [],
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 30,
+              "required": [],
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "required": [],
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "livenessProbe",
+          "type": "object"
+        },
+        "networkPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowExternal": {
+              "default": true,
+              "description": "Allow ingress from anywhere",
+              "required": [],
+              "title": "allowExternal",
+              "type": "boolean"
+            },
+            "allowExternalEgress": {
+              "default": true,
+              "description": "Allow all egress",
+              "required": [],
+              "title": "allowExternalEgress",
+              "type": "boolean"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create a NetworkPolicy for the auth console",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "extraEgress": {
+              "description": "Extra egress rules",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraEgress",
+              "type": "array"
+            },
+            "extraIngress": {
+              "description": "Extra ingress rules",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraIngress",
+              "type": "array"
+            },
+            "ingressNSMatchLabels": {
+              "additionalProperties": true,
+              "description": "Namespace labels allowed to connect when allowExternal is false",
+              "required": [],
+              "title": "ingressNSMatchLabels"
+            },
+            "ingressPodMatchLabels": {
+              "additionalProperties": true,
+              "description": "Pod labels allowed to connect when allowExternal is false",
+              "required": [],
+              "title": "ingressPodMatchLabels"
+            }
+          },
+          "required": [
+            "enabled",
+            "allowExternal",
+            "allowExternalEgress",
+            "extraIngress",
+            "extraEgress"
+          ],
+          "title": "networkPolicy",
+          "type": "object"
+        },
+        "nodeSelector": {
+          "additionalProperties": true,
+          "description": "Node selector",
+          "required": [],
+          "title": "nodeSelector"
+        },
+        "pdb": {
+          "additionalProperties": false,
+          "properties": {
+            "create": {
+              "default": false,
+              "description": "Create a PodDisruptionBudget for the auth console",
+              "required": [],
+              "title": "create",
+              "type": "boolean"
+            },
+            "maxUnavailable": {
+              "default": "",
+              "description": "Maximum unavailable pods (defaults to 1 when both are empty)",
+              "required": [],
+              "title": "maxUnavailable",
+              "type": "string"
+            },
+            "minAvailable": {
+              "default": "",
+              "description": "Minimum available pods",
+              "required": [],
+              "title": "minAvailable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "create",
+            "minAvailable",
+            "maxUnavailable"
+          ],
+          "title": "pdb",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": true,
+          "description": "Pod annotations (tpl-rendered)",
+          "required": [],
+          "title": "podAnnotations"
+        },
+        "podAntiAffinityPreset": {
+          "default": "soft",
+          "description": "Pod anti-affinity preset: soft, hard or \"\"",
+          "required": [],
+          "title": "podAntiAffinityPreset",
+          "type": "string"
+        },
+        "podLabels": {
+          "additionalProperties": true,
+          "description": "Pod labels (tpl-rendered)",
+          "required": [],
+          "title": "podLabels"
+        },
+        "podSecurityContext": {
+          "additionalProperties": true,
+          "description": "Pod security context",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "fsGroup": {
+              "default": 1000,
+              "required": [],
+              "title": "fsGroup",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "fsGroup"
+          ],
+          "title": "podSecurityContext"
+        },
+        "priorityClassName": {
+          "default": "",
+          "description": "Priority class name",
+          "required": [],
+          "title": "priorityClassName",
+          "type": "string"
+        },
+        "readinessProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the readiness probe",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "failureThreshold": {
+              "default": 3,
+              "required": [],
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 0,
+              "required": [],
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 10,
+              "required": [],
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "required": [],
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "readinessProbe",
+          "type": "object"
+        },
+        "replicaCount": {
+          "default": 1,
+          "description": "Number of auth console replicas",
+          "required": [],
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": true,
+          "description": "Auth console container resources",
+          "properties": {
+            "limits": {
+              "additionalProperties": true,
+              "properties": {
+                "memory": {
+                  "default": "512Mi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "title": "limits"
+            },
+            "requests": {
+              "additionalProperties": true,
+              "properties": {
+                "cpu": {
+                  "default": "100m",
+                  "required": [],
+                  "title": "cpu",
+                  "type": "string"
+                },
+                "memory": {
+                  "default": "256Mi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cpu",
+                "memory"
+              ],
+              "title": "requests"
+            }
+          },
+          "required": [],
+          "title": "resources"
+        },
+        "revisionHistoryLimit": {
+          "default": 3,
+          "description": "Deployment revision history limit",
+          "required": [],
+          "title": "revisionHistoryLimit",
+          "type": "integer"
+        },
+        "route": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": true,
+              "description": "HTTPRoute annotations",
+              "required": [],
+              "title": "annotations"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create a Gateway API HTTPRoute for the auth console (requires server.route.enabled;\ntpl-rendered: a string rendering to\n\"true\" enables it, so an umbrella chart can drive this from one of its own switches;\n\"false\" and \"\" disable it, anything else fails the render)",
+              "required": [],
+              "title": "enabled",
+              "type": [
+                "boolean",
+                "string"
+              ]
+            },
+            "hostnames": {
+              "description": "Route hostnames ([] = derived from server.publicUrl)",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "hostnames",
+              "type": "array"
+            },
+            "parentRefs": {
+              "description": "Gateway parentRefs",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "parentRefs",
+              "type": "array"
+            }
+          },
+          "required": [
+            "enabled",
+            "hostnames",
+            "parentRefs"
+          ],
+          "title": "route",
+          "type": "object"
+        },
+        "schedulerName": {
+          "default": "",
+          "description": "Scheduler name",
+          "required": [],
+          "title": "schedulerName",
+          "type": "string"
+        },
+        "service": {
+          "additionalProperties": false,
+          "properties": {
+            "annotations": {
+              "additionalProperties": true,
+              "description": "Service annotations (tpl-rendered)",
+              "required": [],
+              "title": "annotations"
+            },
+            "clusterIP": {
+              "default": "",
+              "description": "Static cluster IP",
+              "required": [],
+              "title": "clusterIP",
+              "type": "string"
+            },
+            "externalTrafficPolicy": {
+              "default": "Cluster",
+              "description": "External traffic policy",
+              "required": [],
+              "title": "externalTrafficPolicy",
+              "type": "string"
+            },
+            "extraPorts": {
+              "description": "Extra service ports",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraPorts",
+              "type": "array"
+            },
+            "loadBalancerIP": {
+              "default": "",
+              "description": "LoadBalancer IP",
+              "required": [],
+              "title": "loadBalancerIP",
+              "type": "string"
+            },
+            "loadBalancerSourceRanges": {
+              "description": "LoadBalancer source ranges",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "loadBalancerSourceRanges",
+              "type": "array"
+            },
+            "nodePorts": {
+              "additionalProperties": false,
+              "properties": {
+                "http": {
+                  "default": "",
+                  "description": "Node port (\"\" = auto-assign)",
+                  "required": [],
+                  "title": "http",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "http"
+              ],
+              "title": "nodePorts",
+              "type": "object"
+            },
+            "ports": {
+              "additionalProperties": false,
+              "properties": {
+                "http": {
+                  "default": 3020,
+                  "description": "Service HTTP port",
+                  "required": [],
+                  "title": "http",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "http"
+              ],
+              "title": "ports",
+              "type": "object"
+            },
+            "sessionAffinity": {
+              "default": "None",
+              "description": "Session affinity",
+              "required": [],
+              "title": "sessionAffinity",
+              "type": "string"
+            },
+            "sessionAffinityConfig": {
+              "additionalProperties": true,
+              "description": "Session affinity config",
+              "required": [],
+              "title": "sessionAffinityConfig"
+            },
+            "type": {
+              "default": "ClusterIP",
+              "description": "Service type",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "ports",
+            "nodePorts",
+            "clusterIP",
+            "loadBalancerIP",
+            "loadBalancerSourceRanges",
+            "externalTrafficPolicy",
+            "sessionAffinity",
+            "extraPorts"
+          ],
+          "title": "service",
+          "type": "object"
+        },
+        "sidecars": {
+          "description": "Sidecar containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "sidecars",
+          "type": "array"
+        },
+        "startupProbe": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "default": true,
+              "description": "Enable the startup probe",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "failureThreshold": {
+              "default": 24,
+              "required": [],
+              "title": "failureThreshold",
+              "type": "integer"
+            },
+            "initialDelaySeconds": {
+              "default": 5,
+              "required": [],
+              "title": "initialDelaySeconds",
+              "type": "integer"
+            },
+            "periodSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "periodSeconds",
+              "type": "integer"
+            },
+            "successThreshold": {
+              "default": 1,
+              "required": [],
+              "title": "successThreshold",
+              "type": "integer"
+            },
+            "timeoutSeconds": {
+              "default": 5,
+              "required": [],
+              "title": "timeoutSeconds",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "initialDelaySeconds",
+            "periodSeconds",
+            "timeoutSeconds",
+            "failureThreshold",
+            "successThreshold"
+          ],
+          "title": "startupProbe",
+          "type": "object"
+        },
+        "terminationGracePeriodSeconds": {
+          "default": 30,
+          "description": "Pod termination grace period",
+          "required": [],
+          "title": "terminationGracePeriodSeconds",
+          "type": "integer"
+        },
+        "tolerations": {
+          "description": "Tolerations",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tolerations",
+          "type": "array"
+        },
+        "topologySpreadConstraints": {
+          "description": "Topology spread constraints",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "topologySpreadConstraints",
+          "type": "array"
+        },
+        "updateStrategy": {
+          "additionalProperties": true,
+          "description": "Deployment update strategy",
+          "properties": {
+            "type": {
+              "default": "RollingUpdate",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "updateStrategy"
+        }
+      },
+      "required": [
+        "enabled",
+        "replicaCount",
+        "containerPorts",
+        "command",
+        "args",
+        "extraEnvVars",
+        "extraEnvVarsCM",
+        "extraEnvVarsSecret",
+        "extraVolumes",
+        "extraVolumeMounts",
+        "initContainers",
+        "sidecars",
+        "hostAliases",
+        "terminationGracePeriodSeconds",
+        "revisionHistoryLimit",
+        "disableRestartOnChanges",
+        "startupProbe",
+        "livenessProbe",
+        "readinessProbe",
+        "tolerations",
+        "podAntiAffinityPreset",
+        "topologySpreadConstraints",
+        "priorityClassName",
+        "schedulerName",
+        "service",
+        "ingress",
+        "route",
+        "pdb",
+        "autoscaling",
+        "networkPolicy"
+      ],
+      "title": "authConsole",
       "type": "object"
     },
     "commonAnnotations": {
@@ -1452,7 +3402,7 @@
         },
         "repository": {
           "default": "authup/authup",
-          "description": "Authup image repository (one image serves both services)",
+          "description": "Authup image repository (one image serves every application role)",
           "required": [],
           "title": "repository",
           "type": "string"
@@ -2223,20 +4173,20 @@
         },
         "config": {
           "additionalProperties": true,
-          "description": "Extra environment variables rendered literally into the env ConfigMap\n(map of NAME: value) for options without first-class values, e.g.\nAUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console\nwith your own build (pair them with extraVolumes; the substituted package\nowns the login flow, so use server.theme for branding instead)",
+          "description": "Extra environment variables rendered literally into the env ConfigMap\n(map of NAME: value) for options without first-class values, e.g.\nAUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console\nwith your own build (pair them with extraVolumes; the substituted package\nowns the login flow, so use server.theme for branding instead). In\nsplit-console mode set them in authConsole.config / accountConsole.config:\n`start core` does not read console paths",
           "required": [],
           "title": "config"
         },
         "configuration": {
           "default": "",
-          "description": "Content of an authup.server.core.conf mounted into the working directory\nfor file-only options (middleware objects, per-field SMTP, CORS allowlist).\nEnvironment variables always win over file values.",
+          "description": "Content of authup.yml mounted at /etc/authup/authup.yml for file-only\noptions (middleware objects, per-field SMTP, CORS allowlist). Environment\nvariables always win over file values.",
           "required": [],
           "title": "configuration",
           "type": "string"
         },
         "containerSecurityContext": {
           "additionalProperties": true,
-          "description": "Container security context. The upstream image runs as root and needs a\nwritable npm cache; the chart mounts emptyDirs at /var/lib/authup and\n/tmp to keep readOnlyRootFilesystem viable.",
+          "description": "Container security context. The upstream image runs as root and needs\nwritable log and npm cache paths; the chart mounts emptyDirs at\n/var/log/authup and /tmp.",
           "properties": {
             "allowPrivilegeEscalation": {
               "default": false,
@@ -2354,7 +4304,7 @@
         },
         "existingConfigmap": {
           "default": "",
-          "description": "Existing ConfigMap holding authup.server.core.conf (tpl-rendered)",
+          "description": "Existing ConfigMap holding authup.yml (tpl-rendered)",
           "required": [],
           "title": "existingConfigmap",
           "type": "string"
@@ -2404,11 +4354,14 @@
           "additionalProperties": false,
           "properties": {
             "accountConsole": {
-              "default": true,
-              "description": "Serve the account self-service console at \u003cpublicUrl\u003e/account\n(profile, password, authenticators, sessions, applications).\nACCOUNT_CONSOLE_ENABLED; disable it when you run your own portal",
+              "default": "",
+              "description": "Deprecated: use accountConsole.enabled. Any non-empty value fails.",
               "required": [],
               "title": "accountConsole",
-              "type": "boolean"
+              "type": [
+                "boolean",
+                "string"
+              ]
             },
             "emailVerification": {
               "default": false,
@@ -2468,7 +4421,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Enable ingress for server-core. NOTE: this also exposes the\nUNAUTHENTICATED /metrics endpoint publicly — block it at the ingress\ncontroller or disable it via server.configuration\n(\"middlewarePrometheus: false\") when it is not scraped",
+              "description": "Enable ingress for server-core. NOTE: this also exposes the\nUNAUTHENTICATED /metrics endpoint publicly — block it at the ingress\ncontroller or disable it via server.configuration\n(core.middlewarePrometheus: false) when it is not scraped",
               "required": [],
               "title": "enabled",
               "type": "boolean"
@@ -2759,7 +4712,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Run `server/core migration run` as a pre-upgrade hook Job. Recommended\nfor multi-replica deployments (serializes DDL before pods roll). Fresh\ninstalls migrate at boot regardless.",
+              "description": "Run `migration run` as a pre-upgrade hook Job. Recommended\nfor multi-replica deployments (serializes DDL before pods roll). Fresh\ninstalls and non-persistent built-in databases migrate at boot regardless.\nUnder useHelmHooks=false the Job is a PreSync hook on the first sync too,\nso with a built-in database enable it only after that sync",
               "required": [],
               "title": "enabled",
               "type": "boolean"
@@ -2797,7 +4750,7 @@
           "properties": {
             "allowExternal": {
               "default": true,
-              "description": "Allow ingress from anywhere. When false, only same-namespace pods,\nthe release's UI pods and the configured selectors may connect — add\nyour ingress controller via ingressNSMatchLabels/ingressPodMatchLabels",
+              "description": "Allow ingress from anywhere. When false, only the split console pods\nand the configured selectors may connect: add your ingress controller via\ningressNSMatchLabels, ingressPodMatchLabels or extraIngress (required)",
               "required": [],
               "title": "allowExternal",
               "type": "boolean"
@@ -2811,13 +4764,13 @@
             },
             "enabled": {
               "default": false,
-              "description": "Create a NetworkPolicy for server-core",
+              "description": "Create a NetworkPolicy for the server and, with server.migration.enabled,\na hook-scoped egress policy for the migration Job",
               "required": [],
               "title": "enabled",
               "type": "boolean"
             },
             "extraEgress": {
-              "description": "Extra egress rules",
+              "description": "Extra egress rules (also applied to the migration Job policy)",
               "items": {
                 "required": []
               },
@@ -2986,7 +4939,7 @@
         },
         "publicUrl": {
           "default": "",
-          "description": "Public URL of server-core (PUBLIC_URL) — the OIDC issuer origin.\n\"\" = derived from server.ingress when enabled. Changing it later breaks\nenrolled WebAuthn credentials and the OIDC issuer.",
+          "description": "Public URL of Authup (PUBLIC_URL), shared by the API and consoles and\nused as the OIDC issuer origin.\n\"\" = derived from server.ingress when enabled. Changing it later breaks\nenrolled WebAuthn credentials and the OIDC issuer.",
           "required": [],
           "title": "publicUrl",
           "type": "string"
@@ -3301,6 +5254,13 @@
           "title": "sidecars",
           "type": "array"
         },
+        "splitConsoles": {
+          "default": false,
+          "description": "Run API-only server pods and deploy consoles separately (requires the\npublic URL at the origin root because console prefixes are fixed)",
+          "required": [],
+          "title": "splitConsoles",
+          "type": "boolean"
+        },
         "startupProbe": {
           "additionalProperties": false,
           "properties": {
@@ -3365,7 +5325,7 @@
           "properties": {
             "enabled": {
               "default": false,
-              "description": "Mount an operator theme for the served consoles (the auth console and\nthe account console). Requires an authup image that supports\nTHEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the\ndirectory layout and the theme* options may change in a minor release",
+              "description": "Mount an operator theme for the served consoles (auth, admin and\naccount). Experimental upstream: the directory layout and the theme*\noptions may change in a minor release",
               "required": [],
               "title": "enabled",
               "type": "boolean"
@@ -3429,7 +5389,7 @@
             },
             "title": {
               "default": "",
-              "description": "Document title of both served consoles (\"\" = authup's own)",
+              "description": "Document title of the served consoles (\"\" = authup's own)",
               "required": [],
               "title": "title",
               "type": "string"
@@ -3495,13 +5455,6 @@
           "title": "trustedOrigins",
           "type": "array"
         },
-        "trustedOriginsAppendAdminConsole": {
-          "default": true,
-          "description": "Automatically append the client-admin-console UI origin to TRUSTED_ORIGINS (removes the\nmost common dead-login misconfiguration)",
-          "required": [],
-          "title": "trustedOriginsAppendAdminConsole",
-          "type": "boolean"
-        },
         "updateStrategy": {
           "additionalProperties": true,
           "description": "Deployment update strategy",
@@ -3521,10 +5474,10 @@
       },
       "required": [
         "enabled",
+        "splitConsoles",
         "replicaCount",
         "publicUrl",
         "trustedOrigins",
-        "trustedOriginsAppendAdminConsole",
         "trustProxy",
         "features",
         "mfa",
@@ -3584,7 +5537,7 @@
         },
         "create": {
           "default": true,
-          "description": "Create a ServiceAccount (shared by both services)",
+          "description": "Create a ServiceAccount (shared by all application roles)",
           "required": [],
           "title": "create",
           "type": "boolean"
@@ -3933,6 +5886,526 @@
       ],
       "title": "valkey",
       "type": "object"
+    },
+    "worker": {
+      "additionalProperties": false,
+      "description": "#",
+      "properties": {
+        "affinity": {
+          "additionalProperties": true,
+          "description": "Affinity (overrides the anti-affinity preset when set)",
+          "required": [],
+          "title": "affinity"
+        },
+        "args": {
+          "description": "Override the container args",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "args",
+          "type": "array"
+        },
+        "autoscaling": {
+          "additionalProperties": false,
+          "properties": {
+            "hpa": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enable HPA for the worker",
+                  "required": [],
+                  "title": "enabled",
+                  "type": "boolean"
+                },
+                "maxReplicas": {
+                  "default": 3,
+                  "description": "Maximum replicas",
+                  "required": [],
+                  "title": "maxReplicas",
+                  "type": "integer"
+                },
+                "minReplicas": {
+                  "default": 1,
+                  "description": "Minimum replicas",
+                  "required": [],
+                  "title": "minReplicas",
+                  "type": "integer"
+                },
+                "targetCPU": {
+                  "default": 75,
+                  "description": "Target CPU utilization percentage",
+                  "required": [],
+                  "title": "targetCPU",
+                  "type": "integer"
+                },
+                "targetMemory": {
+                  "default": "",
+                  "description": "Target memory utilization percentage",
+                  "required": [],
+                  "title": "targetMemory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "enabled",
+                "minReplicas",
+                "maxReplicas",
+                "targetCPU",
+                "targetMemory"
+              ],
+              "title": "hpa",
+              "type": "object"
+            }
+          },
+          "required": [
+            "hpa"
+          ],
+          "title": "autoscaling",
+          "type": "object"
+        },
+        "command": {
+          "description": "Override the container command",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "command",
+          "type": "array"
+        },
+        "containerSecurityContext": {
+          "additionalProperties": true,
+          "description": "Container security context",
+          "properties": {
+            "allowPrivilegeEscalation": {
+              "default": false,
+              "required": [],
+              "title": "allowPrivilegeEscalation",
+              "type": "boolean"
+            },
+            "capabilities": {
+              "additionalProperties": false,
+              "properties": {
+                "drop": {
+                  "items": {
+                    "anyOf": [
+                      {
+                        "required": [],
+                        "type": "string"
+                      }
+                    ],
+                    "required": []
+                  },
+                  "required": [],
+                  "title": "drop",
+                  "type": "array"
+                }
+              },
+              "required": [
+                "drop"
+              ],
+              "title": "capabilities",
+              "type": "object"
+            },
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "readOnlyRootFilesystem": {
+              "default": false,
+              "required": [],
+              "title": "readOnlyRootFilesystem",
+              "type": "boolean"
+            },
+            "runAsNonRoot": {
+              "default": false,
+              "required": [],
+              "title": "runAsNonRoot",
+              "type": "boolean"
+            },
+            "runAsUser": {
+              "default": 0,
+              "required": [],
+              "title": "runAsUser",
+              "type": "integer"
+            },
+            "seccompProfile": {
+              "additionalProperties": false,
+              "properties": {
+                "type": {
+                  "default": "RuntimeDefault",
+                  "required": [],
+                  "title": "type",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "title": "seccompProfile",
+              "type": "object"
+            }
+          },
+          "required": [
+            "enabled",
+            "runAsUser",
+            "runAsNonRoot",
+            "allowPrivilegeEscalation",
+            "capabilities",
+            "seccompProfile",
+            "readOnlyRootFilesystem"
+          ],
+          "title": "containerSecurityContext"
+        },
+        "disableRestartOnChanges": {
+          "default": false,
+          "description": "Disable checksum annotations that roll pods on configuration changes",
+          "required": [],
+          "title": "disableRestartOnChanges",
+          "type": "boolean"
+        },
+        "enabled": {
+          "default": false,
+          "description": "Deploy a dedicated background worker (requires server.enabled). It never\nmigrates: on a fresh install it restarts until the server has initialized\nthe schema; enable server.migration.enabled so upgrades run the Job first",
+          "required": [],
+          "title": "enabled",
+          "type": "boolean"
+        },
+        "extraEnvVars": {
+          "description": "Extra environment variables for the worker container",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraEnvVars",
+          "type": "array"
+        },
+        "extraEnvVarsCM": {
+          "default": "",
+          "description": "Extra ConfigMap with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsCM",
+          "type": "string"
+        },
+        "extraEnvVarsSecret": {
+          "default": "",
+          "description": "Extra Secret with environment variables (tpl-rendered name)",
+          "required": [],
+          "title": "extraEnvVarsSecret",
+          "type": "string"
+        },
+        "extraVolumeMounts": {
+          "description": "Extra volume mounts (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumeMounts",
+          "type": "array"
+        },
+        "extraVolumes": {
+          "description": "Extra volumes (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "extraVolumes",
+          "type": "array"
+        },
+        "hostAliases": {
+          "description": "Pod host aliases",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "hostAliases",
+          "type": "array"
+        },
+        "initContainers": {
+          "description": "Init containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "initContainers",
+          "type": "array"
+        },
+        "lifecycleHooks": {
+          "additionalProperties": true,
+          "description": "Container lifecycle hooks",
+          "required": [],
+          "title": "lifecycleHooks"
+        },
+        "networkPolicy": {
+          "additionalProperties": false,
+          "properties": {
+            "allowExternalEgress": {
+              "default": true,
+              "description": "Allow all egress",
+              "required": [],
+              "title": "allowExternalEgress",
+              "type": "boolean"
+            },
+            "enabled": {
+              "default": false,
+              "description": "Create an egress NetworkPolicy for the worker",
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "extraEgress": {
+              "description": "Extra egress rules",
+              "items": {
+                "required": []
+              },
+              "required": [],
+              "title": "extraEgress",
+              "type": "array"
+            }
+          },
+          "required": [
+            "enabled",
+            "allowExternalEgress",
+            "extraEgress"
+          ],
+          "title": "networkPolicy",
+          "type": "object"
+        },
+        "nodeSelector": {
+          "additionalProperties": true,
+          "description": "Node selector",
+          "required": [],
+          "title": "nodeSelector"
+        },
+        "pdb": {
+          "additionalProperties": false,
+          "properties": {
+            "create": {
+              "default": false,
+              "description": "Create a PodDisruptionBudget for the worker",
+              "required": [],
+              "title": "create",
+              "type": "boolean"
+            },
+            "maxUnavailable": {
+              "default": "",
+              "description": "Maximum unavailable pods (defaults to 1 when both are empty)",
+              "required": [],
+              "title": "maxUnavailable",
+              "type": "string"
+            },
+            "minAvailable": {
+              "default": "",
+              "description": "Minimum available pods",
+              "required": [],
+              "title": "minAvailable",
+              "type": "string"
+            }
+          },
+          "required": [
+            "create",
+            "minAvailable",
+            "maxUnavailable"
+          ],
+          "title": "pdb",
+          "type": "object"
+        },
+        "podAnnotations": {
+          "additionalProperties": true,
+          "description": "Pod annotations (tpl-rendered)",
+          "required": [],
+          "title": "podAnnotations"
+        },
+        "podAntiAffinityPreset": {
+          "default": "soft",
+          "description": "Pod anti-affinity preset: soft, hard or \"\"",
+          "required": [],
+          "title": "podAntiAffinityPreset",
+          "type": "string"
+        },
+        "podLabels": {
+          "additionalProperties": true,
+          "description": "Pod labels (tpl-rendered)",
+          "required": [],
+          "title": "podLabels"
+        },
+        "podSecurityContext": {
+          "additionalProperties": true,
+          "description": "Pod security context",
+          "properties": {
+            "enabled": {
+              "default": true,
+              "required": [],
+              "title": "enabled",
+              "type": "boolean"
+            },
+            "fsGroup": {
+              "default": 1000,
+              "required": [],
+              "title": "fsGroup",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "enabled",
+            "fsGroup"
+          ],
+          "title": "podSecurityContext"
+        },
+        "priorityClassName": {
+          "default": "",
+          "description": "Priority class name",
+          "required": [],
+          "title": "priorityClassName",
+          "type": "string"
+        },
+        "replicaCount": {
+          "default": 1,
+          "description": "Number of worker replicas (one is normally sufficient)",
+          "required": [],
+          "title": "replicaCount",
+          "type": "integer"
+        },
+        "resources": {
+          "additionalProperties": true,
+          "description": "Worker container resources",
+          "properties": {
+            "limits": {
+              "additionalProperties": true,
+              "properties": {
+                "memory": {
+                  "default": "1Gi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "memory"
+              ],
+              "title": "limits"
+            },
+            "requests": {
+              "additionalProperties": true,
+              "properties": {
+                "cpu": {
+                  "default": "100m",
+                  "required": [],
+                  "title": "cpu",
+                  "type": "string"
+                },
+                "memory": {
+                  "default": "256Mi",
+                  "required": [],
+                  "title": "memory",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "cpu",
+                "memory"
+              ],
+              "title": "requests"
+            }
+          },
+          "required": [],
+          "title": "resources"
+        },
+        "revisionHistoryLimit": {
+          "default": 3,
+          "description": "Deployment revision history limit",
+          "required": [],
+          "title": "revisionHistoryLimit",
+          "type": "integer"
+        },
+        "schedulerName": {
+          "default": "",
+          "description": "Scheduler name",
+          "required": [],
+          "title": "schedulerName",
+          "type": "string"
+        },
+        "sidecars": {
+          "description": "Sidecar containers (tpl-rendered)",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "sidecars",
+          "type": "array"
+        },
+        "terminationGracePeriodSeconds": {
+          "default": 30,
+          "description": "Pod termination grace period",
+          "required": [],
+          "title": "terminationGracePeriodSeconds",
+          "type": "integer"
+        },
+        "tolerations": {
+          "description": "Tolerations",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "tolerations",
+          "type": "array"
+        },
+        "topologySpreadConstraints": {
+          "description": "Topology spread constraints",
+          "items": {
+            "required": []
+          },
+          "required": [],
+          "title": "topologySpreadConstraints",
+          "type": "array"
+        },
+        "updateStrategy": {
+          "additionalProperties": true,
+          "description": "Deployment update strategy",
+          "properties": {
+            "type": {
+              "default": "RollingUpdate",
+              "required": [],
+              "title": "type",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "title": "updateStrategy"
+        }
+      },
+      "required": [
+        "enabled",
+        "replicaCount",
+        "command",
+        "args",
+        "extraEnvVars",
+        "extraEnvVarsCM",
+        "extraEnvVarsSecret",
+        "extraVolumes",
+        "extraVolumeMounts",
+        "initContainers",
+        "sidecars",
+        "hostAliases",
+        "terminationGracePeriodSeconds",
+        "revisionHistoryLimit",
+        "disableRestartOnChanges",
+        "tolerations",
+        "podAntiAffinityPreset",
+        "topologySpreadConstraints",
+        "priorityClassName",
+        "schedulerName",
+        "pdb",
+        "autoscaling",
+        "networkPolicy"
+      ],
+      "title": "worker",
+      "type": "object"
     }
   },
   "required": [
@@ -3952,7 +6425,10 @@
     "externalRedis",
     "smtp",
     "server",
+    "authConsole",
     "adminConsole",
+    "accountConsole",
+    "worker",
     "serviceAccount"
   ],
   "type": "object"

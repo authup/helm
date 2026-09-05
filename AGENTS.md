@@ -3,10 +3,9 @@
 # authup/helm - Agent Guide
 
 Helm charts for [Authup](https://authup.org), an authentication & authorization
-system. One application chart today: `charts/authup` deploys the two runtime
-services of the [authup monorepo](https://github.com/authup/authup) (server-core
-IdP/API and the client-admin-console admin UI) plus optional built-in PostgreSQL, MySQL
-and Valkey instances.
+system. One application chart today: `charts/authup` deploys Authup's combined
+server by default, or separate core, auth/admin/account console and worker roles,
+plus optional built-in PostgreSQL, MySQL and Valkey instances.
 
 `DESIGN.md` at the repo root is the authoritative design record: every major
 decision with the evidence it rests on (deep-dives into authelia/chartrepo,
@@ -17,7 +16,7 @@ changing chart architecture.
 ## Quick Reference
 
 ```bash
-make test                    # lint + render every ci/*-values.yaml + values-coverage audit
+make test                    # lint + render matrix + coverage + beta.64 contract
 make lint                    # helm lint + ct lint
 make template                # render the chart once per ci/*-values.yaml file
 make docs                    # regenerate charts/*/README.md (helm-docs, dockerized)
@@ -26,9 +25,11 @@ make lint-values-coverage    # every .Values.* in templates must resolve in valu
 
 helm template test charts/authup                      # quick render
 helm template test charts/authup -f charts/authup/ci/mysql-values.yaml
+helm template test charts/authup -f charts/authup/ci/split-values.yaml
 ```
 
-- **helm** >= 3.14 and **docker** (for the pinned generator images) required.
+- **helm** >= 3.14, **python3** with PyYAML, and **docker** (for the pinned
+  generator images) required.
 - `charts/authup/README.md` and `charts/authup/values.schema.json` are
   GENERATED. Never edit them directly; edit `values.yaml` comments /
   `README.md.gotmpl` and run `make docs schema`. CI fails on drift
@@ -47,9 +48,9 @@ helm template test charts/authup -f charts/authup/ci/mysql-values.yaml
   `fix(authup): ...`. release-please (`release-type: helm`) owns
   `Chart.yaml` `version`, `CHANGELOG.md` and `.release-please-manifest.json`;
   never bump them by hand.
-- Publishing is chart-releaser on every master push (idempotent via
-  `CR_SKIP_EXISTING`): GitHub release `authup-<version>` + `index.yaml` on the
-  `gh-pages` branch + OCI push to `oci://ghcr.io/authup/helm`.
+- Publishing is hevi/chart-releaser on every master push: GitHub release
+  `authup-<version>`, `index.yaml` on `gh-pages`, and an OCI push to
+  `oci://ghcr.io/authup/helm`.
 - Do NOT add `Co-Authored-By: Claude ...` or any AI-attribution trailer to
   commits, issues or PRs. This overrides default agent-tooling guidance.
 

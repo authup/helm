@@ -5,40 +5,43 @@ land on the middle digit. Every entry lists the value migrations required.
 
 ## Next release (unreleased)
 
-- Component resource names are truncated on a budget derived from their suffix
-  (`min 52 (63 - len(suffix) - 1)`) rather than a flat `trunc 52`, so the
-  63-character limit that applies to a Service name and to a Job name is
-  respected. Only names that were already too long to exist change: with a
-  release name from roughly 43 characters up, the admin-console Service was 66
-  characters and the API server rejected it, so the release could not install at
-  all; the migration Job reached 69. Nothing to migrate, since no cluster can
-  hold a release in that range. Verified by rendering every release-name length
-  from 3 to 53 against the previous revision: the name sets differ at no length
-  where the old chart was installable.
-- Setting BOTH `server.configuration` and `server.existingConfigmap` now fails
-  the render. It never worked: the existing ConfigMap is the one that gets
-  mounted, so the inline content was silently dropped, and that content is
-  typically where `db.ssl` / `socketPath` / `replication` live, i.e. how the
-  server pods and the pre-upgrade migration hook connect to the database. Move
-  the inline content into the referenced ConfigMap, or drop
-  `server.existingConfigmap`.
-- The writable directory moves from `/usr/src/app/writable` to `/var/lib/authup`,
-  following the image (authup/authup#3474, shipped in v1.0.0-beta.63). The chart
-  mounts an emptyDir there, so nothing persists across the change; only a
-  `server.extraVolumeMounts` / `server.extraVolumes` entry aimed at the old path
-  needs updating, along with anything reading the container's log files by path.
-- The chart now SETS `WRITABLE_DIRECTORY_PATH` to the path it mounts instead of
-  inheriting the image default, so it works with a pinned older `image.tag` too.
-  As a consequence `server.config.WRITABLE_DIRECTORY_PATH` now fails the render:
-  it would have emitted a duplicate ConfigMap key and pointed the server at a
-  path the chart mounts nothing at, which fails silently (production logs on the
-  container layer, file provisioning scanning a directory that does not exist).
-  To move the directory anyway, set it through `server.extraEnvVars` and mount
-  the same path with `server.extraVolumeMounts`; `server.provisioning` then needs
-  its source (ConfigMap or Secret) re-mounted at `<new path>/provisioning` by
-  hand, because the chart's own provisioning mount stays where the chart puts it.
+- The chart now requires the Authup v1.0.0-beta.64 CLI. Default server args are
+  `start`; split API args are `start core`; console args are
+  `start console auth|admin|account`; migration args are `migration run`.
+  Overrides containing `server/core` or `client/admin-console` must be removed.
+- The default topology is one combined server. The old standalone admin
+  workload is no longer created merely by `adminConsole.enabled=true`. Set
+  `server.splitConsoles=true` to deploy separate API and console workloads.
+  Split mode requires `authConsole.enabled=true`; the admin and account consoles
+  remain independently optional.
+- `server.features.accountConsole` moves to `accountConsole.enabled`. Any
+  non-empty old value now fails the render with the replacement key.
+- `adminConsole.publicUrl`, `adminConsole.apiUrl`, `adminConsole.internalApiUrl`,
+  `adminConsole.ingress.path`, `adminConsole.ingress.pathType`,
+  `adminConsole.ingress.extraHosts`, `adminConsole.route.matches`,
+  `adminConsole.route.filters` and `server.trustedOriginsAppendAdminConsole` are
+  removed: console prefixes and rewrites are fixed and the strict schema rejects
+  the old keys. All roles share `server.publicUrl`; split console server-side
+  requests use the generated in-cluster `INTERNAL_URL`.
+- The configuration file is now `authup.yml`, mounted at
+  `/etc/authup/authup.yml`. Provisioning moves to `/etc/authup/provisioning` and
+  logs to `/var/log/authup`. Remove overrides for `WRITABLE_DIRECTORY_PATH`
+  (`server.config.WRITABLE_DIRECTORY_PATH` now fails the render),
+  `/var/lib/authup`, or `authup.server.core.conf`.
+- Split consoles share the Authup origin under `/console/auth`,
+  `/console/admin` and `/console/account`. The generated Ingress rules require
+  ingress-nginx because they use regex prefix stripping. Gateway API users get
+  portable `URLRewrite` filters. Exact admin/account login and callback paths
+  continue to route to the API. Split mode does not support a path-prefixed
+  `server.publicUrl`.
+- `worker.enabled=true` creates the beta.64 background worker and sets
+  `WORKER_ENABLED=false` on the API. The worker has no Service or HTTP probes.
+- When `server.networkPolicy.enabled=true`, the chart also creates hook-scoped
+  migration egress policy. Restrictive split deployments get role-specific
+  console and worker policies; use `extraEgress` for external databases or
+  caches.
 
-## 0.2.0 (unreleased)
+## 0.2.0
 
 Follows the upstream rename of the admin UI app (authup/authup#3370) and its
 dedicated OAuth2 client (authup/authup#3371).

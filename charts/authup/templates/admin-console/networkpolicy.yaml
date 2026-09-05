@@ -1,4 +1,4 @@
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.networkPolicy.enabled }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.networkPolicy.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -14,11 +14,9 @@ spec:
     - Egress
   ingress:
     - ports:
-        - port: 3000
+        - port: {{ .Values.adminConsole.containerPorts.http }}
           protocol: TCP
       {{- if not .Values.adminConsole.networkPolicy.allowExternal }}
-      {{- /* An empty `from:` would mean allow-all — always emit at least the
-             same-namespace baseline peer. */}}
       from:
         - podSelector: {}
         {{- if .Values.adminConsole.networkPolicy.ingressPodMatchLabels }}
@@ -37,13 +35,11 @@ spec:
     {{- if .Values.adminConsole.networkPolicy.allowExternalEgress }}
     - {}
     {{- else }}
-    # DNS
     - ports:
         - port: 53
           protocol: UDP
         - port: 53
           protocol: TCP
-    # server-core within the release
     - to:
         - podSelector:
             matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "server") | nindent 14 }}

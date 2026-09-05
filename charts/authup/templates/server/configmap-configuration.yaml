@@ -7,6 +7,6 @@ metadata:
   labels: {{- include "authup.labels" (dict "context" $ "component" "server") | nindent 4 }}
   annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
 data:
-  authup.server.core.conf: |-
+  authup.yml: |-
     {{- include "authup.server.configurationContent" . | nindent 4 }}
 {{- end }}

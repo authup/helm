@@ -1,4 +1,4 @@
-{{- if .Values.adminConsole.enabled }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,7 +24,13 @@ spec:
         {{- end }}
       annotations:
         {{- if not .Values.adminConsole.disableRestartOnChanges }}
-        checksum/env: {{ include "authup.adminConsole.configEnv" . | sha256sum }}
+        checksum/env: {{ include "authup.console.configEnv" (dict "context" $ "values" .Values.adminConsole "key" "adminConsole" "prefix" "ADMIN") | sha256sum }}
+        {{- if .Values.server.configuration }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and .Values.server.theme.enabled (or .Values.server.theme.files (include "authup.server.themeManifestConfigured" .)) }}
+        checksum/theme: {{ include (print $.Template.BasePath "/server/configmap-theme.yaml") . | sha256sum }}
+        {{- end }}
         {{- end }}
         {{- if .Values.adminConsole.podAnnotations }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.podAnnotations "context" $) | nindent 8 }}
@@ -81,8 +87,9 @@ spec:
           args: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.args "context" $) | nindent 12 }}
           {{- else }}
           args:
-            - client/admin-console
             - start
+            - console
+            - admin
           {{- end }}
           {{- end }}
           envFrom:
@@ -104,7 +111,7 @@ spec:
             {{- end }}
           ports:
             - name: http
-              containerPort: 3000
+              containerPort: {{ .Values.adminConsole.containerPorts.http }}
               protocol: TCP
           {{- if not .Values.diagnosticMode.enabled }}
           {{- if .Values.adminConsole.customStartupProbe }}
@@ -112,7 +119,7 @@ spec:
           {{- else if .Values.adminConsole.startupProbe.enabled }}
           startupProbe:
             httpGet:
-              path: /
+              path: /healthy
               port: http
             {{- omit .Values.adminConsole.startupProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
@@ -121,7 +128,7 @@ spec:
           {{- else if .Values.adminConsole.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
-              path: /
+              path: /healthy
               port: http
             {{- omit .Values.adminConsole.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
@@ -130,7 +137,7 @@ spec:
           {{- else if .Values.adminConsole.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthy
               port: http
             {{- omit .Values.adminConsole.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
@@ -141,18 +148,14 @@ spec:
           {{- if .Values.adminConsole.lifecycleHooks }}
           lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.lifecycleHooks "context" $) | nindent 12 }}
           {{- end }}
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
+          volumeMounts: {{- include "authup.console.volumeMounts" (dict "context" $) | nindent 12 }}
             {{- if .Values.adminConsole.extraVolumeMounts }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraVolumeMounts "context" $) | nindent 12 }}
             {{- end }}
         {{- if .Values.adminConsole.sidecars }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.sidecars "context" $) | nindent 8 }}
         {{- end }}
-      volumes:
-        - name: tmp
-          emptyDir: {}
+      volumes: {{- include "authup.console.volumes" (dict "context" $) | nindent 8 }}
         {{- if .Values.adminConsole.extraVolumes }}
         {{- include "authup.tplvalues.render" (dict "value" .Values.adminConsole.extraVolumes "context" $) | nindent 8 }}
         {{- end }}

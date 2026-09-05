@@ -1,106 +1,84 @@
-# authup (the application)
+# authup application mapping
 
-Repo: https://github.com/authup/authup (local checkout commonly at
-`/opt/projects/authup/authup`). The chart encodes facts about the app; verify
-against these sources when authup releases change behavior. Pinned against the
-v1.0.0-beta.63 line (chart `appVersion`).
+Repository: https://github.com/authup/authup. A local checkout commonly exists
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.64, the
+chart `appVersion`.
 
-## Image / entrypoint contract
+## Image and CLI
 
-| Fact | authup source | Chart counterpart |
+| Authup contract | Upstream source | Chart counterpart |
 |---|---|---|
-| One image `authup/authup`, arg-dispatched entrypoint (`server/core start`, `client/admin-console start`, `server/core migration run`, `server/core healthcheck`) | `Dockerfile`, `entrypoint.sh` (repo root) | `args` in `templates/{server,admin-console}/deployment.yaml`, `server/migration-job.yaml` |
-| Entrypoint force-exports `PORT=3000` / `NUXT_PORT=3000` (chart-set PORT is dead) | `entrypoint.sh` | containerPort pinned 3000 everywhere |
-| Image runs as root; writable directory `/var/lib/authup` (moved there from `/usr/src/app/writable` in v1.0.0-beta.63, authup/authup#3474) + npm cache. The CODE default is still `<rootPath>/writable`, so only the image sets the FHS path | `Dockerfile` (`WRITABLE_DIRECTORY_PATH`, no `USER`), `apps/server-core/src/app/modules/config/read/env.ts` | emptyDir mounts + `npm_config_cache=/tmp/.npm-cache`; root securityContext default. The chart SETS `WRITABLE_DIRECTORY_PATH` to the path it mounts instead of inheriting the image default, so it works on either side of that bump and with a pinned older `image.tag` |
-| `latest`/`<version>`/`beta`/`next` tags | `.github/workflows/release.yml`, `docker-nightly.yml` | `image.tag` defaults to `Chart.AppVersion` |
-| `authup` CLI supervisor NOT routable through the entrypoint | `entrypoint.sh` case statement | chart never offers a combined pod |
-| An unknown service arg EXITS 1 since beta.59 (it used to exit 0 and start nothing); `client/web` was renamed `client/admin-console` with no alias | `entrypoint.sh` `*)` branch | chart already passes `client/admin-console` |
+| One `authup/authup` image with direct CLI args | `Dockerfile`, `entrypoint.sh` | `authup.appImage`; every application Deployment |
+| Combined service: `start` | `apps/authup/src/commands/start.ts` | `server/deployment.yaml` default |
+| API only: `start core` | `apps/authup/src/module.ts`, command tests | server when `server.splitConsoles=true` |
+| Split consoles: `start console auth`, `start console admin`, `start console account` | `apps/authup/src/console/`, `apps/server-*-console/` | the three console directories |
+| Background worker: `start worker` | `apps/authup/src/module.ts`, `apps/server-core/src/app/modules/components/module.ts` | `worker/deployment.yaml` |
+| Migration: `migration run` | `apps/server-core/src/cli/commands/migration.ts` | `server/migration-job.yaml` |
+| Core port 3000; console ports 3020/3021/3022 | `packages/server-config/src/sections/*/schema.ts`, `Dockerfile` | role `containerPorts` and Services |
 
-## server-core env surface
+Do not use the pre-beta.64 prefixes `server/core` and
+`client/admin-console`. A worker has no HTTP listener; it must not gain a
+Service or HTTP probes.
 
-Source of truth: `apps/server-core/src/app/modules/config/`
-(`constants.ts` = `ConfigEnvironmentVariableName` enum, `read/env.ts`,
-`normalize.ts` defaults + cross-field boot validation, `validator.ts`).
-Docs mirror: `docs/src/guide/deployment/configuration-server-core*.md`.
+## Unified configuration
 
-| authup env | Chart source |
-|---|---|
-| `DB_TYPE/HOST/PORT/USERNAME/PASSWORD/DATABASE` (mysql, postgres, better-sqlite3 only; sqlite forbidden in production) | `_database.tpl` dispatch + `authup.server.configEnv` / `secretEnv` |
-| `REDIS` (bool or full URL; there is NO `REDIS_URL`) | `secret-redis.yaml` / `valkey/secret.yaml` connection-string key |
-| `SMTP` (URL form; per-field SMTP is config-file-only) | `secret-smtp.yaml` |
-| `PUBLIC_URL`, `TRUSTED_ORIGINS`, `TRUST_PROXY` (app default trusts every hop; chart pins "1") | `_urls.tpl` + `authup.server.configEnv` |
-| `REGISTRATION_ENABLED`, `PASSWORD_RECOVERY_ENABLED`, `EMAIL_VERIFICATION_ENABLED`, `MFA_ENABLED`, `MFA_REQUIRED` (strict booleans: unparsable value crashes boot) | `server.features.*` / `server.mfa.*`, always quoted |
-| `ACCOUNT_CONSOLE_ENABLED` (beta.62, default true): serves the `/account` self-service SPA off the IdP origin | `server.features.accountConsole` |
-| `THEME_DIRECTORY_PATH` / `THEME_FRAGMENTS_ENABLED` (beta.59, EXPERIMENTAL): operator theme for the two served consoles; manifest at `<root>/theme.json`, HTTP mount root is `<root>/assets` only | `server.theme.*` (the chart composes theme.json) |
-| `AUTH_CONSOLE_PATH` / `ACCOUNT_CONSOLE_PATH`: substitute a whole console package, boot-asserted `CONTRACT_VERSION` | deliberately NOT first-class; `server.config` + `extraVolumes` escape hatch |
-| `USER_ADMIN_PASSWORD(_RESET)`, `CLIENT_SYSTEM_ENABLED/SECRET(_RESET)` | `auth.*` values + chart-managed secret |
-| `SECRETS_ENCRYPTION_KEY` (base64 32 bytes; write-once, removal with wrapped rows fails loud) | `auth.secretsEncryptionKey(+Enabled)`, never generated, never optional |
-| Cross-field boot validations (throttle needs event log, mfaRequired needs mfaEnabled, KEK length) | mirrored as render-time guards in `templates/validations.yaml` |
-| `TRUSTED_ORIGINS` rejects `**` in a host at boot since beta.59 (`config/origins.ts`, `patternHasGlobstarInAuthority`); a single `*` is a supported host wildcard | `authup.assertTrustedOrigin` in `_urls.tpl`, asserted after tpl rendering |
+The single schema is in `packages/server-config/src/`. Every service reads one
+`authup.yml`; each role selects its relevant sections.
 
-Config file: `authup.server.core.conf` in the process cwd
-(`app/modules/config/read/fs.ts`; env always wins) -> `server.configuration` /
-`server.existingConfigmap` mount. Provisioning files:
-`<writable>/provisioning/*` scanned at boot, fail-closed
-(`app/modules/provisioning/module.ts`) -> `server.provisioning.*` mount.
+| Authup setting | Upstream source | Chart counterpart |
+|---|---|---|
+| config file `authup.yml` | `packages/server-config/src/read/fs.ts` | `/etc/authup/authup.yml`, key `authup.yml` |
+| `PUBLIC_URL`, `INTERNAL_URL` | `sections/root/schema.ts`, `helpers/public-url.ts` | `_urls.tpl`, `_console-env.tpl` |
+| `LOG_DIRECTORY_PATH` | `sections/core/schema.ts`, Dockerfile | `/var/log/authup` log emptyDir |
+| `PROVISIONING_DIRECTORY_PATH` | `sections/core/schema.ts`, Dockerfile | `/etc/authup/provisioning` |
+| `WORKER_ENABLED`, `MIGRATION_ENABLED` | `sections/core/schema.ts` | explicit role ownership in Deployments |
+| `AUTH_CONSOLE_PORT`, `ADMIN_CONSOLE_PORT`, `ACCOUNT_CONSOLE_PORT` | console section schemas | `_console-env.tpl` |
+| database, Redis, SMTP and strict feature flags | section schemas and `constants.ts` | `_server-env.tpl`, `_database.tpl`, Secrets |
 
-## client-admin-console env surface
+Environment values win over file values. File-only database options still make
+the config mount load-bearing for `migration run`.
 
-Runtime config only (prebuilt Nitro bundle; bare `API_URL` etc. are build-time
-and dead): `apps/client-admin-console/nuxt.config.ts`,
-`docs/src/guide/deployment/configuration-client-admin-console.md`.
-`NUXT_PUBLIC_API_URL` (browser-reachable server URL), `NUXT_PUBLIC_PUBLIC_URL`,
-`NUXT_API_URL` (SSR-side override), `NUXT_PUBLIC_COOKIE_DOMAIN` (deliberately
-never set by the chart: sharing a cookie domain with the server origin is
-unsupported per `.agents/architecture.md` in the monorepo),
-`NUXT_PUBLIC_CLIENT_ID` (beta.59+, defaults to the per-realm built-in
-`admin-console` client; fork-only override, reachable via
-`adminConsole.config`). Chart counterpart: `_admin-console-env.tpl`.
+## Role boundaries
 
-## Operational contract
+- `start` combines core, enabled consoles and worker behavior in one process.
+- `start core` serves the API only. If a dedicated worker exists, the API must
+  receive `WORKER_ENABLED=false`.
+- `start worker` requires `WORKER_ENABLED=true` and database/cache config. It
+  does not need SMTP, bootstrap identity secrets, HTTP probes, or migrations.
+- Split consoles use the deployment-wide `PUBLIC_URL`. Server-side console
+  calls use `INTERNAL_URL`, which the chart points at the core Service.
+- `ACCOUNT_CONSOLE_ENABLED` and `ADMIN_CONSOLE_ENABLED` describe whether those
+  surfaces are available. The chart maps them from the top-level console
+  `enabled` values in both combined and split modes.
 
-- `GET /` = anonymous status endpoint `{version, date, features}`
-  (`adapters/http/controllers/workflows/status/`) -> liveness/readiness for
-  server-core; client-admin-console uses its SSR `/`.
-- server-core auto-runs migrations + provisioning at boot
-  (`app/modules/database/module.ts`; no off-switch) -> generous startupProbe;
-  optional pre-upgrade migration Job for multi-replica DDL serialization.
-- `migration run` (`cli/commands/migration.ts`, `defineCLIMigrationCommand`)
-  builds only three modules: config, logger, database. No http, cache, mail,
-  identity or provisioning module. It therefore ignores `REDIS` / `SMTP`, and
-  never scans `<writable>/provisioning` (`ProvisionerModule` is registered by
-  `createApplication()`, i.e. the `start` command only) -> the chart drops all
-  three from the migration Job.
-- `migration run` DOES read the config file, unconditionally: `createCLIConfigModule`
-  passes `fs: {}` (truthy) into `readConfig`, so `readConfigRawFromFS` runs
-  (`config/read/fs.ts`). Env wins per key, but the db keys typeorm-extension's
-  env reader does not name survive: `ssl`, `socketPath`, `replication`,
-  `poolSize`, `charset`, `extensions` (postgres `CREATE EXTENSION` during
-  `initialize()`). So the config file decides how the migration connects and
-  what it creates -> the chart MUST mount it on the Job. (`entities` and
-  `subscribers` are NOT in that set: `DB_ENTITIES` / `DB_SUBSCRIBERS` exist.
-  Dump the real list with
-  `grep -rhoE "DB_[A-Z_]+" node_modules/typeorm-extension/dist | sort -u`.)
-- Under `NODE_ENV=production` (baked into the image) `migration run` needs the
-  writable directory before it touches the database: the logger adds winston
-  File transports for `<writable>/http.log` and `<writable>/error.log`, and the
-  transport does `mkdirSync` + open eagerly. An unwritable path is a hard ENOENT
-  failure of the command, not a degradation -> the Job keeps the writable mount.
-- Replicas > 1 without redis: per-process MemoryCache breaks auth codes,
-  revocations, MFA challenges (`app/modules/cache/module.ts`) -> hard
-  validation in the chart.
-- `GET /metrics` is unauthenticated (`middlewarePrometheus` default on) ->
-  ServiceMonitor targets the Service; ingress warning in values/NOTES.
-- In-process cron sweepers (oauth2-cleaner, event-cleaner) are idempotent
-  deletes; no leader election needed.
-- Reserved client names: `admin-console` and `account-console` are provisioned
-  as built-in system clients in EVERY realm and take over a pre-existing client
-  of that name (beta.59). The shared per-realm `web` client was removed in the
-  same release; `TRUSTED_ORIGINS` now feeds the system clients' redirect
-  allowlists. NOTES warns against declaring either name in
-  `server.provisioning`.
-- beta.60 ships a heavy migration (140 indexes, MySQL `varchar(36)` ->
-  `varchar(255)` table rewrites, three dropped tables) and beta.62 adds a
-  unique constraint on `auth_identity_provider_accounts` that ABORTS the boot
-  on pre-existing duplicates. Both are arguments for
-  `server.migration.enabled` on an upgrade, not just for multi-replica.
+## Migrations and provisioning
+
+Core startup can initialize and migrate the database. The chart therefore lets
+fresh installs boot normally after built-in backing services are created. The
+optional migration Job is pre-upgrade only and sets `MIGRATION_ENABLED=false`
+on upgrade server pods so ownership is not duplicated.
+
+The migration command constructs configuration, logger and database modules.
+It does not need provisioning, Redis, SMTP, HTTP, or bootstrap identity data.
+It does need database credentials and `authup.yml`; the chart gives it a
+hook-scoped config copy because pre-upgrade hooks run before regular release
+resources.
+
+Provisioning files are read from `PROVISIONING_DIRECTORY_PATH` at core startup.
+The chart mounts them read-only at `/etc/authup/provisioning`. Reserved client
+names `admin-console` and `account-console` remain application-owned system
+clients and must not be declared as user provisioning entries.
+
+## Security and availability facts
+
+- The production image cannot use SQLite, so a real database is mandatory.
+- `REDIS` is the connection variable; `REDIS_URL` is not part of the contract.
+- More than one API replica needs shared Redis for authorization codes,
+  revocations and MFA challenges.
+- `SECRETS_ENCRYPTION_KEY` is a base64 32-byte write-once key. Loss or rotation
+  makes wrapped MFA and signing material unreadable.
+- `GET /` is the anonymous core health endpoint. `/metrics` is unauthenticated
+  when enabled.
+- Split console prefixes must be removed before requests reach their listeners.
+  Admin/account login start and callback endpoints are core API routes, not
+  console asset routes.

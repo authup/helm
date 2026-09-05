@@ -1,4 +1,13 @@
 {{- if and .Values.server.enabled (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) }}
+{{- $exactPaths := list -}}
+{{- if and .Values.server.splitConsoles .Values.adminConsole.enabled -}}
+{{- $exactPaths = append $exactPaths "/console/admin/login/start" -}}
+{{- $exactPaths = append $exactPaths "/console/admin/callback" -}}
+{{- end -}}
+{{- if and .Values.server.splitConsoles .Values.accountConsole.enabled -}}
+{{- $exactPaths = append $exactPaths "/console/account/login/start" -}}
+{{- $exactPaths = append $exactPaths "/console/account/callback" -}}
+{{- end -}}
 {{- include "authup.httproute" (dict
   "context" $
   "component" "server"
@@ -7,5 +16,6 @@
   "serviceName" (include "authup.server.fullname" .)
   "servicePort" .Values.server.service.ports.http
   "publicUrl" (include "authup.server.publicUrl" .)
+  "exactPaths" $exactPaths
 ) }}
 {{- end }}

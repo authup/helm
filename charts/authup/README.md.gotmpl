@@ -22,16 +22,15 @@
 ![Version](https://img.shields.io/badge/Version-{{ template "chart.version" . }}?style=flat-square&color=informational) <!-- x-release-please-version -->
 {{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
 
-{{ template "chart.description" . }} It deploys:
+{{ template "chart.description" . }} It runs Authup v1.0.0-beta.64's role-based
+CLI topology:
 
-- **server-core** — the Authup IdP/API service: the OAuth2/OIDC protocol
-  surface, the server-rendered auth pages (login, consent, registration,
-  password recovery) and the `/account` self-service console
-  (`server.features.accountConsole`). This is the identity origin.
-- **client-admin-console** — the Nuxt-based admin UI, an ordinary OAuth2 relying party
-  (optional; disable with `adminConsole.enabled=false` for a headless IdP).
-- optionally, single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
-  instances on docker-official images — a convenience for dev and small
+- one combined API and console workload by default (`start`)
+- optional split API (`start core`) plus auth, admin and account console
+  workloads (`start console <name>`), enabled with `server.splitConsoles=true`
+- an optional dedicated background worker (`start worker`)
+- optional single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
+  instances on docker-official images, a convenience for dev and small
   deployments, not the production database story.
 
 > This chart is pre-1.0: breaking changes land on the middle version digit and
@@ -47,8 +46,8 @@ helm install authup authup/authup
 helm install authup oci://ghcr.io/authup/helm/authup
 ```
 
-The default install brings up server-core, the admin UI and a built-in
-PostgreSQL. Retrieve the generated admin password:
+The default install starts the combined server and a built-in PostgreSQL.
+Retrieve the generated admin password:
 
 ```bash
 kubectl get secret authup -o jsonpath='{.data.admin-password}' | base64 -d
@@ -58,15 +57,16 @@ kubectl get secret authup -o jsonpath='{.data.admin-password}' | base64 -d
 
 ```yaml
 server:
+  publicUrl: https://auth.example.com
   ingress:
     enabled: true
     hostname: auth.example.com
     tls: true
-ui:
-  ingress:
+  migration:
     enabled: true
-    hostname: authup.example.com
-    tls: true
+
+worker:
+  enabled: true
 
 postgresql:
   enabled: false
@@ -83,9 +83,40 @@ auth:
   existingSecret: my-authup-secret   # admin-password (+ optional system-client-secret, secrets-encryption-key)
 ```
 
-`PUBLIC_URL`, `NUXT_PUBLIC_API_URL`, `NUXT_PUBLIC_PUBLIC_URL` and
-`TRUSTED_ORIGINS` are derived from the two ingress hostnames automatically —
-the UI origin is appended to the trusted origins so logins work out of the box.
+`PUBLIC_URL` is derived from `server.ingress` when it is not set directly.
+The combined server, split consoles and API must share this public origin.
+Split Ingress resources use ingress-nginx rewrites for `/console/auth`,
+`/console/admin` and `/console/account`; Gateway API HTTPRoutes express the
+same topology with portable `URLRewrite` filters.
+
+To scale or isolate roles independently while keeping one browser origin:
+
+```yaml
+server:
+  publicUrl: https://auth.example.com
+  splitConsoles: true
+  ingress:
+    enabled: true
+    hostname: auth.example.com
+    tls: true
+
+authConsole:
+  ingress:
+    enabled: true
+adminConsole:
+  enabled: true
+  ingress:
+    enabled: true
+accountConsole:
+  enabled: true
+  ingress:
+    enabled: true
+```
+
+The split auth console is required because it owns the login flow. Disable the
+admin or account console independently when those surfaces are not needed. The
+public URL must remain at the origin root; split mode reserves the `/console/*`
+prefixes shown above.
 
 Notable operational facts (enforced or warned about by the chart):
 
@@ -97,6 +128,10 @@ Notable operational facts (enforced or warned about by the chart):
   credentials and the OIDC issuer.
 - **`auth.secretsEncryptionKey` is write-once.** The chart never generates it;
   set it deliberately and back it up.
+- **Configuration is mounted at `/etc/authup/authup.yml`.** Provisioning files
+  live under `/etc/authup/provisioning`; file logs use `/var/log/authup`.
+- **The migration Job is upgrade-only.** Fresh installs let the server create
+  its database after built-in database resources become ready.
 - The long tail of Authup options is available via `server.config` (plain
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
@@ -104,7 +139,7 @@ Notable operational facts (enforced or warned about by the chart):
 
 ## Theming the served consoles
 
-Both consoles server-core serves (the auth pages and `/account`) are rebranded
+The served consoles (the auth pages, `/console/admin` and `/console/account`) are rebranded
 from a directory the chart mounts read-only. Set the manifest as values and the
 chart composes `theme.json` for you; `files` carries the assets it references:
 

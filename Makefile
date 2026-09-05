@@ -1,7 +1,7 @@
 HELM_DOCS_VERSION := v1.14.2
 HELM_SCHEMA_VERSION := 0.18.1
 
-.PHONY: docs schema lint lint-values-coverage template test
+.PHONY: docs schema lint lint-values-coverage lint-beta64-contract template test
 
 ## Generate per-chart README.md from README.md.gotmpl + values.yaml comments.
 docs:
@@ -21,6 +21,10 @@ lint:
 lint-values-coverage:
 	python3 scripts/check-values-coverage.py charts/authup
 
+## Assert the authup beta.64 process, configuration and filesystem contract.
+lint-beta64-contract:
+	python3 scripts/check-beta64-contract.py charts/authup all
+
 ## Render the chart with every ci values file.
 template:
 	@for f in charts/authup/ci/*-values.yaml; do \
@@ -29,4 +33,4 @@ template:
 	done
 	@echo "all ci values render"
 
-test: lint template lint-values-coverage
+test: lint template lint-values-coverage lint-beta64-contract

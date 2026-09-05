@@ -1,0 +1,131 @@
+{{- if and .Values.server.enabled .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "authup.worker.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "worker") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+spec:
+  {{- if not .Values.worker.autoscaling.hpa.enabled }}
+  replicas: {{ .Values.worker.replicaCount }}
+  {{- end }}
+  revisionHistoryLimit: {{ .Values.worker.revisionHistoryLimit }}
+  {{- if .Values.worker.updateStrategy }}
+  strategy: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.updateStrategy "context" $) | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels: {{- include "authup.matchLabels" (dict "context" $ "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      labels: {{- include "authup.labels" (dict "context" $ "component" "worker") | nindent 8 }}
+        {{- if .Values.worker.podLabels }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.worker.podLabels "context" $) | nindent 8 }}
+        {{- end }}
+      annotations:
+        {{- if not .Values.worker.disableRestartOnChanges }}
+        checksum/env: {{ include "authup.server.configEnv" . | sha256sum }}
+        {{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host .Values.externalDatabase.password (not .Values.externalDatabase.existingSecret) }}
+        checksum/secret-db: {{ include (print $.Template.BasePath "/secret-db.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and (not .Values.valkey.enabled) (not .Values.externalRedis.existingSecret) (or .Values.externalRedis.url .Values.externalRedis.host) }}
+        checksum/secret-redis: {{ include (print $.Template.BasePath "/secret-redis.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.server.configuration }}
+        checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.worker.podAnnotations }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.worker.podAnnotations "context" $) | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "authup.serviceAccountName" . }}
+      automountServiceAccountToken: {{ .Values.serviceAccount.automountServiceAccountToken }}
+      {{- include "authup.imagePullSecrets" . | nindent 6 }}
+      {{- if .Values.worker.podSecurityContext.enabled }}
+      securityContext: {{- include "authup.securityContext" .Values.worker.podSecurityContext | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.priorityClassName }}
+      priorityClassName: {{ .Values.worker.priorityClassName }}
+      {{- end }}
+      {{- if .Values.worker.schedulerName }}
+      schedulerName: {{ .Values.worker.schedulerName }}
+      {{- end }}
+      {{- if .Values.worker.hostAliases }}
+      hostAliases: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.hostAliases "context" $) | nindent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
+      {{- if .Values.worker.affinity }}
+      affinity: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.affinity "context" $) | nindent 8 }}
+      {{- else if .Values.worker.podAntiAffinityPreset }}
+      affinity: {{- include "authup.podAntiAffinity" (dict "context" $ "component" "worker" "preset" .Values.worker.podAntiAffinityPreset) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.nodeSelector }}
+      nodeSelector: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.nodeSelector "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.tolerations }}
+      tolerations: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.tolerations "context" $) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- include "authup.topologySpreadConstraints" (dict "context" $ "component" "worker" "constraints" .Values.worker.topologySpreadConstraints) | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.initContainers }}
+      initContainers: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.initContainers "context" $) | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: worker
+          image: {{ include "authup.appImage" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.worker.containerSecurityContext.enabled }}
+          securityContext: {{- include "authup.securityContext" .Values.worker.containerSecurityContext | nindent 12 }}
+          {{- end }}
+          {{- if .Values.diagnosticMode.enabled }}
+          command: {{- toYaml .Values.diagnosticMode.command | nindent 12 }}
+          args: {{- toYaml .Values.diagnosticMode.args | nindent 12 }}
+          {{- else }}
+          {{- if .Values.worker.command }}
+          command: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.command "context" $) | nindent 12 }}
+          {{- end }}
+          {{- if .Values.worker.args }}
+          args: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.args "context" $) | nindent 12 }}
+          {{- else }}
+          args:
+            - start
+            - worker
+          {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ printf "%s-env" (include "authup.server.fullname" .) }}
+            {{- if .Values.worker.extraEnvVarsCM }}
+            - configMapRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.worker.extraEnvVarsCM "context" $) }}
+            {{- end }}
+            {{- if .Values.worker.extraEnvVarsSecret }}
+            - secretRef:
+                name: {{ include "authup.tplvalues.render" (dict "value" .Values.worker.extraEnvVarsSecret "context" $) }}
+            {{- end }}
+          env: {{- include "authup.server.secretEnv" (dict "context" $ "role" "worker") | nindent 12 }}
+            - name: WORKER_ENABLED
+              value: "true"
+            {{- if .Values.worker.extraEnvVars }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.worker.extraEnvVars "context" $) | nindent 12 }}
+            {{- end }}
+          {{- if .Values.worker.resources }}
+          resources: {{- toYaml .Values.worker.resources | nindent 12 }}
+          {{- end }}
+          {{- if .Values.worker.lifecycleHooks }}
+          lifecycle: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.lifecycleHooks "context" $) | nindent 12 }}
+          {{- end }}
+          volumeMounts: {{- include "authup.server.volumeMounts" (dict "context" $ "role" "worker") | nindent 12 }}
+            {{- if .Values.worker.extraVolumeMounts }}
+            {{- include "authup.tplvalues.render" (dict "value" .Values.worker.extraVolumeMounts "context" $) | nindent 12 }}
+            {{- end }}
+        {{- if .Values.worker.sidecars }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.worker.sidecars "context" $) | nindent 8 }}
+        {{- end }}
+      volumes: {{- include "authup.server.volumes" (dict "context" $ "role" "worker") | nindent 8 }}
+        {{- if .Values.worker.extraVolumes }}
+        {{- include "authup.tplvalues.render" (dict "value" .Values.worker.extraVolumes "context" $) | nindent 8 }}
+        {{- end }}
+{{- end }}

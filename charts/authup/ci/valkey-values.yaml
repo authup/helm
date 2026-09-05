@@ -14,13 +14,9 @@ server:
   # the hook-scoped copy exists for. Deliberately a no-op option: a db block
   # here would fight the connection this scenario installs.
   configuration: |
-    logger: true
+    core:
+      logger: true
   resources:
     requests:
       cpu: 50m
       memory: 256Mi
-adminConsole:
-  resources:
-    requests:
-      cpu: 25m
-      memory: 128Mi

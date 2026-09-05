@@ -1,0 +1,10 @@
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.authConsole.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ printf "%s-env" (include "authup.authConsole.fullname" .) }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "auth-console") | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+data: {{- include "authup.console.configEnv" (dict "context" $ "values" .Values.authConsole "key" "authConsole" "prefix" "AUTH") | nindent 2 }}
+{{- end }}

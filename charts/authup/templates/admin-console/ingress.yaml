@@ -1,9 +1,54 @@
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled }}
-{{- include "authup.ingress" (dict
-  "context" $
-  "component" "admin-console"
-  "name" (include "authup.adminConsole.fullname" .)
-  "ingress" .Values.adminConsole.ingress
-  "serviceName" (include "authup.adminConsole.fullname" .)
-) }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled }}
+{{- $ingress := .Values.adminConsole.ingress -}}
+{{- $hostname := $ingress.hostname | default .Values.server.ingress.hostname -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "authup.adminConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- with omit ($ingress.annotations | default dict) "nginx.ingress.kubernetes.io/use-regex" "nginx.ingress.kubernetes.io/rewrite-target" }}
+    {{- include "authup.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if $ingress.certManager }}
+    kubernetes.io/tls-acme: "true"
+    {{- end }}
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  {{- if $ingress.ingressClassName }}
+  ingressClassName: {{ $ingress.ingressClassName | quote }}
+  {{- end }}
+  rules:
+    {{- if $hostname }}
+    - host: {{ include "authup.tplvalues.render" (dict "value" $hostname "context" $) | quote }}
+      http:
+        paths:
+          - path: /console/admin(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ include "authup.adminConsole.fullname" . }}
+                port:
+                  name: http
+          {{- if $ingress.extraPaths }}
+          {{- include "authup.tplvalues.render" (dict "value" $ingress.extraPaths "context" $) | nindent 10 }}
+          {{- end }}
+    {{- end }}
+    {{- if $ingress.extraRules }}
+    {{- include "authup.tplvalues.render" (dict "value" $ingress.extraRules "context" $) | nindent 4 }}
+    {{- end }}
+  {{- if or (and $hostname (or $ingress.tls $ingress.certManager)) $ingress.extraTls }}
+  tls:
+    {{- if and $hostname (or $ingress.tls $ingress.certManager) }}
+    - hosts:
+        - {{ include "authup.tplvalues.render" (dict "value" $hostname "context" $) | quote }}
+      secretName: {{ printf "%s-tls" (include "authup.adminConsole.fullname" .) | quote }}
+    {{- end }}
+    {{- if $ingress.extraTls }}
+    {{- include "authup.tplvalues.render" (dict "value" $ingress.extraTls "context" $) | nindent 4 }}
+    {{- end }}
+  {{- end }}
 {{- end }}

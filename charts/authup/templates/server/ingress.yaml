@@ -1,9 +1,19 @@
 {{- if and .Values.server.enabled .Values.server.ingress.enabled }}
+{{- $firstPaths := list -}}
+{{- if and .Values.server.splitConsoles .Values.adminConsole.enabled -}}
+{{- $firstPaths = append $firstPaths (dict "path" "/console/admin/login/start" "serviceName" (include "authup.server.fullname" .)) -}}
+{{- $firstPaths = append $firstPaths (dict "path" "/console/admin/callback" "serviceName" (include "authup.server.fullname" .)) -}}
+{{- end -}}
+{{- if and .Values.server.splitConsoles .Values.accountConsole.enabled -}}
+{{- $firstPaths = append $firstPaths (dict "path" "/console/account/login/start" "serviceName" (include "authup.server.fullname" .)) -}}
+{{- $firstPaths = append $firstPaths (dict "path" "/console/account/callback" "serviceName" (include "authup.server.fullname" .)) -}}
+{{- end -}}
 {{- include "authup.ingress" (dict
   "context" $
   "component" "server"
   "name" (include "authup.server.fullname" .)
   "ingress" .Values.server.ingress
   "serviceName" (include "authup.server.fullname" .)
+  "firstPaths" $firstPaths
 ) }}
 {{- end }}

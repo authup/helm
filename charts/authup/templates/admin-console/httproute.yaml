@@ -1,11 +1,47 @@
-{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) }}
-{{- include "authup.httproute" (dict
-  "context" $
-  "component" "admin-console"
-  "name" (include "authup.adminConsole.fullname" .)
-  "route" .Values.adminConsole.route
-  "serviceName" (include "authup.adminConsole.fullname" .)
-  "servicePort" .Values.adminConsole.service.ports.http
-  "publicUrl" (include "authup.adminConsole.publicUrl" .)
-) }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) }}
+{{- $route := .Values.adminConsole.route -}}
+{{- $hostnames := $route.hostnames -}}
+{{- if not $hostnames -}}
+{{- $origin := include "authup.urlOrigin" (include "authup.server.publicUrl" .) -}}
+{{- if $origin -}}
+{{- $hostnames = list (regexReplaceAll ":[0-9]+$" (regexReplaceAll "^https?://" $origin "") "") -}}
+{{- end -}}
+{{- end -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "authup.adminConsole.fullname" . }}
+  namespace: {{ include "authup.namespace" . | quote }}
+  labels: {{- include "authup.labels" (dict "context" $ "component" "admin-console") | nindent 4 }}
+  annotations:
+    {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+    {{- if $route.annotations }}
+    {{- include "authup.tplvalues.render" (dict "value" $route.annotations "context" $) | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if $route.parentRefs }}
+  parentRefs: {{- include "authup.tplvalues.render" (dict "value" $route.parentRefs "context" $) | nindent 4 }}
+  {{- else if .Values.server.route.parentRefs }}
+  parentRefs: {{- include "authup.tplvalues.render" (dict "value" .Values.server.route.parentRefs "context" $) | nindent 4 }}
+  {{- end }}
+  {{- if $hostnames }}
+  hostnames:
+    {{- range $hostnames }}
+    - {{ include "authup.tplvalues.render" (dict "value" . "context" $) | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /console/admin
+      filters:
+        - type: URLRewrite
+          urlRewrite:
+            path:
+              type: ReplacePrefixMatch
+              replacePrefixMatch: /
+      backendRefs:
+        - name: {{ include "authup.adminConsole.fullname" . }}
+          port: {{ .Values.adminConsole.service.ports.http }}
 {{- end }}

@@ -45,8 +45,65 @@ database is configured while the mounted file is the operator's.
 {{- fail "authup: server.configuration and server.existingConfigmap are mutually exclusive. The existing ConfigMap is the one that gets mounted, so the inline content would be silently dropped: move it into that ConfigMap, or drop server.existingConfigmap." }}
 {{- end }}
 
-{{- if and .Values.adminConsole.enabled (not .Values.server.enabled) (not .Values.adminConsole.apiUrl) }}
-{{- fail "authup: adminConsole.enabled without server.enabled requires adminConsole.apiUrl (the browser-reachable URL of an external authup server-core)." }}
+{{- if not (eq (toString .Values.server.features.accountConsole) "") }}
+{{- fail "authup: server.features.accountConsole moved to accountConsole.enabled in the beta.64 topology." }}
+{{- end }}
+
+{{- if and .Values.server.splitConsoles (not .Values.server.enabled) }}
+{{- fail "authup: server.splitConsoles requires server.enabled=true." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles (not .Values.authConsole.enabled) }}
+{{- fail "authup: server.splitConsoles requires authConsole.enabled=true because the auth console owns the login flow." }}
+{{- end }}
+{{- if .Values.server.splitConsoles }}
+{{- $publicUrl := include "authup.server.publicUrl" . }}
+{{- if not $publicUrl }}
+{{- fail "authup: server.splitConsoles requires server.publicUrl or an enabled server.ingress with a hostname so every role shares one origin." }}
+{{- end }}
+{{- $path := (urlParse $publicUrl).path }}
+{{- if and $path (ne $path "/") }}
+{{- fail "authup: server.splitConsoles requires server.publicUrl at the origin root because the console routes use fixed /console/* paths." }}
+{{- end }}
+{{- $publicHostname := regexReplaceAll ":[0-9]+$" (urlParse $publicUrl).host "" }}
+{{- $serverRouteEnabled := include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled") }}
+{{- if $serverRouteEnabled }}
+{{- range .Values.server.route.hostnames }}
+{{- $hostname := include "authup.tplvalues.render" (dict "value" . "context" $) }}
+{{- if ne $hostname $publicHostname }}
+{{- fail "authup: server.route.hostnames must match server.publicUrl in split-console mode." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $name, $console := dict "authConsole" .Values.authConsole "adminConsole" .Values.adminConsole "accountConsole" .Values.accountConsole }}
+{{- if and $.Values.server.ingress.enabled $console.enabled $console.ingress.enabled $console.ingress.hostname }}
+{{- $serverIngressHostname := include "authup.tplvalues.render" (dict "value" $.Values.server.ingress.hostname "context" $) }}
+{{- $hostname := include "authup.tplvalues.render" (dict "value" $console.ingress.hostname "context" $) }}
+{{- if ne $hostname $serverIngressHostname }}
+{{- fail (printf "authup: %s.ingress.hostname must match server.ingress.hostname in split-console mode." $name) }}
+{{- end }}
+{{- end }}
+{{- if and $serverRouteEnabled $console.enabled (include "authup.flag" (dict "value" $console.route.enabled "context" $ "key" (printf "%s.route.enabled" $name))) }}
+{{- range $console.route.hostnames }}
+{{- $hostname := include "authup.tplvalues.render" (dict "value" . "context" $) }}
+{{- if ne $hostname $publicHostname }}
+{{- fail (printf "authup: %s.route.hostnames must match server.publicUrl in split-console mode." $name) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{/* Browser traffic reaches the API through the ingress controller; console peers do not cover it. */}}
+{{- if and .Values.server.enabled .Values.server.networkPolicy.enabled (not .Values.server.networkPolicy.allowExternal) (not .Values.server.networkPolicy.ingressPodMatchLabels) (not .Values.server.networkPolicy.ingressNSMatchLabels) (not .Values.server.networkPolicy.extraIngress) }}
+{{- fail "authup: server.networkPolicy.allowExternal=false needs an ingress source for browser traffic (ingressNSMatchLabels, ingressPodMatchLabels or extraIngress); split console peers do not cover it." }}
+{{- end }}
+{{- if and .Values.worker.enabled (not .Values.server.enabled) }}
+{{- fail "authup: worker.enabled requires server.enabled=true because the worker shares the server configuration and credentials." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles (or (and .Values.authConsole.enabled .Values.authConsole.ingress.enabled) (and .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled) (and .Values.accountConsole.enabled .Values.accountConsole.ingress.enabled)) (not .Values.server.ingress.enabled) }}
+{{- fail "authup: split console Ingress requires server.ingress.enabled=true so core owns the API and login callback paths." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles (or (and .Values.authConsole.enabled (include "authup.flag" (dict "value" .Values.authConsole.route.enabled "context" $ "key" "authConsole.route.enabled"))) (and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled"))) (and .Values.accountConsole.enabled (include "authup.flag" (dict "value" .Values.accountConsole.route.enabled "context" $ "key" "accountConsole.route.enabled")))) (not (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled"))) }}
+{{- fail "authup: split console HTTPRoute requires server.route.enabled=true so core owns the API and login callback paths." }}
 {{- end }}
 
 {{/* An external database password must be deliberate — never silently generated for a database the chart does not own. */}}
@@ -57,8 +114,14 @@ database is configured while the mounted file is the operator's.
 {{- if and .Values.server.ingress.enabled (not .Values.server.ingress.hostname) (not .Values.server.ingress.extraHosts) (not .Values.server.ingress.extraRules) }}
 {{- fail "authup: server.ingress.enabled requires server.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.adminConsole.ingress.extraHosts) (not .Values.adminConsole.ingress.extraRules) }}
-{{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname (or extraHosts / extraRules)." }}
+{{- if and .Values.server.splitConsoles .Values.authConsole.enabled .Values.authConsole.ingress.enabled (not .Values.authConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.authConsole.ingress.extraRules) }}
+{{- fail "authup: authConsole.ingress.enabled requires authConsole.ingress.hostname, server.ingress.hostname, or extraRules." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.adminConsole.ingress.extraRules) }}
+{{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname, server.ingress.hostname, or extraRules." }}
+{{- end }}
+{{- if and .Values.server.splitConsoles .Values.accountConsole.enabled .Values.accountConsole.ingress.enabled (not .Values.accountConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.accountConsole.ingress.extraRules) }}
+{{- fail "authup: accountConsole.ingress.enabled requires accountConsole.ingress.hostname, server.ingress.hostname, or extraRules." }}
 {{- end }}
 
 {{/*
@@ -69,7 +132,9 @@ reject a bad value either way, and widening it to [boolean, string] moved that
 job into the template.
 */}}
 {{- $_ := include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled") }}
+{{- $_ = include "authup.flag" (dict "value" .Values.authConsole.route.enabled "context" $ "key" "authConsole.route.enabled") }}
 {{- $_ = include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled") }}
+{{- $_ = include "authup.flag" (dict "value" .Values.accountConsole.route.enabled "context" $ "key" "accountConsole.route.enabled") }}
 
 {{/*
 A Gateway API HTTPRoute rule without `matches` defaults to PathPrefix "/", i.e. it
@@ -84,15 +149,8 @@ serves at "/" and expects the proxy to strip the prefix, hence match AND rewrite
 {{- fail (printf "authup: the server public URL carries the path %q but server.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). authup serves at \"/\" and expects the proxy to strip the prefix, so set both:\n  server.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  server.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
 {{- end }}
 {{- end }}
-{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) (not .Values.adminConsole.route.matches) }}
-{{- $path := (urlParse (include "authup.adminConsole.publicUrl" .)).path }}
-{{- if and $path (ne $path "/") }}
-{{- fail (printf "authup: the admin console public URL carries the path %q but adminConsole.route.matches is empty, which the Gateway API defaults to PathPrefix \"/\" (a catch-all on every hostname this route attaches to). Set both:\n  adminConsole.route.matches: [{path: {type: PathPrefix, value: %s}}]\n  adminConsole.route.filters: [{type: URLRewrite, urlRewrite: {path: {type: ReplacePrefixMatch, replacePrefixMatch: /}}}]" $path $path) }}
-{{- end }}
-{{- end }}
-
-{{/* URL values must carry a scheme — a scheme-less value would derive a broken "://" origin into TRUSTED_ORIGINS and crash-loop server-core. */}}
-{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl "adminConsole.publicUrl" .Values.adminConsole.publicUrl "adminConsole.apiUrl" .Values.adminConsole.apiUrl "adminConsole.internalApiUrl" .Values.adminConsole.internalApiUrl }}
+{{/* URL values must carry a scheme. */}}
+{{- range $key, $value := dict "server.publicUrl" .Values.server.publicUrl }}
 {{- if and $value (not (contains "{{" $value)) (not (regexMatch "^https?://" $value)) }}
 {{- fail (printf "authup: %s must be a full URL including the http(s):// scheme (got %q)." $key $value) }}
 {{- end }}
@@ -107,3 +165,6 @@ Deprecation tripwires: when a value moves, add a guard here that names the new
 location, e.g.
   if .Values.<oldKey> -> fail "authup: `<oldKey>` moved to `server.<newKey>` in chart 0.X. See BREAKING.md."
 */}}
+{{- if and .Values.server.config (hasKey .Values.server.config "WRITABLE_DIRECTORY_PATH") }}
+{{- fail "authup: server.config.WRITABLE_DIRECTORY_PATH is retired in beta.64: logs live at /var/log/authup and provisioning at /etc/authup/provisioning. See BREAKING.md." }}
+{{- end }}

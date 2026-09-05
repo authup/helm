@@ -106,8 +106,10 @@ spec:
           args: {{- include "authup.tplvalues.render" (dict "value" .Values.server.args "context" $) | nindent 12 }}
           {{- else }}
           args:
-            - server/core
             - start
+            {{- if .Values.server.splitConsoles }}
+            - core
+            {{- end }}
           {{- end }}
           {{- end }}
           envFrom:
@@ -122,6 +124,18 @@ spec:
                 name: {{ include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVarsSecret "context" $) }}
             {{- end }}
           env: {{- include "authup.server.secretEnv" (dict "context" $) | nindent 12 }}
+            {{- if .Values.worker.enabled }}
+            - name: WORKER_ENABLED
+              value: "false"
+            {{- end }}
+            {{- /* The Job precedes the pods on every helm upgrade and on every ArgoCD
+                   sync (PreSync). Only a database that survives the rollout keeps the
+                   Job's work, so ephemeral built-in stores keep boot migration on. */}}
+            {{- $dbPersists := or (not (or .Values.postgresql.enabled .Values.mysql.enabled)) (and .Values.postgresql.enabled (or .Values.postgresql.persistence.enabled .Values.postgresql.persistence.existingClaim)) (and .Values.mysql.enabled (or .Values.mysql.persistence.enabled .Values.mysql.persistence.existingClaim)) }}
+            {{- if and .Values.server.migration.enabled (or .Release.IsUpgrade (not .Values.useHelmHooks)) $dbPersists }}
+            - name: MIGRATION_ENABLED
+              value: "false"
+            {{- end }}
             {{- if .Values.server.extraEnvVars }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.server.extraEnvVars "context" $) | nindent 12 }}
             {{- end }}

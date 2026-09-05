@@ -1,4 +1,4 @@
-{{- if and .Values.adminConsole.enabled .Values.adminConsole.pdb.create }}
+{{- if and .Values.server.enabled .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.pdb.create }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:

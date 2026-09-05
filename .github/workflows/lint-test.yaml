@@ -47,6 +47,16 @@ jobs:
       - name: Check values coverage
         run: make lint-values-coverage
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Check Authup beta.64 contract
+        run: |
+          pip install PyYAML==6.0.2
+          make lint-beta64-contract
+
   lint-artifacthub:
     runs-on: ubuntu-latest
     container:

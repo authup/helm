@@ -32,6 +32,15 @@ spec:
     - host: {{ $hostname | quote }}
       http:
         paths:
+          {{- range .firstPaths }}
+          - path: {{ .path }}
+            pathType: Exact
+            backend:
+              service:
+                name: {{ .serviceName }}
+                port:
+                  name: http
+          {{- end }}
           - path: {{ $ing.path }}
             pathType: {{ $ing.pathType }}
             backend:
@@ -65,7 +74,7 @@ spec:
         - {{ $hostname | quote }}
       {{- /* Derived from the component name, not the hostname: a wildcard host
              would produce an invalid Secret name, and a shared hostname across
-             server + ui would make two ingresses fight over one secret. */}}
+             server + console would make two ingresses fight over one secret. */}}
       secretName: {{ printf "%s-tls" .name | quote }}
     {{- end }}
     {{- if $ing.extraTls }}
@@ -110,6 +119,15 @@ spec:
     {{- end }}
   {{- end }}
   rules:
+    {{- range .exactPaths }}
+    - matches:
+        - path:
+            type: Exact
+            value: {{ . | quote }}
+      backendRefs:
+        - name: {{ $.serviceName }}
+          port: {{ $.servicePort }}
+    {{- end }}
     - backendRefs:
         - name: {{ .serviceName }}
           port: {{ .servicePort }}

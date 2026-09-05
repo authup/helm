@@ -26,7 +26,8 @@ TRUST_PROXY: {{ .Values.server.trustProxy | toString | quote }}
 REGISTRATION_ENABLED: {{ .Values.server.features.registration | toString | quote }}
 PASSWORD_RECOVERY_ENABLED: {{ .Values.server.features.passwordRecovery | toString | quote }}
 EMAIL_VERIFICATION_ENABLED: {{ .Values.server.features.emailVerification | toString | quote }}
-ACCOUNT_CONSOLE_ENABLED: {{ .Values.server.features.accountConsole | toString | quote }}
+ACCOUNT_CONSOLE_ENABLED: {{ .Values.accountConsole.enabled | toString | quote }}
+ADMIN_CONSOLE_ENABLED: {{ .Values.adminConsole.enabled | toString | quote }}
 MFA_ENABLED: {{ .Values.server.mfa.enabled | toString | quote }}
 MFA_REQUIRED: {{ .Values.server.mfa.required | toString | quote }}
 {{- if .Values.auth.adminPasswordReset }}
@@ -38,15 +39,14 @@ CLIENT_SYSTEM_ENABLED: "true"
 CLIENT_SYSTEM_SECRET_RESET: "true"
 {{- end }}
 {{- end }}
-{{- /* Pinned to the path the volumeMounts use, not inherited from the image, whose default
-       moved here in v1.0.0-beta.63: a mount that stops matching it fails silently (logs on
-       the container layer, file provisioning scanning a directory that is not there). */}}
-WRITABLE_DIRECTORY_PATH: "/var/lib/authup"
-{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "WRITABLE_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
+{{- if .Values.server.provisioning.enabled }}
+PROVISIONING_DIRECTORY_PATH: "/etc/authup/provisioning"
+{{- end }}
+LOG_DIRECTORY_PATH: "/var/log/authup"
+{{- $reserved := list "DB_TYPE" "DB_HOST" "DB_PORT" "DB_USERNAME" "DB_DATABASE" "DB_PASSWORD" "PUBLIC_URL" "TRUSTED_ORIGINS" "TRUST_PROXY" "REGISTRATION_ENABLED" "PASSWORD_RECOVERY_ENABLED" "EMAIL_VERIFICATION_ENABLED" "ACCOUNT_CONSOLE_ENABLED" "ADMIN_CONSOLE_ENABLED" "WORKER_ENABLED" "MIGRATION_ENABLED" "MFA_ENABLED" "MFA_REQUIRED" "PROVISIONING_DIRECTORY_PATH" "LOG_DIRECTORY_PATH" "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" "USER_ADMIN_PASSWORD" "USER_ADMIN_PASSWORD_RESET" "CLIENT_SYSTEM_ENABLED" "CLIENT_SYSTEM_SECRET" "CLIENT_SYSTEM_SECRET_RESET" "REDIS" "SMTP" "SECRETS_ENCRYPTION_KEY" }}
 {{- range $key, $value := .Values.server.config }}
 {{- if has $key $reserved }}
-{{- $instead := ternary "server.extraEnvVars plus a matching server.extraVolumeMounts" "the dedicated value" (eq $key "WRITABLE_DIRECTORY_PATH") }}
-{{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through %s instead." $key $instead) }}
+{{- fail (printf "authup: server.config.%s collides with a first-class chart value — set it through the dedicated value instead." $key) }}
 {{- end }}
 {{ $key }}: {{ include "authup.tplvalues.render" (dict "value" ($value | toString) "context" $) | quote }}
 {{- end }}
@@ -55,9 +55,9 @@ WRITABLE_DIRECTORY_PATH: "/var/lib/authup"
 {{/*
 Secret-backed server-core env entries (valueFrom.secretKeyRef list).
 Shared by the Deployment and the migration Job.
-Usage: {{ include "authup.server.secretEnv" (dict "context" $ "hook" true) }}
+Usage: {{ include "authup.server.secretEnv" (dict "context" $ "role" "migration") }}
 
-"hook" marks the pre-upgrade migration Job and drops REDIS and SMTP. Not
+The migration role drops REDIS and SMTP. Not
 tidiness: both Secrets are ordinary release resources, and helm applies a
 pre-upgrade hook BEFORE the release manifest, so the upgrade that first enables
 valkey or SMTP would schedule a hook pod whose secretKeyRef target does not
@@ -71,34 +71,36 @@ CLIENT_SYSTEM_SECRET's key being conditional. The hook keeps exactly two:
 DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 */}}
 {{- define "authup.server.secretEnv" -}}
-{{- $ctx := required "authup.server.secretEnv: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
+{{- $ctx := required "authup.server.secretEnv: context is required" .context -}}
+{{- $role := .role | default "server" -}}
+{{- $server := eq $role "server" -}}
 - name: DB_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.database.secretName" $ctx }}
       key: {{ include "authup.database.passwordKey" $ctx }}
-{{- if and (not .hook) (include "authup.redis.enabled" $ctx) }}
+{{- if and (ne $role "migration") (include "authup.redis.enabled" $ctx) }}
 - name: REDIS
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.redis.secretName" $ctx }}
       key: {{ include "authup.redis.secretKey" $ctx }}
 {{- end }}
-{{- if and (not .hook) (include "authup.smtp.enabled" $ctx) }}
+{{- if and $server (include "authup.smtp.enabled" $ctx) }}
 - name: SMTP
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.smtp.secretName" $ctx }}
       key: {{ include "authup.smtp.secretKey" $ctx }}
 {{- end }}
-{{- if not .hook }}
+{{- if $server }}
 - name: USER_ADMIN_PASSWORD
   valueFrom:
     secretKeyRef:
       name: {{ include "authup.auth.secretName" $ctx }}
       key: {{ $ctx.Values.auth.secretKeys.adminPasswordKey }}
 {{- end }}
-{{- if and (not .hook) $ctx.Values.auth.systemClientEnabled }}
+{{- if and $server $ctx.Values.auth.systemClientEnabled }}
 - name: CLIENT_SYSTEM_SECRET
   valueFrom:
     secretKeyRef:
@@ -125,26 +127,24 @@ DB_PASSWORD, without which the migration cannot run, and the KEK (see below).
 {{- end -}}
 
 {{/*
-Shared volumes / volumeMounts for the server container (writable dir, tmp,
+Shared volumes / volumeMounts for the server container (logs, tmp,
 provisioning files, config file).
-Usage: {{ include "authup.server.volumeMounts" (dict "context" $ "hook" true) }}
+Usage: {{ include "authup.server.volumeMounts" (dict "context" $ "role" "migration") }}
 The `required` on .context is load-bearing: helm renders with missingkey=zero, so
 a call site that passed a bare `.` would leave every guard below reading false and
-emit writable+tmp only, silently dropping the config file. Failing the render is
+emit logs+tmp only, silently dropping the config file. Failing the render is
 the chart's posture everywhere else.
 
-"hook" marks the pre-upgrade migration Job. It drops the provisioning mount,
+The migration role drops the provisioning mount,
 whose ConfigMap/Secret is an ordinary release resource that helm applies AFTER
 the hook: the upgrade that first sets server.provisioning.files would leave the
 hook pod in ContainerCreating on a "configmap not found" until it times out, and
 `migration run` never reads those files anyway (ProvisionerModule is registered
-by the start command only). The writable directory stays for BOTH: under the
-image's NODE_ENV=production the logger opens <writable>/http.log and
-<writable>/error.log before the migration touches the database, and an
-uncreatable path is a hard ENOENT failure.
+by the start command only). Every server role keeps the log mount because the
+logger opens files before the role-specific modules start.
 
 The config file stays for both as well, and mounting it is not optional:
-`migration run` loads authup.server.core.conf unconditionally, and the db keys
+`migration run` loads authup.yml unconditionally, and the db keys
 that only the file can carry (ssl, socketPath, replication, extensions, poolSize)
 decide how the migration connects and what it creates. Dropping it would silently
 migrate over a plaintext connection. The Job reads it from a hook-scoped copy
@@ -158,23 +158,25 @@ axis (configEnv is one define shared by the env ConfigMap and the Job's inlined
 env, and THEME_* must stay in its reserved-key list either way).
 */}}
 {{- define "authup.server.volumeMounts" -}}
-{{- $ctx := required "authup.server.volumeMounts: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
-- name: writable
-  mountPath: /var/lib/authup
+{{- $ctx := required "authup.server.volumeMounts: context is required" .context -}}
+{{- $role := .role | default "server" -}}
+{{- $server := eq $role "server" -}}
+- name: logs
+  mountPath: /var/log/authup
 - name: tmp
   mountPath: /tmp
-{{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
+{{- if and $server $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
-  mountPath: /var/lib/authup/provisioning
+  mountPath: /etc/authup/provisioning
   readOnly: true
 {{- end }}
 {{- if or $ctx.Values.server.configuration $ctx.Values.server.existingConfigmap }}
 - name: configuration
-  mountPath: /usr/src/app/authup.server.core.conf
-  subPath: authup.server.core.conf
+  mountPath: /etc/authup/authup.yml
+  subPath: authup.yml
   readOnly: true
 {{- end }}
-{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+{{- if and $server (include "authup.server.themeMounted" $ctx) }}
 - name: theme
   mountPath: {{ include "authup.server.themeMountPath" $ctx }}
   readOnly: true
@@ -182,12 +184,14 @@ env, and THEME_* must stay in its reserved-key list either way).
 {{- end -}}
 
 {{- define "authup.server.volumes" -}}
-{{- $ctx := required "authup.server.volumes: call it as (dict \"context\" $ \"hook\" bool)" .context -}}
-- name: writable
+{{- $ctx := required "authup.server.volumes: context is required" .context -}}
+{{- $role := .role | default "server" -}}
+{{- $server := eq $role "server" -}}
+- name: logs
   emptyDir: {}
 - name: tmp
   emptyDir: {}
-{{- if and (not .hook) $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
+{{- if and $server $ctx.Values.server.provisioning.enabled (or $ctx.Values.server.provisioning.files $ctx.Values.server.provisioning.existingConfigMap $ctx.Values.server.provisioning.existingSecret) }}
 - name: provisioning
   {{- if $ctx.Values.server.provisioning.existingSecret }}
   secret:
@@ -200,9 +204,9 @@ env, and THEME_* must stay in its reserved-key list either way).
 {{- if or $ctx.Values.server.configuration $ctx.Values.server.existingConfigmap }}
 - name: configuration
   configMap:
-    name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ctx "hook" .hook) }}
+    name: {{ include "authup.server.configurationConfigMapName" (dict "context" $ctx "hook" (eq $role "migration")) }}
 {{- end }}
-{{- if and (not .hook) (include "authup.server.themeMounted" $ctx) }}
+{{- if and $server (include "authup.server.themeMounted" $ctx) }}
 - name: theme
   configMap:
     name: {{ include "authup.server.themeConfigMapName" $ctx }}
@@ -451,7 +455,7 @@ looks exactly like an un-themed page.
 {{- end -}}
 
 {{/*
-ConfigMap carrying authup.server.core.conf for one consumer.
+ConfigMap carrying authup.yml for one consumer.
 Usage: {{ include "authup.server.configurationConfigMapName" (dict "context" $ "hook" true) }}
 
 "hook" resolves to the migration Job's own copy (templates/server/configmap-
@@ -475,7 +479,7 @@ outside the release and already exists when the hook runs.
 {{- end -}}
 
 {{/*
-Rendered content of authup.server.core.conf. One source for the release
+Rendered content of authup.yml. One source for the release
 ConfigMap and the hook copy, so the migration cannot run against a config file
 that differs from the one the server pods get.
 */}}

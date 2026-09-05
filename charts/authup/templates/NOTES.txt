@@ -1,132 +1,110 @@
 ** Authup {{ .Chart.AppVersion }} has been installed as release {{ .Release.Name }}. **
 
 {{- $serverUrl := include "authup.server.publicUrl" . }}
-{{- $uiUrl := include "authup.adminConsole.publicUrl" . }}
 
 {{- if .Values.server.enabled }}
 
-server-core (IdP / API):
-{{- if $serverUrl }}
-  Public URL / OIDC issuer: {{ $serverUrl }}
-  OIDC discovery:           {{ $serverUrl }}/.well-known/openid-configuration
-{{- if .Values.server.features.accountConsole }}
-  Account self-service:     {{ $serverUrl }}/account
+Runtime topology:
+{{- if .Values.server.splitConsoles }}
+  API:             start core
+  Auth console:    start console auth
+{{- if .Values.adminConsole.enabled }}
+  Admin console:   start console admin
+{{- end }}
+{{- if .Values.accountConsole.enabled }}
+  Account console: start console account
 {{- end }}
 {{- else }}
-  In-cluster URL: http://{{ include "authup.server.fullname" . }}.{{ include "authup.namespace" . }}.svc:{{ .Values.server.service.ports.http }}
-  (port-forward: kubectl -n {{ include "authup.namespace" . }} port-forward svc/{{ include "authup.server.fullname" . }} 3001:{{ .Values.server.service.ports.http }})
-  NOTE: no public URL is configured. Set server.publicUrl or enable
-  server.ingress — without a stable PUBLIC_URL, OIDC redirect URIs and
-  WebAuthn credentials bind to a placeholder origin, and UI logins only work
-  through the port-forward pair above (the UI defaults to
-  http://localhost:3001 as its API URL).
+  Combined server: start
+{{- end }}
+{{- if .Values.worker.enabled }}
+  Worker:          start worker
+{{- end }}
+
+{{- if $serverUrl }}
+Public URL / OIDC issuer: {{ $serverUrl }}
+OIDC discovery:           {{ $serverUrl }}/.well-known/openid-configuration
+{{- if .Values.server.splitConsoles }}
+Auth console:             {{ $serverUrl }}/console/auth
+{{- if .Values.adminConsole.enabled }}
+Admin console:            {{ $serverUrl }}/console/admin
+{{- end }}
+{{- if .Values.accountConsole.enabled }}
+Account console:          {{ $serverUrl }}/console/account
+{{- end }}
+{{- end }}
+{{- else }}
+In-cluster API: http://{{ include "authup.server.fullname" . }}.{{ include "authup.namespace" . }}.svc:{{ .Values.server.service.ports.http }}
+Port-forward:   kubectl -n {{ include "authup.namespace" . }} port-forward svc/{{ include "authup.server.fullname" . }} 3000:{{ .Values.server.service.ports.http }}
+
+NOTE: no public URL is configured. Set server.publicUrl or enable
+server.ingress. OIDC redirect URIs and WebAuthn credentials need a stable
+PUBLIC_URL.
 {{- end }}
 {{- if .Values.server.ingress.enabled }}
-  NOTE: the ingress also exposes the unauthenticated /metrics endpoint —
-  block it at the ingress controller or disable it via server.configuration
-  when it is not scraped.
-{{- end }}
-{{- end }}
 
-{{- if .Values.adminConsole.enabled }}
-
-client-admin-console (admin UI):
-{{- if $uiUrl }}
-  URL: {{ $uiUrl }}
-{{- else }}
-  In-cluster URL: http://{{ include "authup.adminConsole.fullname" . }}.{{ include "authup.namespace" . }}.svc:{{ .Values.adminConsole.service.ports.http }}
-  (port-forward: kubectl -n {{ include "authup.namespace" . }} port-forward svc/{{ include "authup.adminConsole.fullname" . }} 3000:{{ .Values.adminConsole.service.ports.http }})
+NOTE: the server ingress also exposes the unauthenticated /metrics endpoint.
+Block it at the ingress controller or disable it through server.configuration
+(core.middlewarePrometheus: false) when it is not scraped.
 {{- end }}
 {{- end }}
 
 Credentials:
   Username: admin
 {{- if .Values.auth.existingSecret }}
-  Password: stored in your secret "{{ include "authup.auth.secretName" . }}" (key: {{ .Values.auth.secretKeys.adminPasswordKey }})
+  Password: stored in secret "{{ include "authup.auth.secretName" . }}" (key: {{ .Values.auth.secretKeys.adminPasswordKey }})
 {{- else }}
   Password: kubectl -n {{ include "authup.namespace" . }} get secret {{ include "authup.auth.secretName" . }} -o jsonpath='{.data.{{ .Values.auth.secretKeys.adminPasswordKey }}}' | base64 -d
 {{- end }}
 {{- if .Values.auth.systemClientEnabled }}
-  System client secret ("system" client, for machine-to-machine consumers):
+  System client secret:
     kubectl -n {{ include "authup.namespace" . }} get secret {{ include "authup.auth.secretName" . }} -o jsonpath='{.data.{{ .Values.auth.secretKeys.systemClientSecretKey }}}' | base64 -d
 {{- end }}
 
 {{- if include "authup.auth.hasSecretsEncryptionKey" . }}
 
-!! SECRETS_ENCRYPTION_KEY is configured. BACK IT UP: losing or rotating this
-   key makes wrapped MFA seeds and signing keys unrecoverable.
+!! SECRETS_ENCRYPTION_KEY is configured. Back it up. Losing or rotating it
+   makes wrapped MFA seeds and signing keys unrecoverable.
 {{- end }}
 
-{{- if not .Values.auth.existingSecret }}
-{{- if not .Values.auth.adminPassword }}
+{{- if and (not .Values.auth.existingSecret) (not .Values.auth.adminPassword) }}
 
-NOTE: credentials were generated via lookup. This is NOT compatible with pure
-GitOps renders (helm template / ArgoCD): every sync would apply a new random
-value. In GitOps setups, set explicit auth values or auth.existingSecret.
-{{- end }}
-{{- end }}
-
-{{- if and .Values.adminConsole.enabled (not $uiUrl) $serverUrl }}
-
-WARNING: the UI has no resolvable public URL (adminConsole.publicUrl / adminConsole.ingress). Its
-origin cannot be appended to TRUSTED_ORIGINS, and logins from the UI will fail
-after the OAuth2 redirect. Set adminConsole.ingress.hostname or adminConsole.publicUrl.
+NOTE: credentials were generated through lookup. Pure GitOps renders cannot
+preserve them. Set explicit auth values or auth.existingSecret for ArgoCD and
+other template-only deployment flows.
 {{- end }}
 
 {{- if and (gt (int .Values.server.replicaCount) 1) .Values.server.migration.enabled }}
 
-NOTE: multi-replica server with the migration hook enabled — upgrades run
-`migration run` as a pre-upgrade Job before pods roll.
+NOTE: upgrades run `migration run` as a pre-upgrade Job before server pods roll.
 {{- else if gt (int .Values.server.replicaCount) 1 }}
 
-TIP: with server.replicaCount > 1, consider server.migration.enabled=true so
-schema migrations are serialized in a pre-upgrade Job instead of racing at
-pod boot.
+TIP: with server.replicaCount > 1, enable server.migration.enabled so schema
+migrations are serialized before pods roll.
 {{- end }}
 
 {{- if and .Values.server.enabled .Values.server.migration.enabled (not .Values.useHelmHooks) }}
 
-WARNING: useHelmHooks=false renders the migration Job as a plain resource
-carrying ArgoCD PreSync annotations, which only ArgoCD reads. Under Flux or
-plain helm the Job is applied like any other resource, and a Job pod template
-is immutable, so the next upgrade that changes it (new image tag, new env)
-fails with "spec.template: field is immutable". Use useHelmHooks=true there.
-ArgoCD maps Helm hook annotations onto its own sync phases, so true works for
-ArgoCD too; false only changes which annotation family drives the Job.
+WARNING: useHelmHooks=false is for ArgoCD PreSync only. Flux and plain Helm
+apply the Job as a normal immutable resource, so later upgrades can fail. Use
+useHelmHooks=true outside ArgoCD.
 {{- end }}
 
 {{- if .Values.server.provisioning.enabled }}
 
-NOTE: "admin-console" and "account-console" are reserved client names: authup
-provisions them as built-in system clients in every realm and overwrites a
-client of either name. Do not declare them in server.provisioning.
+NOTE: "admin-console" and "account-console" are reserved client names. Authup
+owns those built-in system clients in every realm; do not declare them in
+server.provisioning.
 {{- end }}
 
 {{- if or .Values.postgresql.enabled .Values.mysql.enabled }}
 
-The built-in {{ ternary "PostgreSQL" "MySQL" .Values.postgresql.enabled }} instance is a single-node convenience for dev and
-small deployments. For production, consider an external database
-(externalDatabase.*) or an operator (e.g. CloudNativePG).
-{{- end }}
-
-{{- $prefixed := list }}
-{{- if and .Values.server.enabled (include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled")) (urlParse $serverUrl).path (ne (urlParse $serverUrl).path "/") }}
-{{- $prefixed = append $prefixed (printf "server.route %s" (urlParse $serverUrl).path) }}
-{{- end }}
-{{- if and .Values.adminConsole.enabled (include "authup.flag" (dict "value" .Values.adminConsole.route.enabled "context" $ "key" "adminConsole.route.enabled")) (urlParse $uiUrl).path (ne (urlParse $uiUrl).path "/") }}
-{{- $prefixed = append $prefixed (printf "adminConsole.route %s" (urlParse $uiUrl).path) }}
-{{- end }}
-{{- if $prefixed }}
-
-NOTE: serving under a path prefix ({{ join ", " $prefixed }}). authup itself always
-serves at "/", so something in the chain has to strip the prefix: a route.filters
-URLRewrite (ReplacePrefixMatch "/"), an implementation-specific filter, or a proxy
-in front of the gateway. Without one, every request reaches the pod with the prefix
-still attached and 404s.
+The built-in {{ ternary "PostgreSQL" "MySQL" .Values.postgresql.enabled }} instance is a single-node convenience for development and
+small deployments. Prefer an external database or operator for production.
 {{- end }}
 
 {{- if $serverUrl }}
 
-Changing PUBLIC_URL later breaks enrolled WebAuthn credentials (the rpId binds
-to the origin) and changes the OIDC issuer — treat {{ $serverUrl }} as permanent.
+Changing PUBLIC_URL later breaks enrolled WebAuthn credentials and changes the
+OIDC issuer. Treat {{ $serverUrl }} as permanent.
 {{- end }}
