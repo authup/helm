@@ -11,7 +11,7 @@ chart `appVersion`.
 | One `authup/authup` image with direct CLI args | `Dockerfile`, `entrypoint.sh` | `authup.appImage`; every application Deployment |
 | Combined service: `start` | `apps/authup/src/commands/start.ts` | `server/deployment.yaml` default |
 | API only: `start core` | `apps/authup/src/module.ts`, command tests | server when `server.splitConsoles=true` |
-| Split consoles: `start console auth|admin|account` | `apps/authup/src/console/`, `apps/server-*-console/` | the three console directories |
+| Split consoles: `start console auth`, `start console admin`, `start console account` | `apps/authup/src/console/`, `apps/server-*-console/` | the three console directories |
 | Background worker: `start worker` | `apps/authup/src/module.ts`, `apps/server-core/src/app/modules/components/module.ts` | `worker/deployment.yaml` |
 | Migration: `migration run` | `apps/server-core/src/cli/commands/migration.ts` | `server/migration-job.yaml` |
 | Core port 3000; console ports 3020/3021/3022 | `packages/server-config/src/sections/*/schema.ts`, `Dockerfile` | role `containerPorts` and Services |
