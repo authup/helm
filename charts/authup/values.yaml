@@ -527,7 +527,7 @@ server:
   migration:
     # -- Run `migration run` as a pre-upgrade hook Job. Recommended
     # for multi-replica deployments (serializes DDL before pods roll). Fresh
-    # installs migrate at boot regardless.
+    # installs and non-persistent built-in databases migrate at boot regardless.
     enabled: false
     # -- Job backoff limit
     backoffLimit: 3

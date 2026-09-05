@@ -91,7 +91,8 @@ operational invariants that template changes must preserve.
 20. **The migration Job is pre-upgrade only.** Fresh installs need regular
     backing resources before the server can initialize the database. On
     upgrades, the Job runs before the rollout. The server sets
-    `MIGRATION_ENABLED=false` only during upgrades when this Job owns migration.
+    `MIGRATION_ENABLED=false` only when the migrated database persists through
+    the rollout; non-persistent built-in databases initialize again at boot.
 21. **Hook inputs must exist before regular resources.** The migration Job
     inlines non-secret config, narrows secrets to database password and optional
     encryption key, skips provisioning, and mounts a hook-scoped copy of

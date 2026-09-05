@@ -64,7 +64,8 @@ The pre-upgrade migration Job must stay narrower than the server Deployment:
 - the migration NetworkPolicy selects component `migration`, uses the same hook
   family, and runs at weight or wave -5 before the Job at 0
 - fresh-install server env has no `MIGRATION_ENABLED`; upgrade server env has
-  `MIGRATION_ENABLED=false` when the Job is enabled
+  `MIGRATION_ENABLED=false` when the Job is enabled and the database persists,
+  but leaves startup migration enabled for non-persistent built-in databases
 
 Run both Helm and ArgoCD annotation paths:
 

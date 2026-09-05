@@ -612,7 +612,7 @@ Kubernetes: `>=1.25.0-0`
 | server.mfa.enabled | bool | `false` | Enable multi-factor authentication (MFA_ENABLED) |
 | server.mfa.required | bool | `false` | Require MFA for every user (MFA_REQUIRED; needs mfa.enabled) |
 | server.migration.backoffLimit | int | `3` | Job backoff limit |
-| server.migration.enabled | bool | `false` | Run `migration run` as a pre-upgrade hook Job. Recommended for multi-replica deployments (serializes DDL before pods roll). Fresh installs migrate at boot regardless. |
+| server.migration.enabled | bool | `false` | Run `migration run` as a pre-upgrade hook Job. Recommended for multi-replica deployments (serializes DDL before pods roll). Fresh installs and non-persistent built-in databases migrate at boot regardless. |
 | server.migration.podAnnotations | object | `{}` | Job pod annotations |
 | server.migration.resources | object | `{}` | Job resources ({} = server resources defaults) |
 | server.migration.ttlSecondsAfterFinished | int | `300` | Delete the Job this many seconds after it finishes ("" = keep) |

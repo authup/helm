@@ -4742,7 +4742,7 @@
             },
             "enabled": {
               "default": false,
-              "description": "Run `migration run` as a pre-upgrade hook Job. Recommended\nfor multi-replica deployments (serializes DDL before pods roll). Fresh\ninstalls migrate at boot regardless.",
+              "description": "Run `migration run` as a pre-upgrade hook Job. Recommended\nfor multi-replica deployments (serializes DDL before pods roll). Fresh\ninstalls and non-persistent built-in databases migrate at boot regardless.",
               "required": [],
               "title": "enabled",
               "type": "boolean"

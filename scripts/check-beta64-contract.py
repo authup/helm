@@ -216,6 +216,9 @@ def check_base():
     assert {
         volume["name"] for volume in migration["spec"]["template"]["spec"]["volumes"]
     } == {"configuration", "logs", "tmp"}
+    migration_upgrade = render(migration_values, "--is-upgrade")
+    migration_server = one(migration_upgrade, "Deployment", "server")
+    assert effective_env(migration_server, migration_upgrade)["MIGRATION_ENABLED"] == "false"
 
 
 def check_split():
@@ -268,7 +271,7 @@ def check_split():
 
     upgrade = render(chart / "ci" / "split-values.yaml", "--is-upgrade")
     upgrade_server = one(upgrade, "Deployment", "server")
-    assert effective_env(upgrade_server, upgrade)["MIGRATION_ENABLED"] == "false"
+    assert "MIGRATION_ENABLED" not in effective_env(upgrade_server, upgrade)
     assert "MIGRATION_ENABLED" not in effective_env(deployments["server"], documents)
 
     rendered = render_result(chart / "ci" / "split-values.yaml").stdout

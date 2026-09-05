@@ -128,7 +128,7 @@ spec:
             - name: WORKER_ENABLED
               value: "false"
             {{- end }}
-            {{- if and .Values.server.migration.enabled .Release.IsUpgrade }}
+            {{- if and .Values.server.migration.enabled .Release.IsUpgrade (or (not (or .Values.postgresql.enabled .Values.mysql.enabled)) (and .Values.postgresql.enabled .Values.postgresql.persistence.enabled) (and .Values.mysql.enabled .Values.mysql.persistence.enabled)) }}
             - name: MIGRATION_ENABLED
               value: "false"
             {{- end }}
