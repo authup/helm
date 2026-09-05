@@ -3,6 +3,53 @@ entries:
   authup:
   - annotations:
       artifacthub.io/changes: |
+        - kind: changed
+          description: Track Authup v1.0.0-beta.64 and its role-based start, migration and configuration contracts
+        - kind: added
+          description: Optional split auth, admin and account console workloads with single-origin Ingress and Gateway API routing
+        - kind: added
+          description: Optional dedicated background worker with explicit API ownership handoff
+        - kind: fixed
+          description: Migration and split role NetworkPolicies preserve database, cache, DNS and API connectivity under default-deny egress
+        - kind: changed
+          description: Configuration, provisioning and log mounts follow the beta.64 filesystem contract
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.64
+    created: "2026-09-05T13:37:28.748954068Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      its combined or split API, console and worker roles, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: dd42761dc7dd32107761365f978d1caf8bd778595dd25ab995a7782f0d7beb23
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.4.0/authup-0.4.0.tgz
+    version: 0.4.0
+  - annotations:
+      artifacthub.io/changes: |
         - kind: fixed
           description: The writable directory moves to /var/lib/authup and WRITABLE_DIRECTORY_PATH is set to the path the chart mounts, so an image default change cannot silently stop file provisioning
         - kind: changed
@@ -221,4 +268,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-08-24T07:38:03.836712357Z"
+generated: "2026-09-05T13:37:28.748982882Z"
