@@ -49,7 +49,7 @@ jobs:
 
       - name: Check Authup beta.64 contract
         run: |
-          python3 -m pip install PyYAML==6.0.2
+          uv pip install PyYAML==6.0.2
           make lint-beta64-contract
 
   lint-artifacthub:

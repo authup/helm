@@ -376,7 +376,10 @@ def check_policy():
         "account-console",
     } <= peer_components(server, "ingress")
     ingress_peers = server["spec"]["ingress"][0]["from"]
-    assert any(peer.get("podSelector") == {} for peer in ingress_peers)
+    assert any(
+        peer.get("podSelector") == {} and "namespaceSelector" not in peer
+        for peer in ingress_peers
+    )
     assert any(
         peer.get("namespaceSelector", {}).get("matchLabels", {}).get(
             "kubernetes.io/metadata.name"
