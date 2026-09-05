@@ -18,6 +18,7 @@ spec:
           protocol: TCP
       {{- if not .Values.server.networkPolicy.allowExternal }}
       from:
+        - podSelector: {}
         {{- if .Values.server.splitConsoles }}
         {{- if .Values.authConsole.enabled }}
         - podSelector:

@@ -61,6 +61,33 @@ database is configured while the mounted file is the operator's.
 {{- if and $path (ne $path "/") }}
 {{- fail "authup: server.splitConsoles requires server.publicUrl at the origin root because the console routes use fixed /console/* paths." }}
 {{- end }}
+{{- $publicHostname := regexReplaceAll ":[0-9]+$" (urlParse $publicUrl).host "" }}
+{{- $serverRouteEnabled := include "authup.flag" (dict "value" .Values.server.route.enabled "context" $ "key" "server.route.enabled") }}
+{{- if $serverRouteEnabled }}
+{{- range .Values.server.route.hostnames }}
+{{- $hostname := include "authup.tplvalues.render" (dict "value" . "context" $) }}
+{{- if ne $hostname $publicHostname }}
+{{- fail "authup: server.route.hostnames must match server.publicUrl in split-console mode." }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- range $name, $console := dict "authConsole" .Values.authConsole "adminConsole" .Values.adminConsole "accountConsole" .Values.accountConsole }}
+{{- if and $.Values.server.ingress.enabled $console.enabled $console.ingress.enabled $console.ingress.hostname }}
+{{- $serverIngressHostname := include "authup.tplvalues.render" (dict "value" $.Values.server.ingress.hostname "context" $) }}
+{{- $hostname := include "authup.tplvalues.render" (dict "value" $console.ingress.hostname "context" $) }}
+{{- if ne $hostname $serverIngressHostname }}
+{{- fail (printf "authup: %s.ingress.hostname must match server.ingress.hostname in split-console mode." $name) }}
+{{- end }}
+{{- end }}
+{{- if and $serverRouteEnabled $console.enabled (include "authup.flag" (dict "value" $console.route.enabled "context" $ "key" (printf "%s.route.enabled" $name))) }}
+{{- range $console.route.hostnames }}
+{{- $hostname := include "authup.tplvalues.render" (dict "value" . "context" $) }}
+{{- if ne $hostname $publicHostname }}
+{{- fail (printf "authup: %s.route.hostnames must match server.publicUrl in split-console mode." $name) }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- if and .Values.worker.enabled (not .Values.server.enabled) }}
 {{- fail "authup: worker.enabled requires server.enabled=true because the worker shares the server configuration and credentials." }}

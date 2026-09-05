@@ -183,6 +183,19 @@ def check_base():
     migration_values = {
         "server": {
             "configuration": "core:\n  trustProxy: '1'\n",
+            "provisioning": {
+                "enabled": True,
+                "files": {"realms.yaml": "[]\n"},
+            },
+            "extraEnvVarsCM": "server-only-env",
+            "extraEnvVarsSecret": "server-only-secret",
+            "extraEnvVars": [{"name": "SERVER_ONLY", "value": "true"}],
+            "extraVolumeMounts": [
+                {"name": "server-only", "mountPath": "/server-only"}
+            ],
+            "extraVolumes": [
+                {"name": "server-only", "configMap": {"name": "server-only"}}
+            ],
             "migration": {"enabled": True},
         }
     }
@@ -195,6 +208,14 @@ def check_base():
         "authup.yml",
     )
     assert migration_mounts["logs"][0] == "/var/log/authup"
+    assert set(migration_mounts) == {"configuration", "logs", "tmp"}
+    assert "envFrom" not in container(migration)
+    migration_env = effective_env(migration, migration_documents)
+    assert "PROVISIONING_DIRECTORY_PATH" not in migration_env
+    assert "SERVER_ONLY" not in migration_env
+    assert {
+        volume["name"] for volume in migration["spec"]["template"]["spec"]["volumes"]
+    } == {"configuration", "logs", "tmp"}
 
 
 def check_split():
@@ -354,6 +375,14 @@ def check_policy():
         "admin-console",
         "account-console",
     } <= peer_components(server, "ingress")
+    ingress_peers = server["spec"]["ingress"][0]["from"]
+    assert any(peer.get("podSelector") == {} for peer in ingress_peers)
+    assert any(
+        peer.get("namespaceSelector", {}).get("matchLabels", {}).get(
+            "kubernetes.io/metadata.name"
+        ) == "ingress-nginx"
+        for peer in ingress_peers
+    )
 
     argocd_documents = render(
         chart / "ci" / "split-values.yaml",
@@ -404,6 +433,66 @@ def check_validations():
             "adminConsole": {"route": {"enabled": True}},
         },
         "split console HTTPRoute requires server.route.enabled=true",
+    )
+    for component in ("authConsole", "adminConsole", "accountConsole"):
+        render_fails(
+            {
+                "server": {
+                    "splitConsoles": True,
+                    "ingress": {
+                        "enabled": True,
+                        "hostname": "auth.example.com",
+                    },
+                },
+                component: {
+                    "ingress": {
+                        "enabled": True,
+                        "hostname": "other.example.com",
+                    }
+                },
+            },
+            f"{component}.ingress.hostname must match server.ingress.hostname",
+        )
+        render_fails(
+            {
+                "server": {
+                    "publicUrl": "https://auth.example.com",
+                    "splitConsoles": True,
+                    "route": {"enabled": True},
+                },
+                component: {
+                    "route": {
+                        "enabled": True,
+                        "hostnames": ["other.example.com"],
+                    }
+                },
+            },
+            f"{component}.route.hostnames must match server.publicUrl",
+        )
+    render_fails(
+        {
+            "server": {
+                "publicUrl": "https://auth.example.com",
+                "splitConsoles": True,
+                "route": {
+                    "enabled": True,
+                    "hostnames": ["other.example.com"],
+                },
+            },
+            "authConsole": {"route": {"enabled": True}},
+        },
+        "server.route.hostnames must match server.publicUrl",
+    )
+    render(
+        {
+            "server": {
+                "publicUrl": "https://auth.example.com",
+                "splitConsoles": True,
+                "ingress": {"hostname": '{{ fail "inactive ingress" }}'},
+                "route": {"enabled": True},
+            },
+            "authConsole": {"route": {"enabled": True}},
+        }
     )
     for server in (
         {"splitConsoles": True, "publicUrl": "https://auth.example.com/prefix"},

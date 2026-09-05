@@ -17,6 +17,8 @@ server:
     enabled: true
     allowExternal: false
     allowExternalEgress: false
+    ingressNSMatchLabels:
+      kubernetes.io/metadata.name: ingress-nginx
   resources:
     requests:
       cpu: 50m
