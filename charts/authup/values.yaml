@@ -448,7 +448,9 @@ server:
   # (map of NAME: value) for options without first-class values, e.g.
   # AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console
   # with your own build (pair them with extraVolumes; the substituted package
-  # owns the login flow, so use server.theme for branding instead)
+  # owns the login flow, so use server.theme for branding instead). In
+  # split-console mode set them in authConsole.config / accountConsole.config:
+  # `start core` does not read console paths
   config: {}
   # -- Content of authup.yml mounted at /etc/authup/authup.yml for file-only
   # options (middleware objects, per-field SMTP, CORS allowlist). Environment
@@ -472,12 +474,11 @@ server:
     # precedence — use for provisioning content that carries credentials)
     existingSecret: ""
   theme:
-    # -- Mount an operator theme for the served consoles (the auth console and
-    # the account console). Requires an authup image that supports
-    # THEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the
-    # directory layout and the theme* options may change in a minor release
+    # -- Mount an operator theme for the served consoles (auth, admin and
+    # account). Experimental upstream: the directory layout and the theme*
+    # options may change in a minor release
     enabled: false
-    # -- Document title of both served consoles ("" = authup's own)
+    # -- Document title of the served consoles ("" = authup's own)
     title: ""
     # -- Favicon path, relative to the theme root and under assets/
     # (e.g. assets/favicon.svg). Must be a key of files
@@ -528,6 +529,8 @@ server:
     # -- Run `migration run` as a pre-upgrade hook Job. Recommended
     # for multi-replica deployments (serializes DDL before pods roll). Fresh
     # installs and non-persistent built-in databases migrate at boot regardless.
+    # Under useHelmHooks=false the Job is a PreSync hook on the first sync too,
+    # so with a built-in database enable it only after that sync
     enabled: false
     # -- Job backoff limit
     backoffLimit: 3
@@ -723,7 +726,7 @@ server:
     # -- Enable ingress for server-core. NOTE: this also exposes the
     # UNAUTHENTICATED /metrics endpoint publicly — block it at the ingress
     # controller or disable it via server.configuration
-    # ("middlewarePrometheus: false") when it is not scraped
+    # (core.middlewarePrometheus: false) when it is not scraped
     enabled: false
     # -- Ingress hostname (tpl-rendered); also drives the derived PUBLIC_URL
     hostname: ""
@@ -818,11 +821,12 @@ server:
       # -- Target memory utilization percentage
       targetMemory: ""
   networkPolicy:
-    # -- Create a NetworkPolicy for server-core
+    # -- Create a NetworkPolicy for the server and, with server.migration.enabled,
+    # a hook-scoped egress policy for the migration Job
     enabled: false
-    # -- Allow ingress from anywhere. When false, only same-namespace pods,
-    # the release's UI pods and the configured selectors may connect — add
-    # your ingress controller via ingressNSMatchLabels/ingressPodMatchLabels
+    # -- Allow ingress from anywhere. When false, only the split console pods
+    # and the configured selectors may connect: add your ingress controller via
+    # ingressNSMatchLabels, ingressPodMatchLabels or extraIngress (required)
     allowExternal: true
     # -- Allow all egress
     allowExternalEgress: true
@@ -838,13 +842,15 @@ server:
     ingressNSMatchLabels: {}
     # -- Extra ingress rules
     extraIngress: []
-    # -- Extra egress rules
+    # -- Extra egress rules (also applied to the migration Job policy)
     extraEgress: []
 
 ## @section Split console workloads
 
 authConsole:
-  # -- Enable the auth console and deploy it separately in split-console mode
+  # -- Deploy the auth console as its own workload in split-console mode. Must
+  # stay true: the auth console owns login and cannot be disabled (ignored in
+  # combined mode)
   enabled: true
   # -- Number of auth console replicas
   replicaCount: 1
@@ -1040,14 +1046,12 @@ authConsole:
     # @schema
     # additionalProperties: true
     # @schema
-    # -- Ingress annotations (tpl-rendered)
+    # -- Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned)
     annotations: {}
     # -- Enable TLS for the hostname
     tls: false
     # -- Request a cert-manager certificate (adds kubernetes.io/tls-acme)
     certManager: false
-    # -- Extra hosts
-    extraHosts: []
     # -- Extra paths for the primary host
     extraPaths: []
     # -- Extra TLS entries
@@ -1074,7 +1078,7 @@ authConsole:
     # -- HTTPRoute annotations
     annotations: {}
   pdb:
-    # -- Create a PodDisruptionBudget for the UI
+    # -- Create a PodDisruptionBudget for the auth console
     create: false
     # -- Minimum available pods
     minAvailable: ""
@@ -1082,7 +1086,7 @@ authConsole:
     maxUnavailable: ""
   autoscaling:
     hpa:
-      # -- Enable HPA for the UI
+      # -- Enable HPA for the auth console
       enabled: false
       # -- Minimum replicas
       minReplicas: 2
@@ -1093,7 +1097,7 @@ authConsole:
       # -- Target memory utilization percentage
       targetMemory: ""
   networkPolicy:
-    # -- Create a NetworkPolicy for the UI
+    # -- Create a NetworkPolicy for the auth console
     enabled: false
     # -- Allow ingress from anywhere
     allowExternal: true
@@ -1312,14 +1316,12 @@ adminConsole:
     # @schema
     # additionalProperties: true
     # @schema
-    # -- Ingress annotations (tpl-rendered)
+    # -- Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned)
     annotations: {}
     # -- Enable TLS for the hostname
     tls: false
     # -- Request a cert-manager certificate (adds kubernetes.io/tls-acme)
     certManager: false
-    # -- Extra hosts
-    extraHosts: []
     # -- Extra paths for the primary host
     extraPaths: []
     # -- Extra TLS entries
@@ -1346,7 +1348,7 @@ adminConsole:
     # -- HTTPRoute annotations
     annotations: {}
   pdb:
-    # -- Create a PodDisruptionBudget for the UI
+    # -- Create a PodDisruptionBudget for the admin console
     create: false
     # -- Minimum available pods
     minAvailable: ""
@@ -1354,7 +1356,7 @@ adminConsole:
     maxUnavailable: ""
   autoscaling:
     hpa:
-      # -- Enable HPA for the UI
+      # -- Enable HPA for the admin console
       enabled: false
       # -- Minimum replicas
       minReplicas: 2
@@ -1365,7 +1367,7 @@ adminConsole:
       # -- Target memory utilization percentage
       targetMemory: ""
   networkPolicy:
-    # -- Create a NetworkPolicy for the UI
+    # -- Create a NetworkPolicy for the admin console
     enabled: false
     # -- Allow ingress from anywhere
     allowExternal: true
@@ -1584,14 +1586,12 @@ accountConsole:
     # @schema
     # additionalProperties: true
     # @schema
-    # -- Ingress annotations (tpl-rendered)
+    # -- Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned)
     annotations: {}
     # -- Enable TLS for the hostname
     tls: false
     # -- Request a cert-manager certificate (adds kubernetes.io/tls-acme)
     certManager: false
-    # -- Extra hosts
-    extraHosts: []
     # -- Extra paths for the primary host
     extraPaths: []
     # -- Extra TLS entries
@@ -1618,7 +1618,7 @@ accountConsole:
     # -- HTTPRoute annotations
     annotations: {}
   pdb:
-    # -- Create a PodDisruptionBudget for the UI
+    # -- Create a PodDisruptionBudget for the account console
     create: false
     # -- Minimum available pods
     minAvailable: ""
@@ -1626,7 +1626,7 @@ accountConsole:
     maxUnavailable: ""
   autoscaling:
     hpa:
-      # -- Enable HPA for the UI
+      # -- Enable HPA for the account console
       enabled: false
       # -- Minimum replicas
       minReplicas: 2
@@ -1637,7 +1637,7 @@ accountConsole:
       # -- Target memory utilization percentage
       targetMemory: ""
   networkPolicy:
-    # -- Create a NetworkPolicy for the UI
+    # -- Create a NetworkPolicy for the account console
     enabled: false
     # -- Allow ingress from anywhere
     allowExternal: true
@@ -1661,7 +1661,9 @@ accountConsole:
 ## @section Worker
 
 worker:
-  # -- Deploy a dedicated background worker (requires server.enabled)
+  # -- Deploy a dedicated background worker (requires server.enabled). It never
+  # migrates: on a fresh install it restarts until the server has initialized
+  # the schema; enable server.migration.enabled so upgrades run the Job first
   enabled: false
   # -- Number of worker replicas (one is normally sufficient)
   replicaCount: 1

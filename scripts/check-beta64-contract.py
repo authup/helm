@@ -219,6 +219,9 @@ def check_base():
     migration_upgrade = render(migration_values, "--is-upgrade")
     migration_server = one(migration_upgrade, "Deployment", "server")
     assert effective_env(migration_server, migration_upgrade)["MIGRATION_ENABLED"] == "false"
+    argocd_install = render(migration_values, "--set", "useHelmHooks=false")
+    argocd_server = one(argocd_install, "Deployment", "server")
+    assert effective_env(argocd_server, argocd_install)["MIGRATION_ENABLED"] == "false"
 
 
 def check_split():
@@ -269,6 +272,14 @@ def check_split():
     assert "CLIENT_SYSTEM_SECRET" not in worker_env
     assert "MIGRATION_ENABLED" not in worker_env
 
+    trusted = render(
+        chart / "ci" / "split-values.yaml",
+        "--set",
+        "server.trustedOrigins={https://app.example.com}",
+    )
+    for component in ("auth-console", "admin-console", "account-console"):
+        console = one(trusted, "Deployment", component)
+        assert effective_env(console, trusted)["TRUSTED_ORIGINS"] == "https://app.example.com"
     upgrade = render(chart / "ci" / "split-values.yaml", "--is-upgrade")
     upgrade_server = one(upgrade, "Deployment", "server")
     assert "MIGRATION_ENABLED" not in effective_env(upgrade_server, upgrade)
@@ -363,6 +374,7 @@ def check_policy():
     annotations = migration["metadata"]["annotations"]
     assert annotations["helm.sh/hook"] == "pre-upgrade"
     assert annotations["helm.sh/hook-weight"] == "-5"
+    assert annotations["helm.sh/hook-delete-policy"] == "before-hook-creation"
     assert migration["spec"]["policyTypes"] == ["Egress"]
 
     worker = one(documents, "NetworkPolicy", "worker")
@@ -379,10 +391,7 @@ def check_policy():
         "account-console",
     } <= peer_components(server, "ingress")
     ingress_peers = server["spec"]["ingress"][0]["from"]
-    assert any(
-        peer.get("podSelector") == {} and "namespaceSelector" not in peer
-        for peer in ingress_peers
-    )
+    assert not any(peer.get("podSelector") == {} for peer in ingress_peers)
     assert any(
         peer.get("namespaceSelector", {}).get("matchLabels", {}).get(
             "kubernetes.io/metadata.name"
@@ -417,6 +426,46 @@ def check_validations():
     render_fails(
         {"server": {"features": {"accountConsole": False}}},
         "server.features.accountConsole moved to accountConsole.enabled",
+    )
+    render_fails(
+        {"server": {"config": {"WRITABLE_DIRECTORY_PATH": "/x"}}},
+        "server.config.WRITABLE_DIRECTORY_PATH is retired",
+    )
+    render_fails(
+        {"server": {"splitConsoles": True}},
+        "server.splitConsoles requires server.publicUrl or an enabled server.ingress",
+    )
+    render_fails(
+        {
+            "server": {
+                "publicUrl": "https://auth.example.com",
+                "splitConsoles": True,
+            },
+            "authConsole": {"config": {"PUBLIC_URL": "https://x.example.com"}},
+        },
+        "authConsole.config.PUBLIC_URL collides with a first-class chart value",
+    )
+    render_fails(
+        {"server": {"networkPolicy": {"enabled": True, "allowExternal": False}}},
+        "server.networkPolicy.allowExternal=false needs an ingress source",
+    )
+    extra_only = render(
+        {
+            "server": {
+                "networkPolicy": {
+                    "enabled": True,
+                    "allowExternal": False,
+                    "extraIngress": [{"from": [{"namespaceSelector": {"matchLabels": {"team": "ingress"}}}]}],
+                }
+            }
+        }
+    )
+    policy = one(extra_only, "NetworkPolicy", "server")
+    assert policy["spec"]["ingress"] == [{"from": [{"namespaceSelector": {"matchLabels": {"team": "ingress"}}}]}]
+    render(
+        chart / "ci" / "split-values.yaml",
+        "--set",
+        "authConsole.ingress.annotations=null",
     )
     render_fails(
         {

@@ -74,7 +74,7 @@ spec:
         - {{ $hostname | quote }}
       {{- /* Derived from the component name, not the hostname: a wildcard host
              would produce an invalid Secret name, and a shared hostname across
-             server + ui would make two ingresses fight over one secret. */}}
+             server + console would make two ingresses fight over one secret. */}}
       secretName: {{ printf "%s-tls" .name | quote }}
     {{- end }}
     {{- if $ing.extraTls }}

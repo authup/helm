@@ -165,8 +165,9 @@ Authup core can initialize and migrate at startup. A pre-install migration Job
 would run before chart-managed databases exist, so fresh installs rely on core
 startup and its generous startup probe.
 
-`server.migration.enabled=true` creates a pre-upgrade Job. On upgrade, core gets
-`MIGRATION_ENABLED=false` and the Job owns schema migration before pods roll.
+`server.migration.enabled=true` creates a pre-upgrade Job. On upgrade, and on
+every ArgoCD sync when `useHelmHooks=false`, core gets `MIGRATION_ENABLED=false`
+and the Job owns schema migration before pods roll.
 Non-persistent built-in databases are the exception: their rollout replaces the
 database after the hook, so core initializes the replacement at boot. This
 avoids concurrent DDL when the migrated database survives the rollout.

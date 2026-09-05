@@ -16,13 +16,17 @@ land on the middle digit. Every entry lists the value migrations required.
   remain independently optional.
 - `server.features.accountConsole` moves to `accountConsole.enabled`. Any
   non-empty old value now fails the render with the replacement key.
-- `adminConsole.publicUrl`, `adminConsole.apiUrl` and
-  `server.trustedOriginsAppendAdminConsole` are removed. All roles share
-  `server.publicUrl`; split console server-side requests use the generated
-  in-cluster `INTERNAL_URL`.
+- `adminConsole.publicUrl`, `adminConsole.apiUrl`, `adminConsole.internalApiUrl`,
+  `adminConsole.ingress.path`, `adminConsole.ingress.pathType`,
+  `adminConsole.ingress.extraHosts`, `adminConsole.route.matches`,
+  `adminConsole.route.filters` and `server.trustedOriginsAppendAdminConsole` are
+  removed: console prefixes and rewrites are fixed and the strict schema rejects
+  the old keys. All roles share `server.publicUrl`; split console server-side
+  requests use the generated in-cluster `INTERNAL_URL`.
 - The configuration file is now `authup.yml`, mounted at
   `/etc/authup/authup.yml`. Provisioning moves to `/etc/authup/provisioning` and
-  logs to `/var/log/authup`. Remove overrides for `WRITABLE_DIRECTORY_PATH`,
+  logs to `/var/log/authup`. Remove overrides for `WRITABLE_DIRECTORY_PATH`
+  (`server.config.WRITABLE_DIRECTORY_PATH` now fails the render),
   `/var/lib/authup`, or `authup.server.core.conf`.
 - Split consoles share the Authup origin under `/console/auth`,
   `/console/admin` and `/console/account`. The generated Ingress rules require

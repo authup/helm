@@ -2,8 +2,6 @@
 # manifest values (the chart composes theme.json) and the inline files map
 # for the assets they reference, which exercises the path-keyed ConfigMap
 # projection (a "/" key must land in a subdirectory) and the env wiring.
-# THEME_DIRECTORY_PATH is ignored by an authup image that predates console
-# theming, so the rollout assertion holds either way.
 server:
   theme:
     enabled: true

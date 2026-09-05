@@ -13,12 +13,14 @@ spec:
     - Ingress
     - Egress
   ingress:
+    {{- /* A rule whose `from` list is empty admits every source, so the port rule
+           only renders when it has at least one peer; extraIngress can stand alone. */}}
+    {{- if or .Values.server.networkPolicy.allowExternal .Values.server.splitConsoles .Values.server.networkPolicy.ingressPodMatchLabels .Values.server.networkPolicy.ingressNSMatchLabels }}
     - ports:
         - port: 3000
           protocol: TCP
       {{- if not .Values.server.networkPolicy.allowExternal }}
       from:
-        - podSelector: {}
         {{- if .Values.server.splitConsoles }}
         {{- if .Values.authConsole.enabled }}
         - podSelector:
@@ -42,6 +44,7 @@ spec:
             matchLabels: {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.ingressNSMatchLabels "context" $) | nindent 14 }}
         {{- end }}
       {{- end }}
+    {{- end }}
     {{- if .Values.server.networkPolicy.extraIngress }}
     {{- include "authup.tplvalues.render" (dict "value" .Values.server.networkPolicy.extraIngress "context" $) | nindent 4 }}
     {{- end }}

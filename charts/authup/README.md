@@ -126,7 +126,7 @@ Notable operational facts (enforced or warned about by the chart):
 
 ## Theming the served consoles
 
-Both consoles server-core serves (the auth pages and `/account`) are rebranded
+The served consoles (the auth pages, `/console/admin` and `/console/account`) are rebranded
 from a directory the chart mounts read-only. Set the manifest as values and the
 chart composes `theme.json` for you; `files` carries the assets it references:
 
@@ -197,7 +197,7 @@ Kubernetes: `>=1.25.0-0`
 |-----|------|---------|-------------|
 | accountConsole.affinity | object | `{}` | Affinity (overrides the anti-affinity preset when set) |
 | accountConsole.args | list | `[]` | Override the container args |
-| accountConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the UI |
+| accountConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the account console |
 | accountConsole.autoscaling.hpa.maxReplicas | int | `5` | Maximum replicas |
 | accountConsole.autoscaling.hpa.minReplicas | int | `2` | Minimum replicas |
 | accountConsole.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
@@ -217,10 +217,9 @@ Kubernetes: `>=1.25.0-0`
 | accountConsole.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
 | accountConsole.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
 | accountConsole.hostAliases | list | `[]` | Pod host aliases |
-| accountConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
+| accountConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned) |
 | accountConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
 | accountConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split account console (requires server.ingress.enabled) |
-| accountConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | accountConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | accountConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | accountConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
@@ -237,13 +236,13 @@ Kubernetes: `>=1.25.0-0`
 | accountConsole.livenessProbe.timeoutSeconds | int | `5` |  |
 | accountConsole.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere |
 | accountConsole.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
-| accountConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the UI |
+| accountConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the account console |
 | accountConsole.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
 | accountConsole.networkPolicy.extraIngress | list | `[]` | Extra ingress rules |
 | accountConsole.networkPolicy.ingressNSMatchLabels | object | `{}` | Namespace labels allowed to connect when allowExternal is false |
 | accountConsole.networkPolicy.ingressPodMatchLabels | object | `{}` | Pod labels allowed to connect when allowExternal is false |
 | accountConsole.nodeSelector | object | `{}` | Node selector |
-| accountConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the UI |
+| accountConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the account console |
 | accountConsole.pdb.maxUnavailable | string | `""` | Maximum unavailable pods (defaults to 1 when both are empty) |
 | accountConsole.pdb.minAvailable | string | `""` | Minimum available pods |
 | accountConsole.podAnnotations | object | `{}` | Pod annotations (tpl-rendered) |
@@ -289,7 +288,7 @@ Kubernetes: `>=1.25.0-0`
 | accountConsole.updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment update strategy |
 | adminConsole.affinity | object | `{}` | Affinity (overrides the anti-affinity preset when set) |
 | adminConsole.args | list | `[]` | Override the container args |
-| adminConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the UI |
+| adminConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the admin console |
 | adminConsole.autoscaling.hpa.maxReplicas | int | `5` | Maximum replicas |
 | adminConsole.autoscaling.hpa.minReplicas | int | `2` | Minimum replicas |
 | adminConsole.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
@@ -309,10 +308,9 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
 | adminConsole.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
 | adminConsole.hostAliases | list | `[]` | Pod host aliases |
-| adminConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
+| adminConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned) |
 | adminConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
 | adminConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split admin console (requires server.ingress.enabled) |
-| adminConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | adminConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | adminConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | adminConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
@@ -329,13 +327,13 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.livenessProbe.timeoutSeconds | int | `5` |  |
 | adminConsole.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere |
 | adminConsole.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
-| adminConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the UI |
+| adminConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the admin console |
 | adminConsole.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
 | adminConsole.networkPolicy.extraIngress | list | `[]` | Extra ingress rules |
 | adminConsole.networkPolicy.ingressNSMatchLabels | object | `{}` | Namespace labels allowed to connect when allowExternal is false |
 | adminConsole.networkPolicy.ingressPodMatchLabels | object | `{}` | Pod labels allowed to connect when allowExternal is false |
 | adminConsole.nodeSelector | object | `{}` | Node selector |
-| adminConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the UI |
+| adminConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the admin console |
 | adminConsole.pdb.maxUnavailable | string | `""` | Maximum unavailable pods (defaults to 1 when both are empty) |
 | adminConsole.pdb.minAvailable | string | `""` | Minimum available pods |
 | adminConsole.podAnnotations | object | `{}` | Pod annotations (tpl-rendered) |
@@ -392,7 +390,7 @@ Kubernetes: `>=1.25.0-0`
 | auth.systemClientSecretReset | bool | `false` | Re-assert the system client secret on every boot (CLIENT_SYSTEM_SECRET_RESET) |
 | authConsole.affinity | object | `{}` | Affinity (overrides the anti-affinity preset when set) |
 | authConsole.args | list | `[]` | Override the container args |
-| authConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the UI |
+| authConsole.autoscaling.hpa.enabled | bool | `false` | Enable HPA for the auth console |
 | authConsole.autoscaling.hpa.maxReplicas | int | `5` | Maximum replicas |
 | authConsole.autoscaling.hpa.minReplicas | int | `2` | Minimum replicas |
 | authConsole.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
@@ -405,17 +403,16 @@ Kubernetes: `>=1.25.0-0`
 | authConsole.customReadinessProbe | object | `{}` | Custom readiness probe |
 | authConsole.customStartupProbe | object | `{}` | Custom startup probe |
 | authConsole.disableRestartOnChanges | bool | `false` | Disable the checksum annotations that roll pods on config changes |
-| authConsole.enabled | bool | `true` | Enable the auth console and deploy it separately in split-console mode |
+| authConsole.enabled | bool | `true` | Deploy the auth console as its own workload in split-console mode. Must stay true: the auth console owns login and cannot be disabled (ignored in combined mode) |
 | authConsole.extraEnvVars | list | `[]` | Extra environment variables for the auth console container |
 | authConsole.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
 | authConsole.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |
 | authConsole.extraVolumeMounts | list | `[]` | Extra volume mounts (tpl-rendered) |
 | authConsole.extraVolumes | list | `[]` | Extra volumes (tpl-rendered) |
 | authConsole.hostAliases | list | `[]` | Pod host aliases |
-| authConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered) |
+| authConsole.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered; use-regex and rewrite-target are chart-owned) |
 | authConsole.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
 | authConsole.ingress.enabled | bool | `false` | Enable ingress-nginx routing for the split auth console (requires server.ingress.enabled) |
-| authConsole.ingress.extraHosts | list | `[]` | Extra hosts |
 | authConsole.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | authConsole.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
 | authConsole.ingress.extraTls | list | `[]` | Extra TLS entries |
@@ -432,13 +429,13 @@ Kubernetes: `>=1.25.0-0`
 | authConsole.livenessProbe.timeoutSeconds | int | `5` |  |
 | authConsole.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere |
 | authConsole.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
-| authConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the UI |
+| authConsole.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the auth console |
 | authConsole.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
 | authConsole.networkPolicy.extraIngress | list | `[]` | Extra ingress rules |
 | authConsole.networkPolicy.ingressNSMatchLabels | object | `{}` | Namespace labels allowed to connect when allowExternal is false |
 | authConsole.networkPolicy.ingressPodMatchLabels | object | `{}` | Pod labels allowed to connect when allowExternal is false |
 | authConsole.nodeSelector | object | `{}` | Node selector |
-| authConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the UI |
+| authConsole.pdb.create | bool | `false` | Create a PodDisruptionBudget for the auth console |
 | authConsole.pdb.maxUnavailable | string | `""` | Maximum unavailable pods (defaults to 1 when both are empty) |
 | authConsole.pdb.minAvailable | string | `""` | Minimum available pods |
 | authConsole.podAnnotations | object | `{}` | Pod annotations (tpl-rendered) |
@@ -560,7 +557,7 @@ Kubernetes: `>=1.25.0-0`
 | server.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
 | server.autoscaling.hpa.targetMemory | string | `""` | Target memory utilization percentage |
 | server.command | list | `[]` | Override the container command |
-| server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values, e.g. AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console with your own build (pair them with extraVolumes; the substituted package owns the login flow, so use server.theme for branding instead) |
+| server.config | object | `{}` | Extra environment variables rendered literally into the env ConfigMap (map of NAME: value) for options without first-class values, e.g. AUTH_CONSOLE_PATH / ACCOUNT_CONSOLE_PATH, which replace a served console with your own build (pair them with extraVolumes; the substituted package owns the login flow, so use server.theme for branding instead). In split-console mode set them in authConsole.config / accountConsole.config: `start core` does not read console paths |
 | server.configuration | string | `""` | Content of authup.yml mounted at /etc/authup/authup.yml for file-only options (middleware objects, per-field SMTP, CORS allowlist). Environment variables always win over file values. |
 | server.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context. The upstream image runs as root and needs writable log and npm cache paths; the chart mounts emptyDirs at /var/log/authup and /tmp. |
 | server.customLivenessProbe | object | `{}` | Custom liveness probe |
@@ -581,7 +578,7 @@ Kubernetes: `>=1.25.0-0`
 | server.hostAliases | list | `[]` | Pod host aliases |
 | server.ingress.annotations | object | `{}` | Ingress annotations (tpl-rendered). Token responses are large; with ingress-nginx consider proxy-buffer-size 16k+. |
 | server.ingress.certManager | bool | `false` | Request a cert-manager certificate (adds kubernetes.io/tls-acme) |
-| server.ingress.enabled | bool | `false` | Enable ingress for server-core. NOTE: this also exposes the UNAUTHENTICATED /metrics endpoint publicly — block it at the ingress controller or disable it via server.configuration ("middlewarePrometheus: false") when it is not scraped |
+| server.ingress.enabled | bool | `false` | Enable ingress for server-core. NOTE: this also exposes the UNAUTHENTICATED /metrics endpoint publicly — block it at the ingress controller or disable it via server.configuration (core.middlewarePrometheus: false) when it is not scraped |
 | server.ingress.extraHosts | list | `[]` | Extra hosts |
 | server.ingress.extraPaths | list | `[]` | Extra paths for the primary host |
 | server.ingress.extraRules | list | `[]` | Full custom rules (tpl-rendered; appended after the generated rules) |
@@ -612,14 +609,14 @@ Kubernetes: `>=1.25.0-0`
 | server.mfa.enabled | bool | `false` | Enable multi-factor authentication (MFA_ENABLED) |
 | server.mfa.required | bool | `false` | Require MFA for every user (MFA_REQUIRED; needs mfa.enabled) |
 | server.migration.backoffLimit | int | `3` | Job backoff limit |
-| server.migration.enabled | bool | `false` | Run `migration run` as a pre-upgrade hook Job. Recommended for multi-replica deployments (serializes DDL before pods roll). Fresh installs and non-persistent built-in databases migrate at boot regardless. |
+| server.migration.enabled | bool | `false` | Run `migration run` as a pre-upgrade hook Job. Recommended for multi-replica deployments (serializes DDL before pods roll). Fresh installs and non-persistent built-in databases migrate at boot regardless. Under useHelmHooks=false the Job is a PreSync hook on the first sync too, so with a built-in database enable it only after that sync |
 | server.migration.podAnnotations | object | `{}` | Job pod annotations |
 | server.migration.resources | object | `{}` | Job resources ({} = server resources defaults) |
 | server.migration.ttlSecondsAfterFinished | int | `300` | Delete the Job this many seconds after it finishes ("" = keep) |
-| server.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere. When false, only same-namespace pods, the release's UI pods and the configured selectors may connect — add your ingress controller via ingressNSMatchLabels/ingressPodMatchLabels |
+| server.networkPolicy.allowExternal | bool | `true` | Allow ingress from anywhere. When false, only the split console pods and the configured selectors may connect: add your ingress controller via ingressNSMatchLabels, ingressPodMatchLabels or extraIngress (required) |
 | server.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
-| server.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for server-core |
-| server.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
+| server.networkPolicy.enabled | bool | `false` | Create a NetworkPolicy for the server and, with server.migration.enabled, a hook-scoped egress policy for the migration Job |
+| server.networkPolicy.extraEgress | list | `[]` | Extra egress rules (also applied to the migration Job policy) |
 | server.networkPolicy.extraIngress | list | `[]` | Extra ingress rules |
 | server.networkPolicy.ingressNSMatchLabels | object | `{}` | Namespace labels allowed to connect when allowExternal is false |
 | server.networkPolicy.ingressPodMatchLabels | object | `{}` | Pod labels allowed to connect when allowExternal is false |
@@ -673,7 +670,7 @@ Kubernetes: `>=1.25.0-0`
 | server.startupProbe.successThreshold | int | `1` |  |
 | server.startupProbe.timeoutSeconds | int | `5` |  |
 | server.terminationGracePeriodSeconds | int | `30` | Pod termination grace period (server-core tears down within ~10s after signal) |
-| server.theme.enabled | bool | `false` | Mount an operator theme for the served consoles (the auth console and the account console). Requires an authup image that supports THEME_DIRECTORY_PATH; older images ignore it. Experimental upstream: the directory layout and the theme* options may change in a minor release |
+| server.theme.enabled | bool | `false` | Mount an operator theme for the served consoles (auth, admin and account). Experimental upstream: the directory layout and the theme* options may change in a minor release |
 | server.theme.existingConfigMap | string | `""` | Existing ConfigMap holding the theme (tpl-rendered name). Use for binary assets, which cannot be expressed in files. Mounted whole, so it must carry theme.json itself and excludes the manifest values above |
 | server.theme.existingConfigMapItems | list | `[]` | Key -> path projection for existingConfigMap, so its keys can land in subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]). Empty mounts every key flat at the theme root |
 | server.theme.favicon | string | `""` | Favicon path, relative to the theme root and under assets/ (e.g. assets/favicon.svg). Must be a key of files |
@@ -682,7 +679,7 @@ Kubernetes: `>=1.25.0-0`
 | server.theme.logo | string | `""` | Logo replacing the built-in mark on both consoles, under assets/. Painted into the existing mark's box, so it needs no sizing |
 | server.theme.logoDark | string | `""` | Dark-mode logo variant, under assets/. Without it dark mode reuses logo, which disappears when the mark is drawn dark-on-light |
 | server.theme.stylesheet | string | `""` | Stylesheet path, under assets/ and ending in .css. Linked last, so it beats the token block; it is unlayered, so set dark colors explicitly |
-| server.theme.title | string | `""` | Document title of both served consoles ("" = authup's own) |
+| server.theme.title | string | `""` | Document title of the served consoles ("" = authup's own) |
 | server.theme.tokens | object | `{}` | authup-periwinkle alone recolors buttons, focus rings and links. A color set here also wins in dark mode: put surface colors in both tokens and tokensDark |
 | server.theme.tokensDark | object | `{}` | CSS custom properties applied in dark mode only (tpl-rendered) |
 | server.tolerations | list | `[]` | Tolerations |
@@ -723,7 +720,7 @@ Kubernetes: `>=1.25.0-0`
 | worker.command | list | `[]` | Override the container command |
 | worker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
 | worker.disableRestartOnChanges | bool | `false` | Disable checksum annotations that roll pods on configuration changes |
-| worker.enabled | bool | `false` | Deploy a dedicated background worker (requires server.enabled) |
+| worker.enabled | bool | `false` | Deploy a dedicated background worker (requires server.enabled). It never migrates: on a fresh install it restarts until the server has initialized the schema; enable server.migration.enabled so upgrades run the Job first |
 | worker.extraEnvVars | list | `[]` | Extra environment variables for the worker container |
 | worker.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
 | worker.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |

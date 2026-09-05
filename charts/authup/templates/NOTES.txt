@@ -45,7 +45,7 @@ PUBLIC_URL.
 
 NOTE: the server ingress also exposes the unauthenticated /metrics endpoint.
 Block it at the ingress controller or disable it through server.configuration
-when it is not scraped.
+(core.middlewarePrometheus: false) when it is not scraped.
 {{- end }}
 {{- end }}
 

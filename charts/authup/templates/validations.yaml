@@ -57,6 +57,9 @@ database is configured while the mounted file is the operator's.
 {{- end }}
 {{- if .Values.server.splitConsoles }}
 {{- $publicUrl := include "authup.server.publicUrl" . }}
+{{- if not $publicUrl }}
+{{- fail "authup: server.splitConsoles requires server.publicUrl or an enabled server.ingress with a hostname so every role shares one origin." }}
+{{- end }}
 {{- $path := (urlParse $publicUrl).path }}
 {{- if and $path (ne $path "/") }}
 {{- fail "authup: server.splitConsoles requires server.publicUrl at the origin root because the console routes use fixed /console/* paths." }}
@@ -89,6 +92,10 @@ database is configured while the mounted file is the operator's.
 {{- end }}
 {{- end }}
 {{- end }}
+{{/* Browser traffic reaches the API through the ingress controller; console peers do not cover it. */}}
+{{- if and .Values.server.enabled .Values.server.networkPolicy.enabled (not .Values.server.networkPolicy.allowExternal) (not .Values.server.networkPolicy.ingressPodMatchLabels) (not .Values.server.networkPolicy.ingressNSMatchLabels) (not .Values.server.networkPolicy.extraIngress) }}
+{{- fail "authup: server.networkPolicy.allowExternal=false needs an ingress source for browser traffic (ingressNSMatchLabels, ingressPodMatchLabels or extraIngress); split console peers do not cover it." }}
+{{- end }}
 {{- if and .Values.worker.enabled (not .Values.server.enabled) }}
 {{- fail "authup: worker.enabled requires server.enabled=true because the worker shares the server configuration and credentials." }}
 {{- end }}
@@ -107,14 +114,14 @@ database is configured while the mounted file is the operator's.
 {{- if and .Values.server.ingress.enabled (not .Values.server.ingress.hostname) (not .Values.server.ingress.extraHosts) (not .Values.server.ingress.extraRules) }}
 {{- fail "authup: server.ingress.enabled requires server.ingress.hostname (or extraHosts / extraRules)." }}
 {{- end }}
-{{- if and .Values.server.splitConsoles .Values.authConsole.enabled .Values.authConsole.ingress.enabled (not .Values.authConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.authConsole.ingress.extraHosts) (not .Values.authConsole.ingress.extraRules) }}
-{{- fail "authup: authConsole.ingress.enabled requires authConsole.ingress.hostname, server.ingress.hostname, or extraHosts / extraRules." }}
+{{- if and .Values.server.splitConsoles .Values.authConsole.enabled .Values.authConsole.ingress.enabled (not .Values.authConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.authConsole.ingress.extraRules) }}
+{{- fail "authup: authConsole.ingress.enabled requires authConsole.ingress.hostname, server.ingress.hostname, or extraRules." }}
 {{- end }}
-{{- if and .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.adminConsole.ingress.extraHosts) (not .Values.adminConsole.ingress.extraRules) }}
-{{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname, server.ingress.hostname, or extraHosts / extraRules." }}
+{{- if and .Values.server.splitConsoles .Values.adminConsole.enabled .Values.adminConsole.ingress.enabled (not .Values.adminConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.adminConsole.ingress.extraRules) }}
+{{- fail "authup: adminConsole.ingress.enabled requires adminConsole.ingress.hostname, server.ingress.hostname, or extraRules." }}
 {{- end }}
-{{- if and .Values.server.splitConsoles .Values.accountConsole.enabled .Values.accountConsole.ingress.enabled (not .Values.accountConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.accountConsole.ingress.extraHosts) (not .Values.accountConsole.ingress.extraRules) }}
-{{- fail "authup: accountConsole.ingress.enabled requires accountConsole.ingress.hostname, server.ingress.hostname, or extraHosts / extraRules." }}
+{{- if and .Values.server.splitConsoles .Values.accountConsole.enabled .Values.accountConsole.ingress.enabled (not .Values.accountConsole.ingress.hostname) (not .Values.server.ingress.hostname) (not .Values.accountConsole.ingress.extraRules) }}
+{{- fail "authup: accountConsole.ingress.enabled requires accountConsole.ingress.hostname, server.ingress.hostname, or extraRules." }}
 {{- end }}
 
 {{/*
@@ -158,3 +165,6 @@ Deprecation tripwires: when a value moves, add a guard here that names the new
 location, e.g.
   if .Values.<oldKey> -> fail "authup: `<oldKey>` moved to `server.<newKey>` in chart 0.X. See BREAKING.md."
 */}}
+{{- if and .Values.server.config (hasKey .Values.server.config "WRITABLE_DIRECTORY_PATH") }}
+{{- fail "authup: server.config.WRITABLE_DIRECTORY_PATH is retired in beta.64: logs live at /var/log/authup and provisioning at /etc/authup/provisioning. See BREAKING.md." }}
+{{- end }}

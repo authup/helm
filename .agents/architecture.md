@@ -90,7 +90,8 @@ operational invariants that template changes must preserve.
     cross-revision name audit; a renamed kept Secret rotates credentials.
 20. **The migration Job is pre-upgrade only.** Fresh installs need regular
     backing resources before the server can initialize the database. On
-    upgrades, the Job runs before the rollout. The server sets
+    upgrades, and on every ArgoCD sync when `useHelmHooks=false`, the Job runs
+    before the rollout. The server sets
     `MIGRATION_ENABLED=false` only when the migrated database persists through
     the rollout; non-persistent built-in databases initialize again at boot.
 21. **Hook inputs must exist before regular resources.** The migration Job

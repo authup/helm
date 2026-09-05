@@ -37,7 +37,7 @@ and cache, plus restrictive NetworkPolicies.
 - no database, both built-in databases, or an unknown external database type
 - API replicas/HPA without Redis
 - MFA required while MFA is disabled
-- inline and existing-secret carriers set together
+- inline and existing-secret auth carriers set together
 - scheme-less public URLs or an Ingress without a hostname
 - a `server.config` key owned by a first-class value
 - both inline and existing configuration ConfigMaps
@@ -65,7 +65,9 @@ The pre-upgrade migration Job must stay narrower than the server Deployment:
   family, and runs at weight or wave -5 before the Job at 0
 - fresh-install server env has no `MIGRATION_ENABLED`; upgrade server env has
   `MIGRATION_ENABLED=false` when the Job is enabled and the database persists,
-  but leaves startup migration enabled for non-persistent built-in databases
+  but leaves startup migration enabled for non-persistent built-in databases;
+  with `useHelmHooks=false` every render counts as an upgrade because PreSync
+  precedes each sync
 
 Run both Helm and ArgoCD annotation paths:
 

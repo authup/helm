@@ -9,8 +9,11 @@ metadata:
   labels: {{- include "authup.labels" (dict "context" $ "component" "account-console") | nindent 4 }}
   annotations:
     {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
-    {{- if $ingress.annotations }}
-    {{- include "authup.tplvalues.render" (dict "value" $ingress.annotations "context" $) | nindent 4 }}
+    {{- with omit ($ingress.annotations | default dict) "nginx.ingress.kubernetes.io/use-regex" "nginx.ingress.kubernetes.io/rewrite-target" }}
+    {{- include "authup.tplvalues.render" (dict "value" . "context" $) | nindent 4 }}
+    {{- end }}
+    {{- if $ingress.certManager }}
+    kubernetes.io/tls-acme: "true"
     {{- end }}
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/rewrite-target: /$2

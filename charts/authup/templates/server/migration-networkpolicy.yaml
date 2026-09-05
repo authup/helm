@@ -9,7 +9,9 @@ metadata:
     {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
     {{- if .Values.useHelmHooks }}
     helm.sh/hook: pre-upgrade
-    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+    {{- /* No hook-succeeded: Helm 4 deletes earlier succeeded hooks as soon as a
+           later hook fails, which would cut a still-running migration pod off. */}}
+    helm.sh/hook-delete-policy: before-hook-creation
     helm.sh/hook-weight: "-5"
     {{- else }}
     argocd.argoproj.io/hook: PreSync

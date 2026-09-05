@@ -25,6 +25,12 @@ spec:
       annotations:
         {{- if not .Values.worker.disableRestartOnChanges }}
         checksum/env: {{ include "authup.server.configEnv" . | sha256sum }}
+        {{- if and (not .Values.postgresql.enabled) (not .Values.mysql.enabled) .Values.externalDatabase.host .Values.externalDatabase.password (not .Values.externalDatabase.existingSecret) }}
+        checksum/secret-db: {{ include (print $.Template.BasePath "/secret-db.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if and (not .Values.valkey.enabled) (not .Values.externalRedis.existingSecret) (or .Values.externalRedis.url .Values.externalRedis.host) }}
+        checksum/secret-redis: {{ include (print $.Template.BasePath "/secret-redis.yaml") . | sha256sum }}
+        {{- end }}
         {{- if .Values.server.configuration }}
         checksum/configuration: {{ include (print $.Template.BasePath "/server/configmap-configuration.yaml") . | sha256sum }}
         {{- end }}
