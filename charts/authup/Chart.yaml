@@ -4,7 +4,7 @@ description: Authup is an authentication & authorization system. This chart
   deploys its combined or split API, console and worker roles, with optional
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
-version: 0.3.0
+version: 0.4.0
 appVersion: "1.0.0-beta.64"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
