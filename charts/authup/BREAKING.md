@@ -3,7 +3,7 @@
 This chart uses `0.major.minor` versioning while below 1.0.0: breaking changes
 land on the middle digit. Every entry lists the value migrations required.
 
-## Next release (unreleased)
+## 0.4.0
 
 - The chart now requires the Authup v1.0.0-beta.64 CLI. Default server args are
   `start`; split API args are `start core`; console args are

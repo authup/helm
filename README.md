@@ -26,15 +26,15 @@ on Kubernetes.
 
 ## Highlights
 
-- 🔐 **Complete deployment** - the server-core IdP/API (OAuth2 / OpenID Connect,
-  hosted login & consent pages) and the client-admin-console admin UI, from one chart
+- 🔐 **Complete deployment** - the Authup IdP/API (OAuth2 / OpenID Connect,
+  hosted login & consent pages) with its auth, admin and account consoles, as
+  one combined server or as split workloads plus a background worker
 - 🗄️ **Hybrid database model** - built-in PostgreSQL **or** MySQL for a
   one-command start, or bring your own external database
 - ⚡ **Optional Valkey cache** - built-in instance or external Redis; required
   and enforced for multi-replica deployments
-- 🧭 **Derived wiring** - `PUBLIC_URL`, the UI's API URL and the trusted-origin
-  allowlist are computed from your two ingress hostnames, so logins work on the
-  first install
+- 🧭 **Derived wiring** - `PUBLIC_URL` is derived from your ingress hostname and
+  shared by every role, so logins work on the first install
 - 🔑 **Secret management** - generate-once credentials that survive upgrades,
   `existingSecret` support on every credential, nothing ever rendered as a
   plain env value
@@ -57,8 +57,8 @@ Charts are also published as OCI artifacts:
 helm install authup oci://ghcr.io/authup/helm/authup
 ```
 
-The default install brings up server-core, the admin UI and a built-in
-PostgreSQL. Retrieve the generated admin password:
+The default install brings up one combined Authup server (API plus the auth,
+admin and account consoles) and a built-in PostgreSQL. Retrieve the generated admin password:
 
 ```bash
 kubectl get secret authup -o jsonpath='{.data.admin-password}' | base64 -d
@@ -66,18 +66,13 @@ kubectl get secret authup -o jsonpath='{.data.admin-password}' | base64 -d
 
 ## Quickstart
 
-A typical production setup with two hostnames and an external database:
+A typical production setup with one hostname and an external database:
 
 ```yaml
 server:
   ingress:
     enabled: true
     hostname: auth.example.com
-    tls: true
-ui:
-  ingress:
-    enabled: true
-    hostname: authup.example.com
     tls: true
 
 postgresql:
@@ -92,6 +87,9 @@ valkey:
   enabled: true
 ```
 
+Set `server.splitConsoles=true` to run the consoles as separate workloads and
+`worker.enabled=true` for a dedicated background worker.
+
 See the [chart README](./charts/authup/README.md) for every parameter and the
 operational notes (GitOps caveats, scaling rules, the write-once encryption
 key).
@@ -100,7 +98,7 @@ key).
 
 | Chart | Description |
 |---|---|
-| [authup](./charts/authup) | server-core (IdP/API) + client-admin-console (admin UI), optional built-in PostgreSQL / MySQL / Valkey |
+| [authup](./charts/authup) | Authup API and consoles (combined or split), optional worker, optional built-in PostgreSQL / MySQL / Valkey |
 
 ## Documentation
 
