@@ -609,7 +609,7 @@ Kubernetes: `>=1.25.0-0`
 | server.mfa.enabled | bool | `false` | Enable multi-factor authentication (MFA_ENABLED) |
 | server.mfa.required | bool | `false` | Require MFA for every user (MFA_REQUIRED; needs mfa.enabled) |
 | server.migration.backoffLimit | int | `3` | Job backoff limit |
-| server.migration.enabled | bool | `false` | Run `migration run` as a pre-upgrade hook Job. Recommended for multi-replica deployments (serializes DDL before pods roll). Fresh installs and non-persistent built-in databases migrate at boot regardless. Under useHelmHooks=false the Job is a PreSync hook on the first sync too, so with a built-in database enable it only after that sync |
+| server.migration.enabled | bool | `false` | Run `migration run` as a pre-upgrade hook Job. Recommended for multi-replica deployments (serializes DDL before pods roll). Fresh installs and non-persistent built-in databases migrate at boot regardless. Under useHelmHooks=false the Job runs as an ArgoCD Sync-phase hook ordered after the built-in database by sync-wave, so it is safe from the first sync |
 | server.migration.podAnnotations | object | `{}` | Job pod annotations |
 | server.migration.resources | object | `{}` | Job resources ({} = server resources defaults) |
 | server.migration.ttlSecondsAfterFinished | int | `300` | Delete the Job this many seconds after it finishes ("" = keep) |
@@ -694,7 +694,7 @@ Kubernetes: `>=1.25.0-0`
 | smtp.connectionString | string | `""` | SMTP connection string (smtp(s)://user:pass@host:port); stored in a chart-managed secret |
 | smtp.existingSecret | string | `""` | Existing secret holding the SMTP connection string (tpl-rendered) |
 | smtp.existingSecretKey | string | `"smtp-connection-string"` | Key inside smtp.existingSecret holding the connection string |
-| useHelmHooks | bool | `true` | Render Helm hook annotations on the migration Job. Set false only for ArgoCD, which reads its own PreSync annotations instead (it also understands Helm hooks, so true works there too). Flux and plain helm need true: a plain Job's pod template is immutable, so the next upgrade cannot patch it. |
+| useHelmHooks | bool | `true` | Render Helm hook annotations on the migration Job. Set false only for ArgoCD, which reads its own Sync-phase, sync-wave annotations instead. ArgoCD also understands Helm hooks, but maps pre-upgrade to an unordered PreSync hook: with server.migration.enabled and a built-in database, set false so the Job waits for the database instead of deadlocking the first sync. Flux and plain helm need true: a plain Job's pod template is immutable, so the next upgrade cannot patch it. |
 | valkey.affinity | object | `{}` | Valkey affinity |
 | valkey.auth.password | string | `""` | Valkey password ("" = generate once, keep across upgrades) |
 | valkey.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"runAsGroup":999,"runAsNonRoot":true,"runAsUser":999,"seccompProfile":{"type":"RuntimeDefault"}}` | Valkey container security context |

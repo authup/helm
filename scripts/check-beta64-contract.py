@@ -407,9 +407,128 @@ def check_policy():
     )
     argocd = one(argocd_documents, "NetworkPolicy", "migration")
     annotations = argocd["metadata"]["annotations"]
-    assert annotations["argocd.argoproj.io/hook"] == "PreSync"
+    assert annotations["argocd.argoproj.io/hook"] == "Sync"
     assert annotations["argocd.argoproj.io/sync-wave"] == "-5"
     assert "helm.sh/hook" not in annotations
+
+    # Regression guard for #30: under useHelmHooks=false the migration Job must not be
+    # a PreSync hook (it would then run before the built-in database exists on the first
+    # sync and deadlock the app). It runs as a Sync-phase hook, ordered after the database
+    # and the hook-scoped config by sync-wave, and still ahead of the server Deployment's
+    # implicit wave 0.
+    wave_documents = render(
+        chart / "ci" / "valkey-values.yaml",
+        "--set",
+        "useHelmHooks=false",
+        "--set",
+        "server.networkPolicy.enabled=true",
+    )
+
+    # The migration Job's pod spec always references the ServiceAccount (via
+    # serviceAccountName) and the built-in database. Both must be healthy before
+    # the Job's wave, or ArgoCD hangs on a pod-admission failure that never
+    # counts toward the Job's backoffLimit (a silent deadlock, not a fast one).
+    db_wave = None
+    for kind, component in (
+        ("Secret", "postgresql"),
+        ("StatefulSet", "postgresql"),
+        ("Service", "postgresql"),
+        ("ServiceAccount", None),
+    ):
+        resource = one(wave_documents, kind, component)
+        resource_annotations = resource["metadata"]["annotations"]
+        assert "argocd.argoproj.io/hook" not in resource_annotations
+        wave = int(resource_annotations["argocd.argoproj.io/sync-wave"])
+        assert db_wave is None or wave == db_wave
+        db_wave = wave
+
+    configmap = one(wave_documents, "ConfigMap", "migration")
+    configmap_annotations = configmap["metadata"]["annotations"]
+    assert configmap_annotations["argocd.argoproj.io/hook"] == "Sync"
+    cm_wave = int(configmap_annotations["argocd.argoproj.io/sync-wave"])
+
+    wave_netpol = one(wave_documents, "NetworkPolicy", "migration")
+    wave_netpol_annotations = wave_netpol["metadata"]["annotations"]
+    assert wave_netpol_annotations["argocd.argoproj.io/hook"] == "Sync"
+    assert int(wave_netpol_annotations["argocd.argoproj.io/sync-wave"]) == cm_wave
+
+    job = one(wave_documents, "Job", "migration")
+    job_annotations = job["metadata"]["annotations"]
+    assert job_annotations["argocd.argoproj.io/hook"] == "Sync"
+    assert "helm.sh/hook" not in job_annotations
+    job_wave = int(job_annotations["argocd.argoproj.io/sync-wave"])
+
+    assert db_wave < cm_wave < job_wave < 0, (
+        f"expected db wave < config wave < job wave < 0, got "
+        f"{db_wave}, {cm_wave}, {job_wave}"
+    )
+
+    wave_server = one(wave_documents, "Deployment", "server")
+    assert "argocd.argoproj.io/sync-wave" not in (
+        wave_server["metadata"].get("annotations") or {}
+    )
+
+    # MySQL gets the same wave treatment as the postgresql fixture above.
+    mysql_documents = render(
+        chart / "ci" / "mysql-values.yaml",
+        "--set",
+        "useHelmHooks=false",
+        "--set",
+        "server.migration.enabled=true",
+    )
+    mysql_job_wave = int(
+        one(mysql_documents, "Job", "migration")["metadata"]["annotations"][
+            "argocd.argoproj.io/sync-wave"
+        ]
+    )
+    for kind in ("Secret", "StatefulSet", "Service"):
+        resource_annotations = one(mysql_documents, kind, "mysql")["metadata"]["annotations"]
+        assert "argocd.argoproj.io/hook" not in resource_annotations
+        assert int(resource_annotations["argocd.argoproj.io/sync-wave"]) < mysql_job_wave
+
+    # Plain Helm (useHelmHooks=true, the default) must render no ArgoCD annotations on
+    # the built-in database at all.
+    helm_wave_documents = render(chart / "ci" / "valkey-values.yaml")
+    helm_db_statefulset = one(helm_wave_documents, "StatefulSet", "postgresql")
+    assert "argocd.argoproj.io/sync-wave" not in (
+        helm_db_statefulset["metadata"].get("annotations") or {}
+    )
+
+    # The Job's other two possible Secret inputs (external database with an inline
+    # password, and the auth Secret when secretsEncryptionKey is set inline) also
+    # need to precede it, even with no built-in database at all.
+    externaldb_documents = render(
+        {
+            "postgresql": {"enabled": False},
+            "externalDatabase": {"host": "db.example.com", "password": "pw"},
+            "server": {"migration": {"enabled": True}},
+            "useHelmHooks": False,
+        }
+    )
+    externaldb_secret = one(externaldb_documents, "Secret", None, suffix="-externaldb")
+    assert int(
+        externaldb_secret["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]
+    ) < int(
+        one(externaldb_documents, "Job", "migration")["metadata"]["annotations"][
+            "argocd.argoproj.io/sync-wave"
+        ]
+    )
+
+    kek_documents = render(
+        chart / "ci" / "valkey-values.yaml",
+        "--set",
+        "useHelmHooks=false",
+        "--set",
+        "auth.secretsEncryptionKeyEnabled=true",
+        "--set",
+        "auth.secretsEncryptionKey=abcdefgh12345678",
+    )
+    kek_secret = one(kek_documents, "Secret", None)
+    assert int(kek_secret["metadata"]["annotations"]["argocd.argoproj.io/sync-wave"]) < int(
+        one(kek_documents, "Job", "migration")["metadata"]["annotations"][
+            "argocd.argoproj.io/sync-wave"
+        ]
+    )
 
 
 def check_validations():
@@ -587,6 +706,20 @@ def check_validations():
             {"server": {"config": {name: "false"}}},
             f"server.config.{name} collides with a first-class chart value",
         )
+    render_fails(
+        {
+            "useHelmHooks": False,
+            "commonAnnotations": {"argocd.argoproj.io/sync-wave": "5"},
+        },
+        "commonAnnotations must not set argocd.argoproj.io/sync-wave",
+    )
+    render_fails(
+        {
+            "useHelmHooks": False,
+            "serviceAccount": {"annotations": {"argocd.argoproj.io/sync-wave": "5"}},
+        },
+        "serviceAccount.annotations must not set argocd.argoproj.io/sync-wave",
+    )
 
 
 checks = {

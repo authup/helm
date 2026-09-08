@@ -85,9 +85,9 @@ migrations are serialized before pods roll.
 
 {{- if and .Values.server.enabled .Values.server.migration.enabled (not .Values.useHelmHooks) }}
 
-WARNING: useHelmHooks=false is for ArgoCD PreSync only. Flux and plain Helm
-apply the Job as a normal immutable resource, so later upgrades can fail. Use
-useHelmHooks=true outside ArgoCD.
+WARNING: useHelmHooks=false renders ArgoCD-specific Sync-phase hook
+annotations only. Flux and plain Helm apply the Job as a normal immutable
+resource, so later upgrades can fail. Use useHelmHooks=true outside ArgoCD.
 {{- end }}
 
 {{- if .Values.server.provisioning.enabled }}

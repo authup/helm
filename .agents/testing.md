@@ -48,6 +48,10 @@ and cache, plus restrictive NetworkPolicies.
 - non-empty `server.features.accountConsole`, which moved to
   `accountConsole.enabled`
 - invalid theme manifests or dangerous trusted-origin globstars
+- `commonAnnotations` or `serviceAccount.annotations` setting
+  `argocd.argoproj.io/sync-wave` under `useHelmHooks=false`, which would
+  collide with the chart's own wave ordering
+  on only some of the affected resources
 
 The beta.64 contract script exercises the moved value, split dependencies,
 route flags and reserved role env variables directly.
@@ -62,12 +66,16 @@ The pre-upgrade migration Job must stay narrower than the server Deployment:
 - `authup.yml` comes from the hook-scoped configuration ConfigMap
 - logs mount at `/var/log/authup`
 - the migration NetworkPolicy selects component `migration`, uses the same hook
-  family, and runs at weight or wave -5 before the Job at 0
+  family, and runs at Helm hook-weight -5 before the Job at 0, or ArgoCD
+  sync-wave -5 before the Job at -1
+- under `useHelmHooks=false`, the built-in database, the ServiceAccount and the
+  auth/external-db Secrets all render at sync-wave -10, strictly before the
+  Job's wave -1 (issue #30: a PreSync Job used to run before all of these)
 - fresh-install server env has no `MIGRATION_ENABLED`; upgrade server env has
   `MIGRATION_ENABLED=false` when the Job is enabled and the database persists,
   but leaves startup migration enabled for non-persistent built-in databases;
-  with `useHelmHooks=false` every render counts as an upgrade because PreSync
-  precedes each sync
+  with `useHelmHooks=false` every render counts as an upgrade because the Job
+  is a hook on every sync, not just the first
 
 Run both Helm and ArgoCD annotation paths:
 
