@@ -48,8 +48,9 @@ and cache, plus restrictive NetworkPolicies.
 - non-empty `server.features.accountConsole`, which moved to
   `accountConsole.enabled`
 - invalid theme manifests or dangerous trusted-origin globstars
-- `commonAnnotations` setting `argocd.argoproj.io/sync-wave` under
-  `useHelmHooks=false`, which would collide with the chart's own wave ordering
+- `commonAnnotations` or `serviceAccount.annotations` setting
+  `argocd.argoproj.io/sync-wave` under `useHelmHooks=false`, which would
+  collide with the chart's own wave ordering
   on only some of the affected resources
 
 The beta.64 contract script exercises the moved value, split dependencies,

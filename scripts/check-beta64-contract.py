@@ -713,6 +713,13 @@ def check_validations():
         },
         "commonAnnotations must not set argocd.argoproj.io/sync-wave",
     )
+    render_fails(
+        {
+            "useHelmHooks": False,
+            "serviceAccount": {"annotations": {"argocd.argoproj.io/sync-wave": "5"}},
+        },
+        "serviceAccount.annotations must not set argocd.argoproj.io/sync-wave",
+    )
 
 
 checks = {

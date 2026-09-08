@@ -166,12 +166,15 @@ built-in database, the ServiceAccount and the migration Job's Secrets, to keep t
 Job ordered after all of them (issue #30). Only those resources route their wave
 through the authup.annotations helper; the migration Job, its ConfigMap and its
 NetworkPolicy carry their own fixed waves as template literals. A user-supplied
-commonAnnotations value for the same key would collide with only the first group,
-inverting the ordering instead of overriding it everywhere, so it is rejected
-outright rather than silently mishandled.
+commonAnnotations or serviceAccount.annotations value for the same key would
+collide with only the first group, inverting the ordering instead of overriding
+it everywhere, so both are rejected outright rather than silently mishandled.
 */}}
 {{- if and (not .Values.useHelmHooks) (hasKey (.Values.commonAnnotations | default dict) "argocd.argoproj.io/sync-wave") }}
 {{- fail "authup: commonAnnotations must not set argocd.argoproj.io/sync-wave when useHelmHooks=false. The chart manages that annotation itself to keep the migration Job ordered after the built-in database, the ServiceAccount and its Secrets." }}
+{{- end }}
+{{- if and (not .Values.useHelmHooks) .Values.serviceAccount.create (hasKey (.Values.serviceAccount.annotations | default dict) "argocd.argoproj.io/sync-wave") }}
+{{- fail "authup: serviceAccount.annotations must not set argocd.argoproj.io/sync-wave when useHelmHooks=false. The chart manages that annotation itself to keep the migration Job ordered after the ServiceAccount." }}
 {{- end }}
 
 {{/*
