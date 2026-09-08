@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.1](https://github.com/authup/helm/compare/root-0.4.0...root-0.4.1) (2026-09-08)
+
+
+### Features
+
+* **authup:** track authup 1.0.0-beta.65 ([95852c0](https://github.com/authup/helm/commit/95852c0c4a79a62803f6c17bf996e6376115d0fb))
+
+
+### Bug Fixes
+
+* **authup:** order the migration Job after its own inputs under ArgoCD ([#34](https://github.com/authup/helm/issues/34)) ([c29945d](https://github.com/authup/helm/commit/c29945d9252374ad57043c18418c4b9139a26a6a))
+
 ## [0.4.0](https://github.com/authup/helm/compare/root-0.3.0...root-0.4.0) (2026-09-05)
 
 
