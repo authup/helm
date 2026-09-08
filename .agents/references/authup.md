@@ -1,8 +1,17 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.64, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.65, the
 chart `appVersion`.
+
+beta.64 to beta.65 changed no image entrypoint, CLI, port or environment-variable
+contract: `Dockerfile` and `entrypoint.sh` are unchanged. The one new config
+field, `querySchemaDiscoveryEnabled` (`QUERY_SCHEMA_DISCOVERY_ENABLED`,
+`packages/server-config/src/sections/core/schema.ts`), is already reachable
+through the long tail (`server.config.core.querySchemaDiscoveryEnabled`) and
+does not need a first-class value. Identity-provider secret encryption
+(`feat(server-core): encrypt identity-provider secrets at rest`, #3569) reuses
+the existing `SECRETS_ENCRYPTION_KEY`; it adds no new chart-managed secret.
 
 ## Image and CLI
 

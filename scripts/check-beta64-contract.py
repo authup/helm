@@ -11,6 +11,7 @@ import yaml
 
 chart = Path(sys.argv[1] if len(sys.argv) > 1 else "charts/authup")
 case = sys.argv[2] if len(sys.argv) > 2 else "all"
+app_version = yaml.safe_load((chart / "Chart.yaml").read_text())["appVersion"]
 
 
 def render_result(values=None, *args):
@@ -154,7 +155,7 @@ def check_base():
     assert container(server)["args"] == ["start"]
     assert env_value(container(server), "WORKER_ENABLED") is None
     assert env_value(container(server), "MIGRATION_ENABLED") is None
-    assert server["metadata"]["labels"]["app.kubernetes.io/version"] == "1.0.0-beta.64"
+    assert server["metadata"]["labels"]["app.kubernetes.io/version"] == app_version
 
     configured_values = {
         "server": {

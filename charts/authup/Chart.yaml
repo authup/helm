@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.4.0
-appVersion: "1.0.0-beta.64"
+appVersion: "1.0.0-beta.65"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -32,12 +32,4 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: changed
-      description: Track Authup v1.0.0-beta.64 and its role-based start, migration and configuration contracts
-    - kind: added
-      description: Optional split auth, admin and account console workloads with single-origin Ingress and Gateway API routing
-    - kind: added
-      description: Optional dedicated background worker with explicit API ownership handoff
-    - kind: fixed
-      description: Migration and split role NetworkPolicies preserve database, cache, DNS and API connectivity under default-deny egress
-    - kind: changed
-      description: Configuration, provisioning and log mounts follow the beta.64 filesystem contract
+      description: Track Authup v1.0.0-beta.65; no image entrypoint, CLI or environment-variable contract changes
