@@ -33,3 +33,5 @@ annotations:
   artifacthub.io/changes: |
     - kind: changed
       description: Track Authup v1.0.0-beta.65; no image entrypoint, CLI or environment-variable contract changes
+    - kind: fixed
+      description: Fix ArgoCD first-sync deadlock when server.migration.enabled and a built-in database are both enabled with useHelmHooks=false

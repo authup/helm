@@ -10,7 +10,7 @@ metadata:
   name: {{ include "authup.mysql.fullname" . }}
   namespace: {{ include "authup.namespace" . | quote }}
   labels: {{- include "authup.labels" (dict "context" $ "component" "mysql") | nindent 4 }}
-  annotations: {{- include "authup.annotations" (dict "context" $) | nindent 4 }}
+  annotations: {{- include "authup.annotations" (dict "context" $ "syncWave" "-10") | nindent 4 }}
 spec:
   serviceName: {{ include "authup.mysql.fullname" . }}
   replicas: 1

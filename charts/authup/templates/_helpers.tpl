@@ -168,6 +168,9 @@ Common annotations applied to every object.
 {{- if .context.Values.commonAnnotations -}}
 {{ include "authup.tplvalues.render" (dict "value" .context.Values.commonAnnotations "context" .context) }}
 {{- end -}}
+{{- if and .syncWave (not .context.Values.useHelmHooks) }}
+argocd.argoproj.io/sync-wave: {{ .syncWave | quote }}
+{{- end -}}
 {{- end -}}
 
 {{/*

@@ -6,6 +6,18 @@ migrates at boot anyway. On upgrades the Job serializes DDL before new pods
 roll, which matters for multi-replica deployments (MySQL DDL is not
 transactional). The env ConfigMap content is INLINED so the hook never runs
 against the previous release's ConfigMap.
+
+ArgoCD has no pre-upgrade concept, so useHelmHooks=false hits the same
+fresh-install problem a different way: a PreSync hook runs before every
+Sync-phase resource, including the built-in database, so the Job used to fail
+against a database that could never appear. The fix keeps the Job a hook (for
+BeforeHookCreation delete-and-recreate on every sync) but moves it into the
+Sync phase at sync-wave -1, ordered by wave instead of by phase. Everything
+the Job's pod spec can reference (the built-in database, the ServiceAccount,
+and the auth/external-db Secrets when they carry the values it needs) renders
+at wave -10; the hook-scoped ConfigMap and NetworkPolicy at -5; so the Job
+always runs after all of its own inputs exist and are healthy, and still
+before the server Deployment (implicit wave 0).
 */}}
 apiVersion: batch/v1
 kind: Job
@@ -28,8 +40,9 @@ metadata:
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
     helm.sh/hook-weight: "0"
     {{- else }}
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/sync-wave: "-1"
     {{- end }}
 spec:
   backoffLimit: {{ .Values.server.migration.backoffLimit }}

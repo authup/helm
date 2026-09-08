@@ -98,10 +98,15 @@ operational invariants that template changes must preserve.
     inlines non-secret config, narrows secrets to database password and optional
     encryption key, skips provisioning, and mounts a hook-scoped copy of
     `authup.yml`. The configuration ConfigMap and migration NetworkPolicy have
-    weight -5; the Job has weight 0.
-22. **`useHelmHooks=false` is ArgoCD-only.** It emits PreSync resources. Flux
-    and plain Helm need native hooks or they apply an immutable Job as a normal
-    resource without correct ordering.
+    Helm hook-weight -5; the Job has weight 0. Under `useHelmHooks=false` this
+    extends to every object the Job's pod spec can reference: the built-in
+    database, the ServiceAccount, and the auth/external-db Secrets all render at
+    sync-wave -10 so the Job (wave -1) never waits on a resource ArgoCD hasn't
+    created yet, which for a Job (bounded `backoffLimit`, no self-healing retry
+    like a Deployment) is a deadlock, not a slow start (issue #30).
+22. **`useHelmHooks=false` is ArgoCD-only.** It emits Sync-phase resources
+    ordered by sync-wave, not PreSync. Flux and plain Helm need native hooks or
+    they apply an immutable Job as a normal resource without correct ordering.
 23. **Checksum annotations follow every consumed input.** Deployments roll on
     chart-managed env, Secret, provisioning, configuration and theme changes.
     `disableRestartOnChanges` is the explicit escape hatch.

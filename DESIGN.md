@@ -180,11 +180,20 @@ Helm creates hooks before regular release resources. The Job therefore:
 - mounts a hook-scoped copy of `authup.yml`
 - mounts `/var/log/authup`
 
-The hook configuration ConfigMap and migration NetworkPolicy run at weight -5;
-the Job runs at 0. This ensures configuration and egress policy exist before the
-pod. `useHelmHooks=false` emits ArgoCD PreSync annotations. It is not a Flux or
-plain-Helm mode because a normal Job has immutable pod templates and no correct
-upgrade ordering.
+The hook configuration ConfigMap and migration NetworkPolicy run at Helm
+hook-weight -5; the Job runs at 0. This ensures configuration and egress policy
+exist before the pod. `useHelmHooks=false` emits ArgoCD annotations instead. It
+is not a Flux or plain-Helm mode because a normal Job has immutable pod
+templates and no correct upgrade ordering.
+
+Under ArgoCD the Job is a Sync-phase hook (not PreSync), at sync-wave -1: a
+PreSync hook runs before every Sync-phase resource, including the built-in
+database, which deadlocked a fresh install (issue #30). Everything the Job's
+pod spec can reference (the built-in database, the ServiceAccount, and the
+auth/external-db Secrets when they carry values the Job needs) renders at wave
+-10; the hook-scoped ConfigMap and NetworkPolicy at -5. ArgoCD waits for each
+wave to be healthy before starting the next, so the Job always runs after its
+own inputs exist, and still before the server Deployment (implicit wave 0).
 
 ## 8. Network policy
 

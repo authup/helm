@@ -161,6 +161,20 @@ serves at "/" and expects the proxy to strip the prefix, hence match AND rewrite
 {{- end }}
 
 {{/*
+Under useHelmHooks=false the chart sets argocd.argoproj.io/sync-wave itself on the
+built-in database, the ServiceAccount and the migration Job's Secrets, to keep the
+Job ordered after all of them (issue #30). Only those resources route their wave
+through the authup.annotations helper; the migration Job, its ConfigMap and its
+NetworkPolicy carry their own fixed waves as template literals. A user-supplied
+commonAnnotations value for the same key would collide with only the first group,
+inverting the ordering instead of overriding it everywhere, so it is rejected
+outright rather than silently mishandled.
+*/}}
+{{- if and (not .Values.useHelmHooks) (hasKey (.Values.commonAnnotations | default dict) "argocd.argoproj.io/sync-wave") }}
+{{- fail "authup: commonAnnotations must not set argocd.argoproj.io/sync-wave when useHelmHooks=false. The chart manages that annotation itself to keep the migration Job ordered after the built-in database, the ServiceAccount and its Secrets." }}
+{{- end }}
+
+{{/*
 Deprecation tripwires: when a value moves, add a guard here that names the new
 location, e.g.
   if .Values.<oldKey> -> fail "authup: `<oldKey>` moved to `server.<newKey>` in chart 0.X. See BREAKING.md."

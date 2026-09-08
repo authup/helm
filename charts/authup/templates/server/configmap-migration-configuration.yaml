@@ -14,7 +14,9 @@ Rendered from authup.server.configurationContent, the single source the release
 ConfigMap uses too, so migration and server pods can never read different files.
 Hook weight -5 puts it ahead of the Job's 0 (helm applies the hook-succeeded
 delete policy only after every hook in the event has run, so it outlives the
-Job); the ArgoCD branch mirrors that with sync-wave -5.
+Job); the ArgoCD branch mirrors that with sync-wave -5, as a Sync-phase hook
+rather than a PreSync one, so it also runs after the built-in database's wave
+-10 and still ahead of the Job at -1.
 */}}
 apiVersion: v1
 kind: ConfigMap
@@ -29,7 +31,7 @@ metadata:
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
     helm.sh/hook-weight: "-5"
     {{- else }}
-    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook: Sync
     argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
     argocd.argoproj.io/sync-wave: "-5"
     {{- end }}
