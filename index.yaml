@@ -4,6 +4,49 @@ entries:
   - annotations:
       artifacthub.io/changes: |
         - kind: changed
+          description: Track Authup v1.0.0-beta.66; no image entrypoint, CLI or environment-variable contract changes
+        - kind: added
+          description: The device authorization grant endpoints and the hosted /device page route through the existing server catch-all and auth console prefix; no new routing values
+        - kind: changed
+          description: A console bundle substituted through AUTH_CONSOLE_PATH must be rebuilt against auth console render contract version 5
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.66
+    created: "2026-09-22T10:25:17.257028636Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      its combined or split API, console and worker roles, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: 12e89a926379546998747f0701d67597761d8be5d0a78ae806b37e86bd282944
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.4.2/authup-0.4.2.tgz
+    version: 0.4.2
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
           description: Track Authup v1.0.0-beta.65; no image entrypoint, CLI or environment-variable contract changes
         - kind: fixed
           description: Fix ArgoCD first-sync deadlock when server.migration.enabled and a built-in database are both enabled with useHelmHooks=false
@@ -309,4 +352,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-08T19:45:19.826688737Z"
+generated: "2026-09-22T10:25:17.257045655Z"
