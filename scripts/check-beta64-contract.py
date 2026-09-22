@@ -321,6 +321,15 @@ def check_routing():
     ):
         assert exact_backend(server_ingress, path) == "test-authup-server"
 
+    # Everything outside /console belongs to the API set: the hosted page GETs
+    # that redirect into the auth console (/authorize, /device, ...) and the
+    # endpoints behind them (/token, /device_authorization). They ride the
+    # catch-all, which therefore has to stay last and stay on the server.
+    catch_all = ingress_paths(server_ingress)[-1]
+    assert catch_all["path"] == "/"
+    assert catch_all["pathType"] == "Prefix"
+    assert catch_all["backend"]["service"]["name"] == "test-authup-server"
+
     route_values = {
         "server": {
             "publicUrl": "https://auth.example.com",
@@ -364,6 +373,15 @@ def check_routing():
     ]
     assert [rule["matches"][0]["path"]["value"] for rule in rules[:4]] == expected_paths
     assert all(rule["matches"][0]["path"]["type"] == "Exact" for rule in rules[:4])
+
+    # Same catch-all rule for Gateway API: a rule with no matches, last, on the
+    # API Service. The auth console prefix above covers /console/auth/device,
+    # the page the API redirects /device to.
+    catch_all_rule = rules[-1]
+    assert "matches" not in catch_all_rule
+    assert [ref["name"] for ref in catch_all_rule["backendRefs"]] == [
+        "test-authup-server"
+    ]
 
 
 def check_policy():

@@ -22,8 +22,8 @@
 ![Version](https://img.shields.io/badge/Version-{{ template "chart.version" . }}?style=flat-square&color=informational) <!-- x-release-please-version -->
 {{ template "chart.typeBadge" . }}{{ template "chart.appVersionBadge" . }}
 
-{{ template "chart.description" . }} It runs Authup v1.0.0-beta.64's role-based
-CLI topology:
+{{ template "chart.description" . }} It runs Authup v{{ template "chart.appVersion" . }}'s
+role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
 - optional split API (`start core`) plus auth, admin and account console
