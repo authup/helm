@@ -1,17 +1,31 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.65, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.66, the
 chart `appVersion`.
 
-beta.64 to beta.65 changed no image entrypoint, CLI, port or environment-variable
-contract: `Dockerfile` and `entrypoint.sh` are unchanged. The one new config
-field, `querySchemaDiscoveryEnabled` (`QUERY_SCHEMA_DISCOVERY_ENABLED`,
-`packages/server-config/src/sections/core/schema.ts`), is already reachable
-through the long tail (`server.config.core.querySchemaDiscoveryEnabled`) and
-does not need a first-class value. Identity-provider secret encryption
-(`feat(server-core): encrypt identity-provider secrets at rest`, #3569) reuses
-the existing `SECRETS_ENCRYPTION_KEY`; it adds no new chart-managed secret.
+beta.65 to beta.66 changed no image entrypoint, CLI role, port or
+environment-variable contract: `Dockerfile` and `entrypoint.sh` are unchanged,
+`packages/server-config/src` gained no field, and `apps/authup/src/module.ts`
+only adds operator-side commands (`login`, `logout`, `whoami`, `api <entity>`,
+a CLI that signs itself in through the device grant) beside the unchanged
+`start` tree. Three deployment-facing facts, none of which needs a chart value:
+
+- The device authorization grant (RFC 8628, #3587) adds `/device_authorization`
+  and the hosted `/device` page. Both sit outside `/console`, so they ride the
+  server catch-all, and the `/device` redirect target `/console/auth/device`
+  rides the auth console's `/console/auth` prefix
+  (`docs/src/guide/deployment/console-replicas.md`). The grant is opt-in per
+  client through the provisioning field `grantTypes`; an omitted `grantTypes`
+  does not enable it.
+- The `@authup/client-auth-console` render contract is version 5 (was 3). A
+  bundle substituted through `AUTH_CONSOLE_PATH` and built against an older
+  contract is refused at boot and must be rebuilt
+  (`docs/src/guide/deployment/theming.md`).
+- Console permission gating, token client narrowing, realm-gated entity reads
+  and the new `permission_check` permission are API and provisioning behavior.
+  They change which grants an operator hands out, not what the chart renders
+  (`docs/src/guide/deployment/upgrading.md`).
 
 ## Image and CLI
 
@@ -91,3 +105,9 @@ clients and must not be declared as user provisioning entries.
 - Split console prefixes must be removed before requests reach their listeners.
   Admin/account login start and callback endpoints are core API routes, not
   console asset routes.
+- Paths outside `/console` belong to the API set: the hosted page GETs
+  (`/authorize`, `/register`, `/activate`, `/password-forgot`,
+  `/password-reset`, `/logout`, `/device`), which answer with a redirect into
+  the auth console, and the endpoints behind them (`/token`,
+  `/device_authorization`). The chart's server catch-all carries them, so a new
+  hosted page needs no chart change while that catch-all exists.

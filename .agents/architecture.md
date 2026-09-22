@@ -70,7 +70,9 @@ operational invariants that template changes must preserve.
     callback paths must remain on the API before broader console prefixes.
     A generated console Ingress or HTTPRoute requires the matching server
     resource so those core-owned paths cannot disappear. Split mode rejects a
-    path-prefixed server public URL.
+    path-prefixed server public URL. The server catch-all is load-bearing: it
+    carries every path outside `/console`, including the hosted page GETs and
+    `/device_authorization`, so Authup can add one without a chart change.
 16. **HTTPRoute flags are strict.** `route.enabled` accepts a boolean or a
     template-rendered boolean string. `authup.flag` validates every role even
     when that role is disabled, because a non-empty string `"false"` is truthy

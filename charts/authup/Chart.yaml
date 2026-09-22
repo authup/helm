@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.4.1
-appVersion: "1.0.0-beta.65"
+appVersion: "1.0.0-beta.66"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -32,6 +32,8 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: changed
-      description: Track Authup v1.0.0-beta.65; no image entrypoint, CLI or environment-variable contract changes
-    - kind: fixed
-      description: Fix ArgoCD first-sync deadlock when server.migration.enabled and a built-in database are both enabled with useHelmHooks=false
+      description: Track Authup v1.0.0-beta.66; no image entrypoint, CLI or environment-variable contract changes
+    - kind: added
+      description: The device authorization grant endpoints and the hosted /device page route through the existing server catch-all and auth console prefix; no new routing values
+    - kind: changed
+      description: A console bundle substituted through AUTH_CONSOLE_PATH must be rebuilt against auth console render contract version 5
