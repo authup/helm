@@ -4,6 +4,49 @@ entries:
   - annotations:
       artifacthub.io/changes: |
         - kind: changed
+          description: Track Authup v1.0.0-beta.67; no image entrypoint, CLI or environment-variable contract changes
+        - kind: changed
+          description: Authup v1.0.0-beta.67 ships migration 1789930726252-PathsAndEventAggregates, applied by the migration Job or the server boot
+        - kind: changed
+          description: Authup now pins database sessions to UTC; a database that ran in local time needs its historical timestamps converted once (see the Authup upgrading guide)
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.67
+    created: "2026-09-24T11:26:37.078065199Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      its combined or split API, console and worker roles, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: bfc8e521de5d4f1f18205ce8db41b7b14c1116baa499bc5377ea1053bf60941e
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.4.3/authup-0.4.3.tgz
+    version: 0.4.3
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
           description: Track Authup v1.0.0-beta.66; no image entrypoint, CLI or environment-variable contract changes
         - kind: added
           description: The device authorization grant endpoints and the hosted /device page route through the existing server catch-all and auth console prefix; no new routing values
@@ -352,4 +395,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-22T10:25:17.257045655Z"
+generated: "2026-09-24T11:26:37.078110174Z"
