@@ -1,31 +1,39 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.66, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.67, the
 chart `appVersion`.
 
-beta.65 to beta.66 changed no image entrypoint, CLI role, port or
-environment-variable contract: `Dockerfile` and `entrypoint.sh` are unchanged,
-`packages/server-config/src` gained no field, and `apps/authup/src/module.ts`
-only adds operator-side commands (`login`, `logout`, `whoami`, `api <entity>`,
-a CLI that signs itself in through the device grant) beside the unchanged
-`start` tree. Three deployment-facing facts, none of which needs a chart value:
+beta.66 to beta.67 changed no image entrypoint, CLI role, port or
+environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`
+and `packages/client-auth-console` are unchanged, and `apps/authup/src` only
+adds `authup api <entity> stats` beside the unchanged `start` tree.
+Deployment-facing facts, none of which needs a chart value
+(`docs/src/guide/deployment/upgrading.md`):
 
-- The device authorization grant (RFC 8628, #3587) adds `/device_authorization`
-  and the hosted `/device` page. Both sit outside `/console`, so they ride the
-  server catch-all, and the `/device` redirect target `/console/auth/device`
-  rides the auth console's `/console/auth` prefix
-  (`docs/src/guide/deployment/console-replicas.md`). The grant is opt-in per
-  client through the provisioning field `grantTypes`; an omitted `grantTypes`
-  does not enable it.
-- The `@authup/client-auth-console` render contract is version 5 (was 3). A
-  bundle substituted through `AUTH_CONSOLE_PATH` and built against an older
-  contract is refused at boot and must be rebuilt
-  (`docs/src/guide/deployment/theming.md`).
-- Console permission gating, token client narrowing, realm-gated entity reads
-  and the new `permission_check` permission are API and provisioning behavior.
-  They change which grants an operator hands out, not what the chart renders
-  (`docs/src/guide/deployment/upgrading.md`).
+- Migration `1789930726252-PathsAndEventAggregates` (folders for users and
+  clients, daily event rollups) runs on PostgreSQL and MySQL. The pre-upgrade
+  migration Job or a server boot with `MIGRATION_ENABLED` applies it.
+- Boot-time migrations now take a database lock, so replicas starting together
+  with `MIGRATION_ENABLED` on no longer race. A waiting replica fails its boot
+  after 60 seconds and is restarted. The chart's migration Job ownership is
+  unchanged.
+- Database sessions are pinned to UTC (`TimeZone` on PostgreSQL, `time_zone`
+  on MySQL). The built-in PostgreSQL and MySQL images run in UTC and the chart
+  sets no driver timezone option. A driver option that contradicts the pin (a
+  MySQL `timezone` other than UTC, `dateStrings`, `typeCast`, a PostgreSQL
+  `TimeZone` in the startup `options`) or a MySQL replication setup, passed
+  through `server.config`, now stops the boot.
+- The new config field `eventLogAggregateRetentionDays`
+  (`EVENT_LOG_AGGREGATE_RETENTION_DAYS`, default 0 = forever,
+  `packages/server-config/src/sections/core/schema.ts`) is reachable through
+  the long tail (`server.config.core.eventLogAggregateRetentionDays`). The
+  rollup task runs wherever the worker sweeps run: the `start` process, or
+  the `start worker` Deployment when `worker.enabled=true`.
+- Earlier deployment facts still hold: the device authorization grant rides
+  the server catch-all and the `/console/auth` prefix (beta.66), and a bundle
+  substituted through `AUTH_CONSOLE_PATH` must match auth console render
+  contract version 5.
 
 ## Image and CLI
 
