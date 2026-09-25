@@ -4,6 +4,47 @@ entries:
   - annotations:
       artifacthub.io/changes: |
         - kind: changed
+          description: Track Authup v1.0.0-beta.68 and enable the dedicated worker by default
+        - kind: changed
+          description: Probe worker sweep health with a configurable HTTP readiness check
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.68
+    created: "2026-09-25T12:51:20.174112001Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      its combined or split API, console and worker roles, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: e7234222263612e0c50418abb1fd6be514848f3aba4485e4442f31eff810ddaa
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.5.0/authup-0.5.0.tgz
+    version: 0.5.0
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
           description: Track Authup v1.0.0-beta.67; no image entrypoint, CLI or environment-variable contract changes
         - kind: changed
           description: Authup v1.0.0-beta.67 ships migration 1789930726252-PathsAndEventAggregates, applied by the migration Job or the server boot
@@ -395,4 +436,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-09-24T11:26:37.078110174Z"
+generated: "2026-09-25T12:51:20.174154961Z"
