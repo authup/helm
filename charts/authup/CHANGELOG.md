@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.5.0](https://github.com/authup/helm/compare/authup-0.4.3...authup-0.5.0) (2026-09-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* **authup:** worker.enabled now defaults to true. Set it to false to retain the previous topology or when server.enabled is false. Configure WORKER_PORT through worker.containerPorts.http.
+
+### Features
+
+* **authup:** enable beta.68 worker with readiness probes ([#39](https://github.com/authup/helm/issues/39)) ([db53f71](https://github.com/authup/helm/commit/db53f713ea16bb1bb41ac4bdb0bd880369b3ef36))
+
 ## [0.4.3](https://github.com/authup/helm/compare/authup-0.4.2...authup-0.4.3) (2026-09-24)
 
 
