@@ -724,7 +724,7 @@ Kubernetes: `>=1.25.0-0`
 | worker.command | list | `[]` | Override the container command |
 | worker.containerPorts.http | int | `3000` | Worker health listener port (WORKER_PORT) |
 | worker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
-| worker.customReadinessProbe | object | `{}` | Custom readiness probe (overrides readinessProbe) |
+| worker.customReadinessProbe | object | `{}` | Custom readiness probe with exactly one handler (overrides readinessProbe) |
 | worker.disableRestartOnChanges | bool | `false` | Disable checksum annotations that roll pods on configuration changes |
 | worker.enabled | bool | `true` | Deploy a dedicated background worker (requires server.enabled). It never migrates: on a fresh install it restarts until the server has initialized the schema; enable server.migration.enabled so upgrades run the Job first |
 | worker.extraEnvVars | list | `[]` | Extra environment variables for the worker container |

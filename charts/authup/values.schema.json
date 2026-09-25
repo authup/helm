@@ -5987,7 +5987,9 @@
               "type": "integer"
             }
           },
-          "required": [],
+          "required": [
+            "http"
+          ],
           "title": "containerPorts",
           "type": "object"
         },
@@ -6079,9 +6081,54 @@
         },
         "customReadinessProbe": {
           "additionalProperties": true,
-          "description": "Custom readiness probe (overrides readinessProbe)",
+          "description": "Custom readiness probe with exactly one handler (overrides readinessProbe)",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "required": []
+            },
+            {
+              "required": [
+                "httpGet"
+              ]
+            },
+            {
+              "required": [
+                "tcpSocket"
+              ]
+            },
+            {
+              "required": [
+                "exec"
+              ]
+            },
+            {
+              "required": [
+                "grpc"
+              ]
+            }
+          ],
+          "properties": {
+            "exec": {
+              "required": [],
+              "type": "object"
+            },
+            "grpc": {
+              "required": [],
+              "type": "object"
+            },
+            "httpGet": {
+              "required": [],
+              "type": "object"
+            },
+            "tcpSocket": {
+              "required": [],
+              "type": "object"
+            }
+          },
           "required": [],
-          "title": "customReadinessProbe"
+          "title": "customReadinessProbe",
+          "type": "object"
         },
         "disableRestartOnChanges": {
           "default": false,

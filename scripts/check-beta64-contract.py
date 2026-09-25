@@ -765,7 +765,22 @@ def check_validations():
             {component: {"enabled": False, "route": {"enabled": "invalid"}}},
             f"{component}.route.enabled must be true or false",
         )
-    for port in (0, 65536, "invalid"):
+    for probe in (
+        {"periodSeconds": 15},
+        {"httpGet": {"path": "/", "port": "http"}, "exec": {"command": ["true"]}},
+        {"httpGet": None, "periodSeconds": 15},
+    ):
+        render_fails({"worker": {"customReadinessProbe": probe}}, "customReadinessProbe")
+    for handler, settings in (
+        ("httpGet", {"path": "/", "port": "http"}),
+        ("tcpSocket", {"port": "http"}),
+        ("exec", {"command": ["true"]}),
+        ("grpc", {"port": 3000}),
+    ):
+        probe = {handler: settings, "periodSeconds": 15}
+        worker = one(render({"worker": {"customReadinessProbe": probe}}), "Deployment", "worker")
+        assert container(worker)["readinessProbe"] == probe
+    for port in (0, 65536, "invalid", None):
         render_fails({"worker": {"containerPorts": {"http": port}}}, "http")
     for name in ("ADMIN_CONSOLE_ENABLED", "WORKER_ENABLED", "WORKER_PORT", "MIGRATION_ENABLED"):
         render_fails(
