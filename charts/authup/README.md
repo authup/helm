@@ -7,15 +7,15 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.4.3?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.67](https://img.shields.io/badge/AppVersion-1.0.0--beta.67-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.68](https://img.shields.io/badge/AppVersion-1.0.0--beta.68-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.67's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.68's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
 - optional split API (`start core`) plus auth, admin and account console
   workloads (`start console <name>`), enabled with `server.splitConsoles=true`
-- an optional dedicated background worker (`start worker`)
+- a dedicated background worker (`start worker`), enabled by default
 - optional single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
   instances on docker-official images, a convenience for dev and small
   deployments, not the production database story.
@@ -33,7 +33,14 @@ helm install authup authup/authup
 helm install authup oci://ghcr.io/authup/helm/authup
 ```
 
-The default install starts the combined server and a built-in PostgreSQL.
+The default install starts the combined server, a dedicated worker and built-in PostgreSQL.
+Set `worker.enabled=false` to keep background sweeps in the server process.
+The worker's readiness probe checks sweep health at `GET /` on port 3000;
+`worker.containerPorts.http` changes its listener and probe port together.
+There is no worker Service or liveness probe: a database outage marks the
+worker unready without restarting it. On a fresh install the worker may restart
+until the server initializes the schema; enable `server.migration.enabled` to
+run migrations before upgrade rollouts.
 Retrieve the generated admin password:
 
 ```bash
@@ -51,9 +58,6 @@ server:
     tls: true
   migration:
     enabled: true
-
-worker:
-  enabled: true
 
 postgresql:
   enabled: false
@@ -718,9 +722,11 @@ Kubernetes: `>=1.25.0-0`
 | worker.autoscaling.hpa.targetCPU | int | `75` | Target CPU utilization percentage |
 | worker.autoscaling.hpa.targetMemory | string | `""` | Target memory utilization percentage |
 | worker.command | list | `[]` | Override the container command |
+| worker.containerPorts.http | int | `3000` | Worker health listener port (WORKER_PORT) |
 | worker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
+| worker.customReadinessProbe | object | `{}` | Custom readiness probe with exactly one handler (overrides readinessProbe) |
 | worker.disableRestartOnChanges | bool | `false` | Disable checksum annotations that roll pods on configuration changes |
-| worker.enabled | bool | `false` | Deploy a dedicated background worker (requires server.enabled). It never migrates: on a fresh install it restarts until the server has initialized the schema; enable server.migration.enabled so upgrades run the Job first |
+| worker.enabled | bool | `true` | Deploy a dedicated background worker (requires server.enabled). It never migrates: on a fresh install it restarts until the server has initialized the schema; enable server.migration.enabled so upgrades run the Job first |
 | worker.extraEnvVars | list | `[]` | Extra environment variables for the worker container |
 | worker.extraEnvVarsCM | string | `""` | Extra ConfigMap with environment variables (tpl-rendered name) |
 | worker.extraEnvVarsSecret | string | `""` | Extra Secret with environment variables (tpl-rendered name) |
@@ -741,6 +747,12 @@ Kubernetes: `>=1.25.0-0`
 | worker.podLabels | object | `{}` | Pod labels (tpl-rendered) |
 | worker.podSecurityContext | object | `{"enabled":true,"fsGroup":1000}` | Pod security context |
 | worker.priorityClassName | string | `""` | Priority class name |
+| worker.readinessProbe.enabled | bool | `true` | Check sweep health without restarting the worker on database outages |
+| worker.readinessProbe.failureThreshold | int | `3` |  |
+| worker.readinessProbe.initialDelaySeconds | int | `0` |  |
+| worker.readinessProbe.periodSeconds | int | `30` |  |
+| worker.readinessProbe.successThreshold | int | `1` |  |
+| worker.readinessProbe.timeoutSeconds | int | `5` |  |
 | worker.replicaCount | int | `1` | Number of worker replicas (one is normally sufficient) |
 | worker.resources | object | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"100m","memory":"256Mi"}}` | Worker container resources |
 | worker.revisionHistoryLimit | int | `3` | Deployment revision history limit |

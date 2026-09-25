@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert the Authup beta.64 runtime contract against rendered manifests."""
+"""Assert the Authup runtime contract (through beta.68) against rendered manifests."""
 
 import subprocess
 import sys
@@ -153,9 +153,54 @@ def check_base():
     assert not ({"auth-console", "admin-console", "account-console"} & set(deployments))
     server = one(documents, "Deployment", "server")
     assert container(server)["args"] == ["start"]
-    assert env_value(container(server), "WORKER_ENABLED") is None
+    assert env_value(container(server), "WORKER_ENABLED") == "false"
     assert env_value(container(server), "MIGRATION_ENABLED") is None
     assert server["metadata"]["labels"]["app.kubernetes.io/version"] == app_version
+
+    worker = container(one(documents, "Deployment", "worker"))
+    assert worker["args"] == ["start", "worker"]
+    assert env_value(worker, "WORKER_ENABLED") == "true"
+    assert env_value(worker, "WORKER_PORT") == "3000"
+    assert worker["ports"] == [{"name": "http", "containerPort": 3000, "protocol": "TCP"}]
+    assert worker["readinessProbe"]["httpGet"] == {"path": "/", "port": "http"}
+    assert worker["readinessProbe"]["periodSeconds"] == 30
+    assert not ({"startupProbe", "livenessProbe"} & set(worker))
+    assert not any(
+        doc["kind"] == "Service"
+        and doc["metadata"]["labels"].get("app.kubernetes.io/component") == "worker"
+        for doc in documents
+    )
+
+    disabled = render({"worker": {"enabled": False}})
+    assert "worker" not in component_deployments(disabled)
+    assert env_value(container(one(disabled, "Deployment", "server")), "WORKER_ENABLED") is None
+
+    for values in (
+        {"worker": {"readinessProbe": {"enabled": False}}},
+        {"diagnosticMode": {"enabled": True}},
+        {"diagnosticMode": {"enabled": True}, "worker": {
+            "customReadinessProbe": {"exec": {"command": ["true"]}},
+        }},
+    ):
+        worker = container(one(render(values), "Deployment", "worker"))
+        assert "readinessProbe" not in worker
+
+    custom = render({"worker": {
+        "containerPorts": {"http": 3005},
+        "readinessProbe": {"periodSeconds": 15},
+    }})
+    worker = container(one(custom, "Deployment", "worker"))
+    assert env_value(worker, "WORKER_PORT") == "3005"
+    assert worker["ports"][0]["containerPort"] == 3005
+    assert worker["readinessProbe"]["httpGet"]["port"] == "http"
+    assert worker["readinessProbe"]["periodSeconds"] == 15
+
+    custom = render({"worker": {
+        "readinessProbe": {"enabled": False},
+        "customReadinessProbe": {"exec": {"command": ["{{ .Release.Name }}"]}},
+    }})
+    worker = container(one(custom, "Deployment", "worker"))
+    assert worker["readinessProbe"] == {"exec": {"command": ["test"]}}
 
     configured_values = {
         "server": {
@@ -258,9 +303,10 @@ def check_split():
     worker = one(documents, "Deployment", "worker")
     worker_container = container(worker)
     assert worker_container["args"] == ["start", "worker"]
-    assert "ports" not in worker_container
+    assert worker_container["ports"] == [{"name": "http", "containerPort": 3000, "protocol": "TCP"}]
+    assert worker_container["readinessProbe"]["httpGet"] == {"path": "/", "port": "http"}
     assert not (
-        {"startupProbe", "livenessProbe", "readinessProbe"}
+        {"startupProbe", "livenessProbe"}
         & set(worker_container)
     )
     worker_env = effective_env(worker, documents)
@@ -719,7 +765,24 @@ def check_validations():
             {component: {"enabled": False, "route": {"enabled": "invalid"}}},
             f"{component}.route.enabled must be true or false",
         )
-    for name in ("ADMIN_CONSOLE_ENABLED", "WORKER_ENABLED", "MIGRATION_ENABLED"):
+    for probe in (
+        {"periodSeconds": 15},
+        {"httpGet": {"path": "/", "port": "http"}, "exec": {"command": ["true"]}},
+        {"httpGet": None, "periodSeconds": 15},
+    ):
+        render_fails({"worker": {"customReadinessProbe": probe}}, "customReadinessProbe")
+    for handler, settings in (
+        ("httpGet", {"path": "/", "port": "http"}),
+        ("tcpSocket", {"port": "http"}),
+        ("exec", {"command": ["true"]}),
+        ("grpc", {"port": 3000}),
+    ):
+        probe = {handler: settings, "periodSeconds": 15}
+        worker = one(render({"worker": {"customReadinessProbe": probe}}), "Deployment", "worker")
+        assert container(worker)["readinessProbe"] == probe
+    for port in (0, 65536, "invalid", None):
+        render_fails({"worker": {"containerPorts": {"http": port}}}, "http")
+    for name in ("ADMIN_CONSOLE_ENABLED", "WORKER_ENABLED", "WORKER_PORT", "MIGRATION_ENABLED"):
         render_fails(
             {"server": {"config": {name: "false"}}},
             f"server.config.{name} collides with a first-class chart value",
@@ -759,4 +822,4 @@ if case not in checks:
     raise SystemExit(f"unknown contract case {case!r}: choose {', '.join(checks)}")
 
 checks[case]()
-print(f"beta.64 {case} contract OK")
+print(f"Authup {app_version} {case} contract OK")

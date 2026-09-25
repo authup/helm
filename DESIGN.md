@@ -10,9 +10,9 @@ PrivateAIM/helm.
 1. Provide Bitnami-grade values ergonomics without external chart dependencies:
    existing-secret key mapping, tpl-rendered extension points, predictable
    naming, diagnostics and standard workload controls.
-2. Deploy every supported Authup v1.0.0-beta.64 role from the one upstream
+2. Deploy every supported Authup v1.0.0-beta.68 role from the one upstream
    `authup/authup` image.
-3. Keep a default install useful: a combined Authup server plus built-in
+3. Keep a default install useful: a combined Authup server, dedicated worker and built-in
    PostgreSQL, while making external database and cache services the documented
    production path.
 4. Preserve a single browser origin in combined and split topologies.
@@ -35,21 +35,25 @@ Authup beta.64 replaces app-path arguments with direct CLI roles:
 | auth console | `start console auth` | 3020 | split mode, required |
 | admin console | `start console admin` | 3021 | split mode, optional |
 | account console | `start console account` | 3022 | split mode, optional |
-| worker | `start worker` | none | optional |
+| worker | `start worker` | 3000 (health) | yes |
 | migration Job | `migration run` | none | optional upgrades |
 
-`server.splitConsoles=false` keeps the minimum topology: one Deployment runs
-the API, enabled consoles and in-process worker behavior. Setting it true
+`server.splitConsoles=false` keeps the API and enabled consoles in one
+Deployment, alongside the dedicated worker. Setting it true
 changes that Deployment to the core role and creates explicit console
 Deployments. The auth console cannot be disabled in split mode because it owns
 the login flow. Admin and account consoles can be scaled or disabled
 independently.
 
-The worker is a separate Deployment only when `worker.enabled=true`. Its process
+The worker is a separate Deployment when `worker.enabled=true` (the default). Its process
 gets `WORKER_ENABLED=true`; the API gets `WORKER_ENABLED=false`. It shares
-database, cache, configuration and log mechanics with core, but it has no
-Service, ports or HTTP probes. It does not receive SMTP or bootstrap identity
-secrets because those modules are outside the worker role.
+database, cache, configuration and log mechanics with core. Since beta.68 it
+serves `GET /` health reports on `WORKER_PORT`, configured through
+`worker.containerPorts.http` (3000 by default). A readiness probe checks sweep
+health; no Service is needed for kubelet probes. There is no liveness probe:
+database failures must not cause restart loops. It does not receive SMTP or
+bootstrap identity secrets because those modules are outside the worker role.
+Setting `worker.enabled=false` keeps the sweeps in the server process.
 
 Each role has explicit templates. Their structural duplication is deliberate:
 authentik built and later removed a generic role loop because heterogeneous
@@ -257,7 +261,7 @@ idempotent on reruns.
 | Full Authup config-file templating | env-first configuration plus escape hatches avoid a schema treadmill |
 | Generic role-loop templates | explicit heterogeneous roles are easier to audit and change |
 | Pre-install migration Job | hooks run before chart-managed backing services exist |
-| Service or HTTP probes for worker | the beta.64 worker has no HTTP listener |
+| Worker Service or liveness probe | kubelet probes need no Service; failed sweeps should affect readiness without restarts |
 | Different public origins for split consoles | Authup's browser and login contracts use one deployment-wide public URL |
 | PVC for file logs | application state is in the database; log persistence belongs in collection infrastructure |
 | Run-without-database demo mode | impossible in the production image |

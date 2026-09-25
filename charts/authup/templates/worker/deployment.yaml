@@ -108,9 +108,26 @@ spec:
           env: {{- include "authup.server.secretEnv" (dict "context" $ "role" "worker") | nindent 12 }}
             - name: WORKER_ENABLED
               value: "true"
+            - name: WORKER_PORT
+              value: {{ .Values.worker.containerPorts.http | quote }}
             {{- if .Values.worker.extraEnvVars }}
             {{- include "authup.tplvalues.render" (dict "value" .Values.worker.extraEnvVars "context" $) | nindent 12 }}
             {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.worker.containerPorts.http }}
+              protocol: TCP
+          {{- if not .Values.diagnosticMode.enabled }}
+          {{- if .Values.worker.customReadinessProbe }}
+          readinessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.customReadinessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.worker.readinessProbe.enabled }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            {{- omit .Values.worker.readinessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- end }}
           {{- if .Values.worker.resources }}
           resources: {{- toYaml .Values.worker.resources | nindent 12 }}
           {{- end }}

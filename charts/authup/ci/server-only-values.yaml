@@ -1,5 +1,7 @@
 # Combined server with the optional admin and account surfaces disabled. The
 # auth pages remain available because they own the login flow.
+worker:
+  enabled: false
 postgresql:
   persistence:
     enabled: false

@@ -3,7 +3,7 @@
 `DESIGN.md` is the authoritative rationale. This file is the compact list of
 operational invariants that template changes must preserve.
 
-## Authup beta.64 runtime contract
+## Authup runtime contract (through beta.68)
 
 1. **One image, explicit roles.** The supported default args are `start` for the
    combined server, `start core` for the split API, `start console auth|admin|account`
@@ -15,9 +15,10 @@ operational invariants that template changes must preserve.
    Deployments. The auth console is required in split mode because it owns login;
    admin and account remain independently optional.
 3. **Role ports come from Authup.** Core listens on 3000. Split auth, admin and
-   account consoles listen on 3020, 3021 and 3022. The worker has no listener,
-   Service, or HTTP probe.
-4. **Worker ownership is explicit.** `worker.enabled=true` sets
+   account consoles listen on 3020, 3021 and 3022. The worker health listener
+   uses `worker.containerPorts.http` (3000), wired to `WORKER_PORT` and an HTTP
+   readiness probe. It has no Service or liveness probe.
+4. **Worker ownership is explicit.** `worker.enabled=true` (the default) sets
    `WORKER_ENABLED=true` on the worker and `WORKER_ENABLED=false` on the server.
    The worker gets database and Redis credentials, but not SMTP, bootstrap
    identity secrets, migrations, or console secrets. It requires the server

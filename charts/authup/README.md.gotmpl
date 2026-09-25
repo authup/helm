@@ -28,7 +28,7 @@ role-based CLI topology:
 - one combined API and console workload by default (`start`)
 - optional split API (`start core`) plus auth, admin and account console
   workloads (`start console <name>`), enabled with `server.splitConsoles=true`
-- an optional dedicated background worker (`start worker`)
+- a dedicated background worker (`start worker`), enabled by default
 - optional single-instance **PostgreSQL**, **MySQL** or **Valkey** built-in
   instances on docker-official images, a convenience for dev and small
   deployments, not the production database story.
@@ -46,7 +46,14 @@ helm install authup authup/authup
 helm install authup oci://ghcr.io/authup/helm/authup
 ```
 
-The default install starts the combined server and a built-in PostgreSQL.
+The default install starts the combined server, a dedicated worker and built-in PostgreSQL.
+Set `worker.enabled=false` to keep background sweeps in the server process.
+The worker's readiness probe checks sweep health at `GET /` on port 3000;
+`worker.containerPorts.http` changes its listener and probe port together.
+There is no worker Service or liveness probe: a database outage marks the
+worker unready without restarting it. On a fresh install the worker may restart
+until the server initializes the schema; enable `server.migration.enabled` to
+run migrations before upgrade rollouts.
 Retrieve the generated admin password:
 
 ```bash
@@ -64,9 +71,6 @@ server:
     tls: true
   migration:
     enabled: true
-
-worker:
-  enabled: true
 
 postgresql:
   enabled: false

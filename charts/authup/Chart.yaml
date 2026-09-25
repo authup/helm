@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.4.3
-appVersion: "1.0.0-beta.67"
+appVersion: "1.0.0-beta.68"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -32,8 +32,6 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: changed
-      description: Track Authup v1.0.0-beta.67; no image entrypoint, CLI or environment-variable contract changes
+      description: Track Authup v1.0.0-beta.68 and enable the dedicated worker by default
     - kind: changed
-      description: Authup v1.0.0-beta.67 ships migration 1789930726252-PathsAndEventAggregates, applied by the migration Job or the server boot
-    - kind: changed
-      description: Authup now pins database sessions to UTC; a database that ran in local time needs its historical timestamps converted once (see the Authup upgrading guide)
+      description: Probe worker sweep health with a configurable HTTP readiness check
