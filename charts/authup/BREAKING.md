@@ -3,6 +3,16 @@
 This chart uses `0.major.minor` versioning while below 1.0.0: breaking changes
 land on the middle digit. Every entry lists the value migrations required.
 
+## Unreleased
+
+- `worker.enabled` now defaults to `true`, adding a worker Deployment and moving
+  background sweeps out of the server. Set it to `false` to keep the previous
+  topology. Deployments with `server.enabled=false` must also disable the worker.
+- The default image is Authup v1.0.0-beta.68. If pinning an older image, disable
+  `worker.readinessProbe.enabled` because older workers have no health listener.
+- `WORKER_PORT` is now owned by `worker.containerPorts.http`; move any
+  `server.config.WORKER_PORT` override there.
+
 ## 0.4.0
 
 - The chart now requires the Authup v1.0.0-beta.64 CLI. Default server args are

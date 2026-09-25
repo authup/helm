@@ -22,11 +22,11 @@ authup/helm
     ├── README.md.gotmpl
     ├── BREAKING.md                   # migration ledger for the 0.x line
     ├── ci/
-    │   ├── default-values.yaml       # combined server + built-in PostgreSQL
+    │   ├── default-values.yaml       # combined server + worker + built-in PostgreSQL
     │   ├── mysql-values.yaml
     │   ├── external-db-values.yaml
     │   ├── valkey-values.yaml        # replicas + migration hook
-    │   ├── server-only-values.yaml   # optional admin/account surfaces disabled
+    │   ├── server-only-values.yaml   # worker and optional admin/account surfaces disabled
     │   ├── split-values.yaml         # split consoles + worker + restrictive policies
     │   ├── theme-values.yaml
     │   └── manifests/postgres.yaml
@@ -43,7 +43,7 @@ authup/helm
         ├── auth-console/             # split `start console auth` resources
         ├── admin-console/            # split `start console admin` resources
         ├── account-console/          # split `start console account` resources
-        ├── worker/                   # `start worker`; no Service or HTTP probes
+        ├── worker/                   # `start worker`; HTTP readiness, no Service
         ├── postgresql/               # vendored single-instance backing service
         ├── mysql/
         └── valkey/
@@ -54,7 +54,8 @@ authup/helm
 All application roles use the same `authup/authup` image. The default server
 runs `start`, which combines the API and consoles. `server.splitConsoles=true`
 switches it to `start core` and enables explicit console Deployments with ports
-3020, 3021 and 3022. `worker.enabled=true` adds `start worker`.
+3020, 3021 and 3022. `worker.enabled=true` adds `start worker` by default;
+setting it to false keeps background sweeps in the server.
 
 The similar role directories are deliberate. Authup roles have different
 ports, probes, secrets and Services, and authentik reverted a generic role loop

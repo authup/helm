@@ -87,8 +87,9 @@ valkey:
   enabled: true
 ```
 
-Set `server.splitConsoles=true` to run the consoles as separate workloads and
-`worker.enabled=true` for a dedicated background worker.
+Set `server.splitConsoles=true` to run the consoles as separate workloads.
+A dedicated background worker is enabled by default with an HTTP readiness
+probe. Set `worker.enabled=false` to run background sweeps in the server.
 
 See the [chart README](./charts/authup/README.md) for every parameter and the
 operational notes (GitOps caveats, scaling rules, the write-once encryption
@@ -98,7 +99,7 @@ key).
 
 | Chart | Description |
 |---|---|
-| [authup](./charts/authup) | Authup API and consoles (combined or split), optional worker, optional built-in PostgreSQL / MySQL / Valkey |
+| [authup](./charts/authup) | Authup API and consoles (combined or split), dedicated worker, optional built-in PostgreSQL / MySQL / Valkey |
 
 ## Documentation
 

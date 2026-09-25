@@ -16,7 +16,7 @@ changing chart architecture.
 ## Quick Reference
 
 ```bash
-make test                    # lint + render matrix + coverage + beta.64 contract
+make test                    # lint + render matrix + coverage + runtime contract
 make lint                    # helm lint + ct lint
 make template                # render the chart once per ci/*-values.yaml file
 make docs                    # regenerate charts/*/README.md (helm-docs, dockerized)
