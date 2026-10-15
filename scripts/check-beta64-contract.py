@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert the Authup runtime contract (through beta.68) against rendered manifests."""
+"""Assert the Authup runtime contract (through beta.69) against rendered manifests."""
 
 import subprocess
 import sys
