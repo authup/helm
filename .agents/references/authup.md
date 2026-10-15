@@ -1,11 +1,56 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.68, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.69, the
 chart `appVersion`.
 
-Verified against tag commit `114f1bbc2dd16eb8be859e56e683b2fc9cd226b5`.
-Beta.68 adds the worker health listener:
+Verified against tag commit `e188e00b8ba8d0d3727b5ebeda2e456b7dce7721`.
+beta.68 to beta.69 changed no image entrypoint, CLI role, port or
+environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`
+and `apps/authup/src` are unchanged. It is a security-hardening release
+(`docs/src/guide/deployment/upgrading.md`, "Next release (after
+v1.0.0-beta.68)"). Deployment-facing facts:
+
+- Migrations `1790579515549-DigestUserWorkflowCodes` (activation and reset
+  codes stored as SHA-256 digests) and `1790600000000-RealmAdminRolePermissionReach`
+  run on PostgreSQL and MySQL through the pre-upgrade Job or a server boot.
+  Codes an older replica writes during a rolling upgrade stop working.
+- Tokens are bound to their realm. On a Redis cache the `oauth2_token_claims*`
+  keys should be dropped once after the upgrade, or tokens verified before it
+  skip the new key check until they expire. The migration Job deliberately has
+  no Redis access, so this stays an operator action (README upgrade note).
+- Rate limiting runs in two stages
+  (`apps/server-core/src/adapters/http/middleware/built-in/rate-limit.ts`):
+  300 failed authentications a minute per address before authentication, then
+  per-identity budgets after it. New env `RATE_LIMIT_ANONYMOUS_MAX` (1200),
+  `RATE_LIMIT_USER_MAX` (6000), `RATE_LIMIT_CLIENT_MAX` (300000) in
+  `packages/server-config/src/sections/core/schema.ts`, reachable through
+  `server.config`. Only loopback sources are skipped, so in split mode every
+  anonymous auth-console render reaches core from the console pod address via
+  `INTERNAL_URL` and shares that pod's anonymous budget (unchanged in effect
+  from beta.68, but now tunable). The console stops forwarding visitor tokens
+  after 100 refusals a minute to stay below the first stage
+  (`apps/server-auth-console/src/session.ts`).
+- `USER_ADMIN_ENABLED` now uses the strict boolean reader and `false`
+  deactivates an existing admin. The chart sets no such variable; a
+  `server.config` value is quoted like every carrier.
+- SMTP verifies the relay certificate. Through the chart's `SMTP` connection
+  string the only opt-out is `?tls.rejectUnauthorized=false`; the file form
+  `smtp.rejectUnauthorized` goes in `server.configuration`.
+- On an https public URL at the origin root the console session cookie becomes
+  `__Host-authup_session`. The split-mode root-URL rule means every chart
+  topology on https gets the new name: console users sign in once more.
+- Authup does not send `Strict-Transport-Security`; the proxy should
+  (`docs/src/guide/deployment/nginx.md`). ingress-nginx does so for TLS hosts by
+  default; Gateway API routes need a gateway-side policy.
+- `CLIENT_SYSTEM_ENABLED` now sets the system client's `active` on every boot,
+  in both directions. The chart renders it only when
+  `auth.systemClientEnabled=true`, so turning that value off leaves the
+  client's current state alone rather than deactivating it.
+
+## Previous deployment changes
+
+Beta.68 added the worker health listener:
 
 - `apps/server-core/src/app/modules/components/health.ts` serves `GET /` and
   `HEAD /` with 200/503; other paths return 404. `app/factory.ts` includes this
@@ -24,8 +69,6 @@ Beta.68 adds the worker health listener:
   The chart enables the dedicated worker by default; `worker.enabled=false`
   preserves in-process sweeps. Fresh-install workers can restart until the
   server initializes the schema; the optional migration Job orders upgrades.
-
-## Previous deployment changes
 
 beta.66 to beta.67 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`

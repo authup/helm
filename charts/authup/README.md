@@ -7,9 +7,9 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.5.0?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.68](https://img.shields.io/badge/AppVersion-1.0.0--beta.68-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.69](https://img.shields.io/badge/AppVersion-1.0.0--beta.69-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.68's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.69's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
@@ -127,6 +127,34 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Upgrading to Authup v1.0.0-beta.69
+
+Beta.69 hardens several defaults without changing the chart contract. Read the
+upstream [upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+first; the points specific to this chart:
+
+- **Flush the token-claims cache.** With Valkey or `externalRedis`, delete the
+  `oauth2_token_claims*` keys once after the rollout. The migration Job has no
+  cache access, so the chart does not do this for you.
+- **SMTP verifies the relay certificate.** For a self-signed relay append
+  `?tls.rejectUnauthorized=false` to `smtp.connectionString`, or set
+  `smtp.rejectUnauthorized: false` in `server.configuration`.
+- **Console users sign in once more** on https deployments: the session cookie
+  becomes `__Host-authup_session`.
+- **Rate limits are per identity, with an anonymous budget per address**
+  (`RATE_LIMIT_ANONYMOUS_MAX`, default 1200 a minute). `server.trustProxy`
+  stays at one trusted hop so the limiter keys on the client address the
+  ingress forwards. In split mode the auth console's server-side renders reach
+  the API from the console pod's own address; raise
+  `server.config.RATE_LIMIT_ANONYMOUS_MAX` when hosted login traffic exceeds
+  that budget.
+- **Send `Strict-Transport-Security` from the edge.** Authup does not set it.
+  ingress-nginx adds it on TLS hosts by default; configure it on the gateway
+  when using `route`.
+- **Activation and reset codes become digests.** Issued codes are migrated, but
+  a code an old pod writes during the rolling update stops working; such users
+  request a new mail.
 
 ## Theming the served consoles
 

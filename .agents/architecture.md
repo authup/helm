@@ -3,7 +3,7 @@
 `DESIGN.md` is the authoritative rationale. This file is the compact list of
 operational invariants that template changes must preserve.
 
-## Authup runtime contract (through beta.68)
+## Authup runtime contract (through beta.69)
 
 1. **One image, explicit roles.** The supported default args are `start` for the
    combined server, `start core` for the split API, `start console auth|admin|account`
