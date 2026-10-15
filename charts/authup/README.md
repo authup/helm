@@ -6,7 +6,7 @@
 
 # authup
 
-![Version](https://img.shields.io/badge/Version-0.5.0?style=flat-square&color=informational) <!-- x-release-please-version -->
+![Version](https://img.shields.io/badge/Version-0.5.1?style=flat-square&color=informational) <!-- x-release-please-version -->
 ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.69](https://img.shields.io/badge/AppVersion-1.0.0--beta.69-informational?style=flat-square)
 
 Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.69's
