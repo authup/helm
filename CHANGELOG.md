@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.3](https://github.com/authup/helm/compare/root-0.5.2...root-0.5.3) (2026-10-20)
+
+
+### Features
+
+* **authup:** track authup 1.0.0-beta.71 ([552459b](https://github.com/authup/helm/commit/552459b7111964924ebe526b809f336ca7d9dc25))
+
 ## [0.5.2](https://github.com/authup/helm/compare/root-0.5.1...root-0.5.2) (2026-10-20)
 
 
