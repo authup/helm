@@ -10,7 +10,7 @@ PrivateAIM/helm.
 1. Provide Bitnami-grade values ergonomics without external chart dependencies:
    existing-secret key mapping, tpl-rendered extension points, predictable
    naming, diagnostics and standard workload controls.
-2. Deploy every supported Authup v1.0.0-beta.70 role from the one upstream
+2. Deploy every supported Authup v1.0.0-beta.71 role from the one upstream
    `authup/authup` image.
 3. Keep a default install useful: a combined Authup server, dedicated worker and built-in
    PostgreSQL, while making external database and cache services the documented

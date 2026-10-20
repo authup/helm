@@ -1,10 +1,25 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.70, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.71, the
 chart `appVersion`.
 
-Verified against tag commit `663851de1a95ed24cd8877efafcb0606946948f4`.
+Verified against tag commit `55c8818635e7e1002ad8db074ff6d46de2a6f585`.
+beta.70 to beta.71 changed no image entrypoint, CLI role, port or
+environment-variable contract the chart owns: `Dockerfile` and `entrypoint.sh`
+are unchanged, `apps/authup/src` and `packages/server-config/src` changed only
+a comment and a trailing newline, and no database migration was added.
+`docs/src/guide/deployment/upgrading.md` gains no operator action.
+Deployment-facing facts, none of which needs a chart value:
+
+- `apps/server-auth-console/src/render.ts`: the auth console's API client keeps
+  the public `apiUrl` as its base URL and only dials `apiInternalUrl` at the
+  transport, so identity provider links no longer leak the in-cluster
+  `INTERNAL_URL` the chart sets on split consoles (#3753).
+- `@node-rs/bcrypt` moved from 1.10.9 to 2.0.0 (dependency bump, no chart impact).
+
+## Previous deployment changes
+
 beta.69 to beta.70 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`,
 `apps/authup/src` and `packages/server-config/src` are unchanged, and no
@@ -26,8 +41,6 @@ v1.0.0-beta.69)"), none of which needs a chart value:
   down. Shutdown therefore waits for a running sweep; a pass that outlasts
   `worker.terminationGracePeriodSeconds` (30) is still cut off by SIGKILL, as
   before. Worker health and `WORKER_PORT` are unchanged.
-
-## Previous deployment changes
 
 beta.68 to beta.69 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`

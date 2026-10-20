@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.5.2
-appVersion: "1.0.0-beta.70"
+appVersion: "1.0.0-beta.71"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -32,6 +32,6 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: changed
-      description: Track Authup v1.0.0-beta.70; no image entrypoint, CLI, port or environment-variable contract change
-    - kind: added
-      description: Document the beta.70 upgrade actions (realm reach of single-record grants, scope-restricted tokens, RSA keys of at least 2048 bits)
+      description: Track Authup v1.0.0-beta.71; no image entrypoint, CLI, port or environment-variable contract change
+    - kind: fixed
+      description: Split auth console renders identity provider links with the public URL instead of the in-cluster INTERNAL_URL (upstream fix)
