@@ -7,9 +7,9 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.5.1?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.69](https://img.shields.io/badge/AppVersion-1.0.0--beta.69-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.70](https://img.shields.io/badge/AppVersion-1.0.0--beta.70-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.69's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.70's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
@@ -127,6 +127,25 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Upgrading to Authup v1.0.0-beta.70
+
+Beta.70 changes authorization semantics, not the chart contract, and adds no
+database migration. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for grants you manage yourself, including those in `server.provisioning`:
+
+- **Single-record grants are checked against the record's realm.** A
+  `realm_update` or `realm_delete` grant at the default `own` reach now
+  manages only the actor's own realm; re-grant it at `any` where needed. A
+  `user_self_manage` or `client_self_manage` grant stored at
+  `realmScope: none` no longer permits self-edits.
+- **Scope-restricted tokens keep their identity.** A token without the
+  `global` scope is evaluated with its identity and without its grants, so
+  identity-only policies now evaluate for it.
+- **RSA signature keys must be at least 2048 bits.** Keys Authup generates
+  qualify. Replace any shorter imported key, because adapters reject the
+  tokens it signs.
 
 ## Upgrading to Authup v1.0.0-beta.69
 

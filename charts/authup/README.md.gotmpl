@@ -141,6 +141,25 @@ Notable operational facts (enforced or warned about by the chart):
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
 
+## Upgrading to Authup v1.0.0-beta.70
+
+Beta.70 changes authorization semantics, not the chart contract, and adds no
+database migration. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for grants you manage yourself, including those in `server.provisioning`:
+
+- **Single-record grants are checked against the record's realm.** A
+  `realm_update` or `realm_delete` grant at the default `own` reach now
+  manages only the actor's own realm; re-grant it at `any` where needed. A
+  `user_self_manage` or `client_self_manage` grant stored at
+  `realmScope: none` no longer permits self-edits.
+- **Scope-restricted tokens keep their identity.** A token without the
+  `global` scope is evaluated with its identity and without its grants, so
+  identity-only policies now evaluate for it.
+- **RSA signature keys must be at least 2048 bits.** Keys Authup generates
+  qualify. Replace any shorter imported key, because adapters reject the
+  tokens it signs.
+
 ## Upgrading to Authup v1.0.0-beta.69
 
 Beta.69 hardens several defaults without changing the chart contract. Read the

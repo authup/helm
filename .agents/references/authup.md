@@ -1,10 +1,34 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.69, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.70, the
 chart `appVersion`.
 
-Verified against tag commit `e188e00b8ba8d0d3727b5ebeda2e456b7dce7721`.
+Verified against tag commit `663851de1a95ed24cd8877efafcb0606946948f4`.
+beta.69 to beta.70 changed no image entrypoint, CLI role, port or
+environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`,
+`apps/authup/src` and `packages/server-config/src` are unchanged, and no
+database migration was added. Deployment-facing facts
+(`docs/src/guide/deployment/upgrading.md`, "Next release (after
+v1.0.0-beta.69)"), none of which needs a chart value:
+
+- Single-record permission checks name the record's realm. `realm_update` /
+  `realm_delete` at `own` reach manage only the actor's realm; self-manage
+  grants at `realmScope: none` stop permitting self-edits. Relevant to
+  operator-supplied `server.provisioning` files only; the chart ships none.
+- A token lacking the `global` scope is evaluated with its identity and
+  without its grants (previously the identity was withheld).
+- Server adapters verify through vouchly/jose: RSA signature keys must be
+  >= 2048 bits and `POST /keys` refuses shorter imports. Generated keys are
+  2048 bits.
+- `apps/server-core/src/app/modules/components/module.ts` now stops every
+  component schedule, then awaits in-flight passes before the database tears
+  down. Shutdown therefore waits for a running sweep; a pass that outlasts
+  `worker.terminationGracePeriodSeconds` (30) is still cut off by SIGKILL, as
+  before. Worker health and `WORKER_PORT` are unchanged.
+
+## Previous deployment changes
+
 beta.68 to beta.69 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`
 and `apps/authup/src` are unchanged. It is a security-hardening release
@@ -47,8 +71,6 @@ v1.0.0-beta.68)"). Deployment-facing facts:
   in both directions. The chart renders it only when
   `auth.systemClientEnabled=true`, so turning that value off leaves the
   client's current state alone rather than deactivating it.
-
-## Previous deployment changes
 
 Beta.68 added the worker health listener:
 
