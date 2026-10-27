@@ -7,9 +7,9 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.5.3?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.71](https://img.shields.io/badge/AppVersion-1.0.0--beta.71-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.72](https://img.shields.io/badge/AppVersion-1.0.0--beta.72-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.71's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.72's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
@@ -127,6 +127,22 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Upgrading to Authup v1.0.0-beta.72
+
+Beta.72 changes API semantics, not the chart contract, and adds no database
+migration. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for scripts and integrations that talk to the API:
+
+- **A create without `realmId` is global.** Permissions, roles, scopes and
+  policies created without `realmId` no longer land in the caller's realm.
+  Send the realm id to keep them realm-scoped. Rows created under the old
+  rule are not moved.
+- **`POST /authorization/check` changed its request and response.** Upgrade
+  any external `@authup/client-web-kit` consumer together with the server.
+- **The per-user rate limit default rises to 15000 a minute.** Override it
+  with `server.config.RATE_LIMIT_USER_MAX`.
 
 ## Upgrading to Authup v1.0.0-beta.70
 

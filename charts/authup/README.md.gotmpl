@@ -141,6 +141,22 @@ Notable operational facts (enforced or warned about by the chart):
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
 
+## Upgrading to Authup v1.0.0-beta.72
+
+Beta.72 changes API semantics, not the chart contract, and adds no database
+migration. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for scripts and integrations that talk to the API:
+
+- **A create without `realmId` is global.** Permissions, roles, scopes and
+  policies created without `realmId` no longer land in the caller's realm.
+  Send the realm id to keep them realm-scoped. Rows created under the old
+  rule are not moved.
+- **`POST /authorization/check` changed its request and response.** Upgrade
+  any external `@authup/client-web-kit` consumer together with the server.
+- **The per-user rate limit default rises to 15000 a minute.** Override it
+  with `server.config.RATE_LIMIT_USER_MAX`.
+
 ## Upgrading to Authup v1.0.0-beta.70
 
 Beta.70 changes authorization semantics, not the chart contract, and adds no

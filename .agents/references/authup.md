@@ -1,10 +1,31 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.71, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.72, the
 chart `appVersion`.
 
-Verified against tag commit `55c8818635e7e1002ad8db074ff6d46de2a6f585`.
+Verified against tag commit `5f4bb5ffd700d04daff3e59f85f851435cf01407`.
+beta.71 to beta.72 changed no image entrypoint, CLI role, port or
+environment-variable contract the chart owns: `Dockerfile` and `entrypoint.sh`
+are unchanged, `apps/authup/src` is unchanged, console `src/index.ts` files
+change only a trailing newline, and no database migration was added.
+Deployment-facing facts, none of which needs a chart value:
+
+- `packages/server-config/src/sections/core/schema.ts`: the
+  `RATE_LIMIT_USER_MAX` default moved from 6000 to 15000 a minute; still
+  reachable through `server.config`.
+- `POST /authorization/check` selects definitions by owner (`realms`/`clients`)
+  and renames the resource-realm field to `targetRealms` (#3770). Server and
+  `@authup/client-web-kit` must upgrade together; the chart ships both in the
+  one image.
+- A create without `realmId` now makes a global permission, role, scope or
+  policy (#3771). Provisioning grants the built-in `realm_admin` every global
+  permission without an owning client at boot. Rows created under the old
+  rule are not moved. Documented in the README upgrade note.
+- Introspection of a token without the `global` scope reports no grants (#3773).
+
+## Previous deployment changes
+
 beta.70 to beta.71 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile` and `entrypoint.sh`
 are unchanged, `apps/authup/src` and `packages/server-config/src` changed only
@@ -17,8 +38,6 @@ Deployment-facing facts, none of which needs a chart value:
   transport, so identity provider links no longer leak the in-cluster
   `INTERNAL_URL` the chart sets on split consoles (#3753).
 - `@node-rs/bcrypt` moved from 1.10.9 to 2.0.0 (dependency bump, no chart impact).
-
-## Previous deployment changes
 
 beta.69 to beta.70 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile`, `entrypoint.sh`,
@@ -60,7 +79,7 @@ v1.0.0-beta.68)"). Deployment-facing facts:
   (`apps/server-core/src/adapters/http/middleware/built-in/rate-limit.ts`):
   300 failed authentications a minute per address before authentication, then
   per-identity budgets after it. New env `RATE_LIMIT_ANONYMOUS_MAX` (1200),
-  `RATE_LIMIT_USER_MAX` (6000), `RATE_LIMIT_CLIENT_MAX` (300000) in
+  `RATE_LIMIT_USER_MAX` (6000; 15000 since beta.72), `RATE_LIMIT_CLIENT_MAX` (300000) in
   `packages/server-config/src/sections/core/schema.ts`, reachable through
   `server.config`. Only loopback sources are skipped, so in split mode every
   anonymous auth-console render reaches core from the console pod address via

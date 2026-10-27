@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.5.3
-appVersion: "1.0.0-beta.71"
+appVersion: "1.0.0-beta.72"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -32,6 +32,8 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: changed
-      description: Track Authup v1.0.0-beta.71; no image entrypoint, CLI, port or environment-variable contract change
-    - kind: fixed
-      description: Split auth console renders identity provider links with the public URL instead of the in-cluster INTERNAL_URL (upstream fix)
+      description: Track Authup v1.0.0-beta.72; no image entrypoint, CLI, port or environment-variable contract change
+    - kind: changed
+      description: Upstream raises the default per-user rate limit (RATE_LIMIT_USER_MAX) from 6000 to 15000 requests a minute
+    - kind: changed
+      description: Upstream creates permissions, roles, scopes and policies without realmId as global rows; see the README upgrade note

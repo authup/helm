@@ -21,7 +21,7 @@ lint:
 lint-values-coverage:
 	python3 scripts/check-values-coverage.py charts/authup
 
-## Assert the authup process, configuration and filesystem contract through beta.71.
+## Assert the authup process, configuration and filesystem contract through beta.72.
 lint-beta64-contract:
 	python3 scripts/check-beta64-contract.py charts/authup all
 
