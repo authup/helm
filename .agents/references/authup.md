@@ -1,8 +1,31 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.72, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.73, the
 chart `appVersion`.
+
+Verified against tag commit `7ac1021498f13acbe78547e39a85c2e9f3520f49`.
+beta.72 to beta.73 changed no image entrypoint, CLI role, port or
+environment-variable contract the chart owns: `entrypoint.sh` is unchanged,
+`apps/authup/src`, `packages/server-config/src` and the console
+`src/index.ts` files change only blank lines plus `Error.isError` /
+`Promise.try` modernizations, and the migrations change only whitespace (no
+new migration). Deployment-facing facts, none of which needs a chart value:
+
+- `Dockerfile`: the base image moved from `node:24-alpine` to
+  `node:26-alpine`; every package's `engines.node` is `>=26.0.0`.
+- Composite policy children need `permission_update` on the parent, and a
+  composite delete needs `permission_delete` on every descendant (#3792,
+  #3793). Provisioning keeps detaching or deleting undeclared children of
+  built-in policies at boot, as before.
+- A user's first second factor revokes its other sessions; own-factor
+  management needs a session that passed a challenge (#3792, #3793).
+- User, client and folder updates retry against the locked row and answer
+  409 after three changed attempts (#3793).
+- Permission names accept `:` (#3780); disabled LDAP providers are skipped
+  (#3788); introspection reports expired sessions inactive (#3789).
+
+## Previous deployment changes
 
 Verified against tag commit `5f4bb5ffd700d04daff3e59f85f851435cf01407`.
 beta.71 to beta.72 changed no image entrypoint, CLI role, port or
@@ -23,8 +46,6 @@ Deployment-facing facts, none of which needs a chart value:
   permission without an owning client at boot. Rows created under the old
   rule are not moved. Documented in the README upgrade note.
 - Introspection of a token without the `global` scope reports no grants (#3773).
-
-## Previous deployment changes
 
 beta.70 to beta.71 changed no image entrypoint, CLI role, port or
 environment-variable contract the chart owns: `Dockerfile` and `entrypoint.sh`

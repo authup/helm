@@ -5,7 +5,7 @@ description: Authup is an authentication & authorization system. This chart
   built-in PostgreSQL, MySQL and Valkey instances.
 type: application
 version: 0.5.4
-appVersion: "1.0.0-beta.72"
+appVersion: "1.0.0-beta.73"
 kubeVersion: ">=1.25.0-0"
 home: https://authup.org
 icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
@@ -32,8 +32,8 @@ annotations:
       url: https://github.com/authup/helm
   artifacthub.io/changes: |
     - kind: changed
-      description: Track Authup v1.0.0-beta.72; no image entrypoint, CLI, port or environment-variable contract change
+      description: Track Authup v1.0.0-beta.73; no image entrypoint, CLI, port or environment-variable contract change
     - kind: changed
-      description: Upstream raises the default per-user rate limit (RATE_LIMIT_USER_MAX) from 6000 to 15000 requests a minute
+      description: The upstream image runs on Node.js 26 (node:26-alpine); nothing changes for a chart install
     - kind: changed
-      description: Upstream creates permissions, roles, scopes and policies without realmId as global rows; see the README upgrade note
+      description: Upstream tightens composite-policy and second-factor authorization and can answer 409 on concurrent updates; see the README upgrade note

@@ -7,9 +7,9 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.5.4?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.72](https://img.shields.io/badge/AppVersion-1.0.0--beta.72-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.73](https://img.shields.io/badge/AppVersion-1.0.0--beta.73-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.72's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.73's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
@@ -127,6 +127,25 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Upgrading to Authup v1.0.0-beta.73
+
+Beta.73 changes authorization and session semantics, not the chart contract,
+and adds no database migration. The image now runs on Node.js 26, which
+needs nothing from a chart install. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for scripts and integrations that talk to the API:
+
+- **Composite policy children need authority over the parent.** Attaching,
+  moving, detaching or deleting a child needs `permission_update` on the
+  parent in its realm. Provisioning still detaches or deletes, at every
+  start, a child of a built-in policy that its source (including
+  `server.provisioning`) does not declare; review detached policies after
+  the upgrade.
+- **A user's first second factor ends its other sessions**, and managing
+  one's own factors afterwards needs a session that passed a challenge.
+- **User, client and folder updates can answer `409` under concurrent
+  writes.** Retry on `entity_conflict`.
 
 ## Upgrading to Authup v1.0.0-beta.72
 
