@@ -118,12 +118,30 @@ spec:
               containerPort: {{ .Values.worker.containerPorts.http }}
               protocol: TCP
           {{- if not .Values.diagnosticMode.enabled }}
+          {{- if .Values.worker.customStartupProbe }}
+          startupProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.customStartupProbe "context" $) | nindent 12 }}
+          {{- else if .Values.worker.startupProbe.enabled }}
+          startupProbe:
+            httpGet:
+              path: /livez
+              port: http
+            {{- omit .Values.worker.startupProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
+          {{- if .Values.worker.customLivenessProbe }}
+          livenessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.customLivenessProbe "context" $) | nindent 12 }}
+          {{- else if .Values.worker.livenessProbe.enabled }}
+          livenessProbe:
+            httpGet:
+              path: /livez
+              port: http
+            {{- omit .Values.worker.livenessProbe "enabled" | toYaml | nindent 12 }}
+          {{- end }}
           {{- if .Values.worker.customReadinessProbe }}
           readinessProbe: {{- include "authup.tplvalues.render" (dict "value" .Values.worker.customReadinessProbe "context" $) | nindent 12 }}
           {{- else if .Values.worker.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: /
+              path: /readyz
               port: http
             {{- omit .Values.worker.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}

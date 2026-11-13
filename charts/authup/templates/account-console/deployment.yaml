@@ -119,7 +119,7 @@ spec:
           {{- else if .Values.accountConsole.startupProbe.enabled }}
           startupProbe:
             httpGet:
-              path: /healthy
+              path: /livez
               port: http
             {{- omit .Values.accountConsole.startupProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
@@ -128,7 +128,7 @@ spec:
           {{- else if .Values.accountConsole.livenessProbe.enabled }}
           livenessProbe:
             httpGet:
-              path: /healthy
+              path: /livez
               port: http
             {{- omit .Values.accountConsole.livenessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}
@@ -137,7 +137,7 @@ spec:
           {{- else if .Values.accountConsole.readinessProbe.enabled }}
           readinessProbe:
             httpGet:
-              path: /healthy
+              path: /readyz
               port: http
             {{- omit .Values.accountConsole.readinessProbe "enabled" | toYaml | nindent 12 }}
           {{- end }}

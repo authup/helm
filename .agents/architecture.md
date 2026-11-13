@@ -3,7 +3,7 @@
 `DESIGN.md` is the authoritative rationale. This file is the compact list of
 operational invariants that template changes must preserve.
 
-## Authup runtime contract (through beta.73)
+## Authup runtime contract (through beta.76)
 
 1. **One image, explicit roles.** The supported default args are `start` for the
    combined server, `start core` for the split API, `start console auth|admin|account`
@@ -16,8 +16,19 @@ operational invariants that template changes must preserve.
    admin and account remain independently optional.
 3. **Role ports come from Authup.** Core listens on 3000. Split auth, admin and
    account consoles listen on 3020, 3021 and 3022. The worker health listener
-   uses `worker.containerPorts.http` (3000), wired to `WORKER_PORT` and an HTTP
-   readiness probe. It has no Service or liveness probe.
+   uses `worker.containerPorts.http` (3000), wired to `WORKER_PORT`. It has no
+   Service.
+3a. **Probe paths split liveness from readiness.** Every role probes startup and
+   liveness on `/livez` and readiness on `/readyz`. Never point a liveness or
+   startup probe at `/readyz`: it fails on an unreachable database, which a
+   restart does not fix, and would loop every replica. The worker's `/livez`
+   fails only for a sweep hung past 30 minutes.
+3b. **The drain lives in the app, not in a preStop sleep.** `server.shutdownDelay`
+   and each console's `shutdownDelay` render `SHUTDOWN_DELAY`; authup answers
+   `/readyz` with 503 for that long after SIGTERM before it closes.
+   `validations.yaml` refuses a delay not below the role's
+   `terminationGracePeriodSeconds`. The worker reads the server's env ConfigMap
+   and ignores the variable.
 4. **Worker ownership is explicit.** `worker.enabled=true` (the default) sets
    `WORKER_ENABLED=true` on the worker and `WORKER_ENABLED=false` on the server.
    The worker gets database and Redis credentials, but not SMTP, bootstrap

@@ -7,9 +7,9 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.5.5?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.73](https://img.shields.io/badge/AppVersion-1.0.0--beta.73-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.76](https://img.shields.io/badge/AppVersion-1.0.0--beta.76-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.73's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.76's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
@@ -127,6 +127,33 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Upgrading to Authup v1.0.0-beta.76
+
+Beta.76 moves health to two dedicated paths on every role, and the chart
+probes them. Beta.74 to beta.76 also add one database migration, which the
+upgrade Job applies. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for the rest:
+
+- **Probes use `/livez` and `/readyz`.** Startup and liveness probe
+  `GET /livez`, readiness probes `GET /readyz` on the server, every console
+  and the worker. The server's readiness now fails while the database is
+  unreachable, which `GET /` never did: such a pod leaves its Service instead
+  of answering errors. Custom probes (`*.customStartupProbe`,
+  `*.customLivenessProbe`, `*.customReadinessProbe`) are not rewritten; point
+  any that still use `/` or `/healthy` at the new paths.
+- **The worker gains a liveness probe.** `worker.livenessProbe` restarts the
+  worker when a sweep pass runs for over 30 minutes. A database outage does
+  not fail it. Disable it with `worker.livenessProbe.enabled=false`.
+- **A stopping pod drains.** `server.shutdownDelay` and each console's
+  `shutdownDelay` (default 5 seconds) keep the pod serving after SIGTERM
+  while `/readyz` answers 503, so ingress controllers stop routing to it
+  first. The value must stay below the role's
+  `terminationGracePeriodSeconds`; the chart refuses to render otherwise.
+- **The read cache needs a Redis eviction policy that keeps its keys**
+  (beta.75): `noeviction` or `volatile-*`, on Redis 5 or newer. The built-in
+  Valkey qualifies. Check the policy of an `externalRedis`.
 
 ## Upgrading to Authup v1.0.0-beta.73
 
@@ -361,6 +388,7 @@ Kubernetes: `>=1.25.0-0`
 | accountConsole.service.sessionAffinity | string | `"None"` | Session affinity |
 | accountConsole.service.sessionAffinityConfig | object | `{}` | Session affinity config |
 | accountConsole.service.type | string | `"ClusterIP"` | Service type |
+| accountConsole.shutdownDelay | int | `5` | Seconds the console keeps serving after SIGTERM while GET /readyz answers 503 (SHUTDOWN_DELAY); must stay below terminationGracePeriodSeconds |
 | accountConsole.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
 | accountConsole.startupProbe.enabled | bool | `true` | Enable the startup probe |
 | accountConsole.startupProbe.failureThreshold | int | `24` |  |
@@ -452,6 +480,7 @@ Kubernetes: `>=1.25.0-0`
 | adminConsole.service.sessionAffinity | string | `"None"` | Session affinity |
 | adminConsole.service.sessionAffinityConfig | object | `{}` | Session affinity config |
 | adminConsole.service.type | string | `"ClusterIP"` | Service type |
+| adminConsole.shutdownDelay | int | `5` | Seconds the console keeps serving after SIGTERM while GET /readyz answers 503 (SHUTDOWN_DELAY); must stay below terminationGracePeriodSeconds |
 | adminConsole.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
 | adminConsole.startupProbe.enabled | bool | `true` | Enable the startup probe |
 | adminConsole.startupProbe.failureThreshold | int | `24` |  |
@@ -554,6 +583,7 @@ Kubernetes: `>=1.25.0-0`
 | authConsole.service.sessionAffinity | string | `"None"` | Session affinity |
 | authConsole.service.sessionAffinityConfig | object | `{}` | Session affinity config |
 | authConsole.service.type | string | `"ClusterIP"` | Service type |
+| authConsole.shutdownDelay | int | `5` | Seconds the console keeps serving after SIGTERM while GET /readyz answers 503 (SHUTDOWN_DELAY); must stay below terminationGracePeriodSeconds |
 | authConsole.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
 | authConsole.startupProbe.enabled | bool | `true` | Enable the startup probe |
 | authConsole.startupProbe.failureThreshold | int | `24` |  |
@@ -676,7 +706,7 @@ Kubernetes: `>=1.25.0-0`
 | server.ingress.tls | bool | `false` | Enable TLS for the hostname (secret <hostname>-tls unless extraTls overrides) |
 | server.initContainers | list | `[]` | Init containers (tpl-rendered) |
 | server.lifecycleHooks | object | `{}` | Container lifecycle hooks |
-| server.livenessProbe.enabled | bool | `true` | Enable the liveness probe (GET / status endpoint) |
+| server.livenessProbe.enabled | bool | `true` | Enable the liveness probe (GET /livez, which checks no dependency) |
 | server.livenessProbe.failureThreshold | int | `3` |  |
 | server.livenessProbe.initialDelaySeconds | int | `0` |  |
 | server.livenessProbe.periodSeconds | int | `30` |  |
@@ -720,7 +750,7 @@ Kubernetes: `>=1.25.0-0`
 | server.provisioning.existingSecret | string | `""` | Existing Secret with provisioning files (tpl-rendered; takes precedence — use for provisioning content that carries credentials) |
 | server.provisioning.files | object | `{}` | Map of filename -> file content (tpl-rendered; the extension selects the reader). Lands in a ConfigMap — credential-bearing provisioning content belongs in existingSecret instead |
 | server.publicUrl | string | `""` | Public URL of Authup (PUBLIC_URL), shared by the API and consoles and used as the OIDC issuer origin. "" = derived from server.ingress when enabled. Changing it later breaks enrolled WebAuthn credentials and the OIDC issuer. |
-| server.readinessProbe.enabled | bool | `true` | Enable the readiness probe (GET / status endpoint) |
+| server.readinessProbe.enabled | bool | `true` | Enable the readiness probe (GET /readyz: the database answers and the pod is not draining) |
 | server.readinessProbe.failureThreshold | int | `3` |  |
 | server.readinessProbe.initialDelaySeconds | int | `0` |  |
 | server.readinessProbe.periodSeconds | int | `10` |  |
@@ -747,15 +777,16 @@ Kubernetes: `>=1.25.0-0`
 | server.service.sessionAffinity | string | `"None"` | Session affinity |
 | server.service.sessionAffinityConfig | object | `{}` | Session affinity config |
 | server.service.type | string | `"ClusterIP"` | Service type |
+| server.shutdownDelay | int | `5` | Seconds the API keeps serving after SIGTERM while GET /readyz answers 503 (SHUTDOWN_DELAY); must stay below terminationGracePeriodSeconds |
 | server.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
 | server.splitConsoles | bool | `false` | Run API-only server pods and deploy consoles separately (requires the public URL at the origin root because console prefixes are fixed) |
-| server.startupProbe.enabled | bool | `true` | Enable the startup probe (first boot runs database creation, migrations and provisioning) |
+| server.startupProbe.enabled | bool | `true` | Enable the startup probe on GET /livez (first boot runs database creation, migrations and provisioning) |
 | server.startupProbe.failureThreshold | int | `60` |  |
 | server.startupProbe.initialDelaySeconds | int | `5` |  |
 | server.startupProbe.periodSeconds | int | `5` |  |
 | server.startupProbe.successThreshold | int | `1` |  |
 | server.startupProbe.timeoutSeconds | int | `5` |  |
-| server.terminationGracePeriodSeconds | int | `30` | Pod termination grace period (server-core tears down within ~10s after signal) |
+| server.terminationGracePeriodSeconds | int | `30` | Pod termination grace period (server-core tears down within ~10s after signal and shutdownDelay) |
 | server.theme.enabled | bool | `false` | Mount an operator theme for the served consoles (auth, admin and account). Experimental upstream: the directory layout and the theme* options may change in a minor release |
 | server.theme.existingConfigMap | string | `""` | Existing ConfigMap holding the theme (tpl-rendered name). Use for binary assets, which cannot be expressed in files. Mounted whole, so it must carry theme.json itself and excludes the manifest values above |
 | server.theme.existingConfigMapItems | list | `[]` | Key -> path projection for existingConfigMap, so its keys can land in subdirectories (e.g. [{key: theme-css, path: assets/theme.css}]). Empty mounts every key flat at the theme root |
@@ -806,7 +837,9 @@ Kubernetes: `>=1.25.0-0`
 | worker.command | list | `[]` | Override the container command |
 | worker.containerPorts.http | int | `3000` | Worker health listener port (WORKER_PORT) |
 | worker.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"enabled":true,"readOnlyRootFilesystem":false,"runAsNonRoot":false,"runAsUser":0,"seccompProfile":{"type":"RuntimeDefault"}}` | Container security context |
+| worker.customLivenessProbe | object | `{}` | Custom liveness probe with exactly one handler (overrides livenessProbe) |
 | worker.customReadinessProbe | object | `{}` | Custom readiness probe with exactly one handler (overrides readinessProbe) |
+| worker.customStartupProbe | object | `{}` | Custom startup probe with exactly one handler (overrides startupProbe) |
 | worker.disableRestartOnChanges | bool | `false` | Disable checksum annotations that roll pods on configuration changes |
 | worker.enabled | bool | `true` | Deploy a dedicated background worker (requires server.enabled). It never migrates: on a fresh install it restarts until the server has initialized the schema; enable server.migration.enabled so upgrades run the Job first |
 | worker.extraEnvVars | list | `[]` | Extra environment variables for the worker container |
@@ -817,6 +850,12 @@ Kubernetes: `>=1.25.0-0`
 | worker.hostAliases | list | `[]` | Pod host aliases |
 | worker.initContainers | list | `[]` | Init containers (tpl-rendered) |
 | worker.lifecycleHooks | object | `{}` | Container lifecycle hooks |
+| worker.livenessProbe.enabled | bool | `true` | Restart the worker when a sweep pass hangs for over 30 minutes (GET /livez; a database outage does not fail it) |
+| worker.livenessProbe.failureThreshold | int | `3` |  |
+| worker.livenessProbe.initialDelaySeconds | int | `0` |  |
+| worker.livenessProbe.periodSeconds | int | `30` |  |
+| worker.livenessProbe.successThreshold | int | `1` |  |
+| worker.livenessProbe.timeoutSeconds | int | `5` |  |
 | worker.networkPolicy.allowExternalEgress | bool | `true` | Allow all egress |
 | worker.networkPolicy.enabled | bool | `false` | Create an egress NetworkPolicy for the worker |
 | worker.networkPolicy.extraEgress | list | `[]` | Extra egress rules |
@@ -829,7 +868,7 @@ Kubernetes: `>=1.25.0-0`
 | worker.podLabels | object | `{}` | Pod labels (tpl-rendered) |
 | worker.podSecurityContext | object | `{"enabled":true,"fsGroup":1000}` | Pod security context |
 | worker.priorityClassName | string | `""` | Priority class name |
-| worker.readinessProbe.enabled | bool | `true` | Check sweep health without restarting the worker on database outages |
+| worker.readinessProbe.enabled | bool | `true` | Check sweep health without restarting the worker on database outages (GET /readyz) |
 | worker.readinessProbe.failureThreshold | int | `3` |  |
 | worker.readinessProbe.initialDelaySeconds | int | `0` |  |
 | worker.readinessProbe.periodSeconds | int | `30` |  |
@@ -840,6 +879,12 @@ Kubernetes: `>=1.25.0-0`
 | worker.revisionHistoryLimit | int | `3` | Deployment revision history limit |
 | worker.schedulerName | string | `""` | Scheduler name |
 | worker.sidecars | list | `[]` | Sidecar containers (tpl-rendered) |
+| worker.startupProbe.enabled | bool | `true` | Enable the startup probe on GET /livez (the listener binds after the schema check) |
+| worker.startupProbe.failureThreshold | int | `24` |  |
+| worker.startupProbe.initialDelaySeconds | int | `5` |  |
+| worker.startupProbe.periodSeconds | int | `5` |  |
+| worker.startupProbe.successThreshold | int | `1` |  |
+| worker.startupProbe.timeoutSeconds | int | `5` |  |
 | worker.terminationGracePeriodSeconds | int | `30` | Pod termination grace period |
 | worker.tolerations | list | `[]` | Tolerations |
 | worker.topologySpreadConstraints | list | `[]` | Topology spread constraints |

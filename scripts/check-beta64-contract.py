@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assert the Authup runtime contract (through beta.73) against rendered manifests."""
+"""Assert the Authup runtime contract (through beta.76) against rendered manifests."""
 
 import subprocess
 import sys
@@ -156,15 +156,24 @@ def check_base():
     assert env_value(container(server), "WORKER_ENABLED") == "false"
     assert env_value(container(server), "MIGRATION_ENABLED") is None
     assert server["metadata"]["labels"]["app.kubernetes.io/version"] == app_version
+    server_container = container(server)
+    assert server_container["startupProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
+    assert server_container["livenessProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
+    assert server_container["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "http"}
+    assert effective_env(server, documents)["SHUTDOWN_DELAY"] == "5"
+    assert server["spec"]["template"]["spec"]["terminationGracePeriodSeconds"] > 5
 
     worker = container(one(documents, "Deployment", "worker"))
     assert worker["args"] == ["start", "worker"]
     assert env_value(worker, "WORKER_ENABLED") == "true"
     assert env_value(worker, "WORKER_PORT") == "3000"
     assert worker["ports"] == [{"name": "http", "containerPort": 3000, "protocol": "TCP"}]
-    assert worker["readinessProbe"]["httpGet"] == {"path": "/", "port": "http"}
+    assert worker["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "http"}
     assert worker["readinessProbe"]["periodSeconds"] == 30
-    assert not ({"startupProbe", "livenessProbe"} & set(worker))
+    # /livez fails only for a hung sweep, never for a database outage, so it
+    # is safe for liveness; /readyz is not and must stay readiness-only.
+    assert worker["startupProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
+    assert worker["livenessProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
     assert not any(
         doc["kind"] == "Service"
         and doc["metadata"]["labels"].get("app.kubernetes.io/component") == "worker"
@@ -184,6 +193,16 @@ def check_base():
     ):
         worker = container(one(render(values), "Deployment", "worker"))
         assert "readinessProbe" not in worker
+
+    for values in (
+        {"diagnosticMode": {"enabled": True}},
+        {"worker": {"startupProbe": {"enabled": False}, "livenessProbe": {"enabled": False}}},
+    ):
+        worker = container(one(render(values), "Deployment", "worker"))
+        assert not ({"startupProbe", "livenessProbe"} & set(worker))
+
+    drained = render({"server": {"shutdownDelay": 12, "terminationGracePeriodSeconds": 45}})
+    assert effective_env(one(drained, "Deployment", "server"), drained)["SHUTDOWN_DELAY"] == "12"
 
     custom = render({"worker": {
         "containerPorts": {"http": 3005},
@@ -299,16 +318,18 @@ def check_split():
             {"DB_PASSWORD", "REDIS", "SMTP", "USER_ADMIN_PASSWORD", "CLIENT_SYSTEM_SECRET"}
             & set(environment)
         )
+        assert environment["SHUTDOWN_DELAY"] == "5"
+        console_container = container(deployments[component])
+        assert console_container["startupProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
+        assert console_container["livenessProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
+        assert console_container["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "http"}
 
     worker = one(documents, "Deployment", "worker")
     worker_container = container(worker)
     assert worker_container["args"] == ["start", "worker"]
     assert worker_container["ports"] == [{"name": "http", "containerPort": 3000, "protocol": "TCP"}]
-    assert worker_container["readinessProbe"]["httpGet"] == {"path": "/", "port": "http"}
-    assert not (
-        {"startupProbe", "livenessProbe"}
-        & set(worker_container)
-    )
+    assert worker_container["readinessProbe"]["httpGet"] == {"path": "/readyz", "port": "http"}
+    assert worker_container["livenessProbe"]["httpGet"] == {"path": "/livez", "port": "http"}
     worker_env = effective_env(worker, documents)
     assert worker_env["WORKER_ENABLED"] == "true"
     assert effective_env(deployments["server"], documents)["WORKER_ENABLED"] == "false"
@@ -770,7 +791,8 @@ def check_validations():
         {"httpGet": {"path": "/", "port": "http"}, "exec": {"command": ["true"]}},
         {"httpGet": None, "periodSeconds": 15},
     ):
-        render_fails({"worker": {"customReadinessProbe": probe}}, "customReadinessProbe")
+        for key in ("customReadinessProbe", "customStartupProbe", "customLivenessProbe"):
+            render_fails({"worker": {key: probe}}, key)
     for handler, settings in (
         ("httpGet", {"path": "/", "port": "http"}),
         ("tcpSocket", {"port": "http"}),
@@ -778,8 +800,23 @@ def check_validations():
         ("grpc", {"port": 3000}),
     ):
         probe = {handler: settings, "periodSeconds": 15}
-        worker = one(render({"worker": {"customReadinessProbe": probe}}), "Deployment", "worker")
-        assert container(worker)["readinessProbe"] == probe
+        for key, field in (
+            ("customReadinessProbe", "readinessProbe"),
+            ("customStartupProbe", "startupProbe"),
+            ("customLivenessProbe", "livenessProbe"),
+        ):
+            worker = one(render({"worker": {key: probe}}), "Deployment", "worker")
+            assert container(worker)[field] == probe
+    for component in ("server", "authConsole", "adminConsole", "accountConsole"):
+        render_fails(
+            {component: {"shutdownDelay": 30, "terminationGracePeriodSeconds": 30}},
+            f"{component}.shutdownDelay (30) must be lower than {component}.terminationGracePeriodSeconds (30)",
+        )
+    render_fails({"server": {"shutdownDelay": -1}}, "shutdownDelay")
+    render_fails(
+        {"server": {"config": {"SHUTDOWN_DELAY": "1"}}},
+        "server.config.SHUTDOWN_DELAY collides with a first-class chart value",
+    )
     for port in (0, 65536, "invalid", None):
         render_fails({"worker": {"containerPorts": {"http": port}}}, "http")
     for name in ("ADMIN_CONSOLE_ENABLED", "WORKER_ENABLED", "WORKER_PORT", "MIGRATION_ENABLED"):

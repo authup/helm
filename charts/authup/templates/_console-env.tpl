@@ -15,10 +15,11 @@ TRUSTED_ORIGINS: {{ $trustedOrigins | quote }}
 ADMIN_CONSOLE_ENABLED: {{ $ctx.Values.adminConsole.enabled | toString | quote }}
 ACCOUNT_CONSOLE_ENABLED: {{ $ctx.Values.accountConsole.enabled | toString | quote }}
 {{ $portName }}: {{ $values.containerPorts.http | toString | quote }}
+SHUTDOWN_DELAY: {{ $values.shutdownDelay | toString | quote }}
 {{- if include "authup.server.themeMounted" $ctx }}
 {{ include "authup.server.themeEnv" $ctx }}
 {{- end }}
-{{- $reserved := list "PUBLIC_URL" "INTERNAL_URL" "TRUSTED_ORIGINS" "ADMIN_CONSOLE_ENABLED" "ACCOUNT_CONSOLE_ENABLED" $portName "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" }}
+{{- $reserved := list "SHUTDOWN_DELAY" "PUBLIC_URL" "INTERNAL_URL" "TRUSTED_ORIGINS" "ADMIN_CONSOLE_ENABLED" "ACCOUNT_CONSOLE_ENABLED" $portName "THEME_DIRECTORY_PATH" "THEME_FRAGMENTS_ENABLED" }}
 {{- range $key, $value := $values.config }}
 {{- if has $key $reserved }}
 {{- fail (printf "authup: %s.config.%s collides with a first-class chart value; set the dedicated value instead." $.key $key) }}

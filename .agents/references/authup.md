@@ -1,8 +1,39 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.73, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.76, the
 chart `appVersion`.
+
+Verified against tag commit `bea4803fc692c78b5d971a0e31fe4deb7763401c`.
+beta.73 to beta.76 changed one contract the chart owns, health (#3841, #3842),
+and added one migration (`1794155837154-ClientTokenExchangeCapabilities`, a new
+table; the upgrade Job applies it). `entrypoint.sh` is unchanged, and
+`apps/authup/src/index.ts` gains only a trailing newline.
+
+- Every listener answers `GET /livez` and `GET /readyz`
+  (`apps/server-core/src/app/modules/http/health/`,
+  `apps/server-core/src/app/modules/components/health.ts`,
+  `packages/server-console-kit/src/health.ts`). `/livez` checks no dependency
+  on the API and consoles; on the worker it fails only for a pass running over
+  30 minutes. `/readyz` checks the database (API), sweep health (worker) and
+  the drain state (API and consoles). Neither path answers before the listener
+  binds, which is after migrations and provisioning, so the startup probe
+  budget must cover a boot migration.
+- The worker's `GET /` and a console's `GET /healthy` still answer through the
+  1.0.0-beta line; the chart probes neither any more.
+- `SHUTDOWN_DELAY` (root key `shutdownDelay`,
+  `packages/server-config/src/sections/root/schema.ts`): seconds the API and a
+  console keep serving after SIGTERM while `/readyz` answers 503. authup's
+  force-exit timeout (10s) starts after the delay. The worker ignores it.
+- The image `HEALTHCHECK` dials `/readyz` on `PORT`; Kubernetes uses the
+  chart's explicit probes instead.
+- beta.75: the read cache opens one more Redis connection and needs Redis 5+
+  with `maxmemory-policy` `noeviction` or `volatile-*`. The built-in
+  `valkey/valkey:8` sets neither `maxmemory` nor a policy, so it runs with
+  `noeviction`; an `externalRedis` with an `allkeys-*` policy must change it.
+- beta.76: an SMTP send ends after 30 seconds.
+
+## Previous deployment changes
 
 Verified against tag commit `7ac1021498f13acbe78547e39a85c2e9f3520f49`.
 beta.72 to beta.73 changed no image entrypoint, CLI role, port or
@@ -24,8 +55,6 @@ new migration). Deployment-facing facts, none of which needs a chart value:
   409 after three changed attempts (#3793).
 - Permission names accept `:` (#3780); disabled LDAP providers are skipped
   (#3788); introspection reports expired sessions inactive (#3789).
-
-## Previous deployment changes
 
 Verified against tag commit `5f4bb5ffd700d04daff3e59f85f851435cf01407`.
 beta.71 to beta.72 changed no image entrypoint, CLI role, port or
@@ -187,11 +216,13 @@ Deployment-facing facts, none of which needs a chart value
 | Background worker: `start worker` | `apps/authup/src/module.ts`, `apps/server-core/src/app/modules/components/module.ts` | `worker/deployment.yaml` |
 | Migration: `migration run` | `apps/server-core/src/cli/commands/migration.ts` | `server/migration-job.yaml` |
 | Core port 3000; console ports 3020/3021/3022 | `packages/server-config/src/sections/*/schema.ts`, `Dockerfile` | role `containerPorts` and Services |
-| Worker health port, default 3000 | `sections/core/schema.ts`, `components/health.ts` | `worker.containerPorts.http`, readiness probe; no Service |
+| Worker health port, default 3000 | `sections/core/schema.ts`, `components/health.ts` | `worker.containerPorts.http`, startup, liveness (`/livez`) and readiness (`/readyz`) probes; no Service |
+| Health paths `/livez`, `/readyz` on every role | `http/health/`, `components/health.ts`, `server-console-kit/src/health.ts` | every role's `startupProbe` / `livenessProbe` (`/livez`) and `readinessProbe` (`/readyz`) |
+| `SHUTDOWN_DELAY` | `sections/root/schema.ts` | `server.shutdownDelay`, `<console>.shutdownDelay`; guarded against `terminationGracePeriodSeconds` |
 
 Do not use the pre-beta.64 prefixes `server/core` and
 `client/admin-console`. The worker listener serves health only; do not route
-API traffic to it or use its sweep-health status for liveness.
+API traffic to it or use its `/readyz` sweep-health status for liveness.
 
 ## Unified configuration
 

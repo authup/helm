@@ -18,8 +18,9 @@ a focused assertion there over brittle text grep when changing the application
 boundary.
 
 The script retains its beta.64 filename and Make target, but tracks the current
-appVersion. Beta.68 coverage includes the default worker, its opt-out, readiness
-probe overrides and diagnostics, and the configured health port. The
+appVersion. It covers the default worker, its opt-out, probe paths and overrides
+for every role (`/livez` for startup and liveness, `/readyz` for readiness),
+diagnostics, the configured health port, and the `shutdownDelay` guard. The
 server-only CI fixture disables the worker to keep the in-process path covered.
 
 ## Useful renders

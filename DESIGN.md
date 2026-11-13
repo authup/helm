@@ -10,7 +10,7 @@ PrivateAIM/helm.
 1. Provide Bitnami-grade values ergonomics without external chart dependencies:
    existing-secret key mapping, tpl-rendered extension points, predictable
    naming, diagnostics and standard workload controls.
-2. Deploy every supported Authup v1.0.0-beta.73 role from the one upstream
+2. Deploy every supported Authup v1.0.0-beta.76 role from the one upstream
    `authup/authup` image.
 3. Keep a default install useful: a combined Authup server, dedicated worker and built-in
    PostgreSQL, while making external database and cache services the documented
@@ -47,11 +47,13 @@ independently.
 
 The worker is a separate Deployment when `worker.enabled=true` (the default). Its process
 gets `WORKER_ENABLED=true`; the API gets `WORKER_ENABLED=false`. It shares
-database, cache, configuration and log mechanics with core. Since beta.68 it
-serves `GET /` health reports on `WORKER_PORT`, configured through
-`worker.containerPorts.http` (3000 by default). A readiness probe checks sweep
-health; no Service is needed for kubelet probes. There is no liveness probe:
-database failures must not cause restart loops. It does not receive SMTP or
+database, cache, configuration and log mechanics with core. Since beta.76 it
+serves `GET /readyz` and `GET /livez` on `WORKER_PORT`, configured through
+`worker.containerPorts.http` (3000 by default); no Service is needed for
+kubelet probes. Readiness (`/readyz`) checks sweep health, including a
+database the sweeps cannot reach. Liveness and startup use `/livez`, which
+fails only for a sweep pass hung past 30 minutes: database failures must not
+cause restart loops, and `/livez` never reports one. It does not receive SMTP or
 bootstrap identity secrets because those modules are outside the worker role.
 Setting `worker.enabled=false` keeps the sweeps in the server process.
 
@@ -261,7 +263,8 @@ idempotent on reruns.
 | Full Authup config-file templating | env-first configuration plus escape hatches avoid a schema treadmill |
 | Generic role-loop templates | explicit heterogeneous roles are easier to audit and change |
 | Pre-install migration Job | hooks run before chart-managed backing services exist |
-| Worker Service or liveness probe | kubelet probes need no Service; failed sweeps should affect readiness without restarts |
+| Worker Service | kubelet probes need no Service |
+| Worker liveness on the readiness endpoint | `/readyz` fails on a database outage, which a restart does not fix; liveness uses `/livez` |
 | Different public origins for split consoles | Authup's browser and login contracts use one deployment-wide public URL |
 | PVC for file logs | application state is in the database; log persistence belongs in collection infrastructure |
 | Run-without-database demo mode | impossible in the production image |

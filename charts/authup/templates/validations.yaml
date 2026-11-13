@@ -185,3 +185,16 @@ location, e.g.
 {{- if and .Values.server.config (hasKey .Values.server.config "WRITABLE_DIRECTORY_PATH") }}
 {{- fail "authup: server.config.WRITABLE_DIRECTORY_PATH is retired in beta.64: logs live at /var/log/authup and provisioning at /etc/authup/provisioning. See BREAKING.md." }}
 {{- end }}
+
+{{/*
+authup closes a draining listener only after shutdownDelay; a grace period not
+above it SIGKILLs the pod mid-drain, before the teardown even starts. authup
+then allows itself ~10s for the teardown, which the values docs recommend
+leaving room for.
+*/}}
+{{- range $key := list "server" "authConsole" "adminConsole" "accountConsole" }}
+{{- $role := get $.Values $key }}
+{{- if ge (int $role.shutdownDelay) (int $role.terminationGracePeriodSeconds) }}
+{{- fail (printf "authup: %s.shutdownDelay (%v) must be lower than %s.terminationGracePeriodSeconds (%v), or Kubernetes kills the pod before it stops draining." $key $role.shutdownDelay $key $role.terminationGracePeriodSeconds) }}
+{{- end }}
+{{- end }}

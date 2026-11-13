@@ -141,6 +141,33 @@ Notable operational facts (enforced or warned about by the chart):
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
 
+## Upgrading to Authup v1.0.0-beta.76
+
+Beta.76 moves health to two dedicated paths on every role, and the chart
+probes them. Beta.74 to beta.76 also add one database migration, which the
+upgrade Job applies. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for the rest:
+
+- **Probes use `/livez` and `/readyz`.** Startup and liveness probe
+  `GET /livez`, readiness probes `GET /readyz` on the server, every console
+  and the worker. The server's readiness now fails while the database is
+  unreachable, which `GET /` never did: such a pod leaves its Service instead
+  of answering errors. Custom probes (`*.customStartupProbe`,
+  `*.customLivenessProbe`, `*.customReadinessProbe`) are not rewritten; point
+  any that still use `/` or `/healthy` at the new paths.
+- **The worker gains a liveness probe.** `worker.livenessProbe` restarts the
+  worker when a sweep pass runs for over 30 minutes. A database outage does
+  not fail it. Disable it with `worker.livenessProbe.enabled=false`.
+- **A stopping pod drains.** `server.shutdownDelay` and each console's
+  `shutdownDelay` (default 5 seconds) keep the pod serving after SIGTERM
+  while `/readyz` answers 503, so ingress controllers stop routing to it
+  first. The value must stay below the role's
+  `terminationGracePeriodSeconds`; the chart refuses to render otherwise.
+- **The read cache needs a Redis eviction policy that keeps its keys**
+  (beta.75): `noeviction` or `volatile-*`, on Redis 5 or newer. The built-in
+  Valkey qualifies. Check the policy of an `externalRedis`.
+
 ## Upgrading to Authup v1.0.0-beta.73
 
 Beta.73 changes authorization and session semantics, not the chart contract,
