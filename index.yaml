@@ -4,6 +4,51 @@ entries:
   - annotations:
       artifacthub.io/changes: |
         - kind: changed
+          description: Track Authup v1.0.0-beta.76
+        - kind: changed
+          description: Server and console probes use GET /livez (startup, liveness) and GET /readyz (readiness); readiness now fails while the database is unreachable
+        - kind: added
+          description: The worker gains a startup and a liveness probe on GET /livez, which restarts it when a sweep pass hangs for over 30 minutes
+        - kind: added
+          description: server.shutdownDelay and the console shutdownDelay values (SHUTDOWN_DELAY, default 5) keep a stopping pod serving while GET /readyz answers 503
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.76
+    created: "2026-11-19T13:38:28.722072898Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      its combined or split API, console and worker roles, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: 4360e8185a9fec6334c3d82919316c79d90c55ffdcb9baf91d3fa4d16cff004d
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.5.6/authup-0.5.6.tgz
+    version: 0.5.6
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
           description: Track Authup v1.0.0-beta.73; no image entrypoint, CLI, port or environment-variable contract change
         - kind: changed
           description: The upstream image runs on Node.js 26 (node:26-alpine); nothing changes for a chart install
@@ -645,4 +690,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-01T21:02:53.508616145Z"
+generated: "2026-11-19T13:38:28.722132316Z"
