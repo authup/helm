@@ -7,9 +7,9 @@
 # authup
 
 ![Version](https://img.shields.io/badge/Version-0.5.6?style=flat-square&color=informational) <!-- x-release-please-version -->
-![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.76](https://img.shields.io/badge/AppVersion-1.0.0--beta.76-informational?style=flat-square)
+![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.0.0-beta.77](https://img.shields.io/badge/AppVersion-1.0.0--beta.77-informational?style=flat-square)
 
-Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.76's
+Authup is an authentication & authorization system. This chart deploys its combined or split API, console and worker roles, with optional built-in PostgreSQL, MySQL and Valkey instances. It runs Authup v1.0.0-beta.77's
 role-based CLI topology:
 
 - one combined API and console workload by default (`start`)
@@ -127,6 +127,26 @@ Notable operational facts (enforced or warned about by the chart):
   env name/value pairs), `server.extraEnvVars`, or a mounted
   `server.configuration` file. See the
   [Authup configuration reference](https://authup.org).
+
+## Upgrading to Authup v1.0.0-beta.77
+
+Beta.77 changes no image entrypoint, CLI role, port or chart value, and adds
+no database migration. Check the upstream
+[upgrade guide](https://github.com/authup/authup/blob/master/docs/src/guide/deployment/upgrading.md)
+for the rest:
+
+- **The admin and account consoles send a script policy.** Their shells
+  answer with a `Content-Security-Policy` that admits only their own scripts
+  and the injected configuration script. A reverse proxy or CDN injecting
+  scripts into those pages is now blocked. Turn the policy off per console
+  with `ADMIN_CONSOLE_CSP_ENABLED: "false"` / `ACCOUNT_CONSOLE_CSP_ENABLED: "false"`
+  in `server.config` (combined mode) or in `adminConsole.config` /
+  `accountConsole.config` (split mode). `server.theme.fragmentsEnabled=true`
+  keeps the framing-only header, so fragment scripts still run.
+- **Provisioning binds a realm's relations after its entities.** A client or
+  user an earlier boot created under `createOnly` keeps the assignments it got
+  then; give its provisioning entry `strategy: { type: merge }` for one
+  upgrade to add the ones the old order missed.
 
 ## Upgrading to Authup v1.0.0-beta.76
 

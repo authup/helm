@@ -1,8 +1,26 @@
 # authup application mapping
 
 Repository: https://github.com/authup/authup. A local checkout commonly exists
-at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.76, the
+at `/opt/projects/authup/authup`. This mapping is pinned to v1.0.0-beta.77, the
 chart `appVersion`.
+
+Verified against tag commit `2ec4cf1d775e94c71ca5a53450e2ee4407b6bf4a`.
+beta.76 to beta.77 changed no image entrypoint, CLI role, port or migration:
+`entrypoint.sh`, `Dockerfile` and `apps/authup/src` are unchanged, the console
+`src/index.ts` files only add `.ts` import suffixes, and the migrations only
+lose the postgres `"public".` qualifier (#3849, no new migration). One new key
+per console, which needs no chart value (the `config` maps carry it):
+
+- `adminConsole.cspEnabled` / `accountConsole.cspEnabled`
+  (`ADMIN_CONSOLE_CSP_ENABLED` / `ACCOUNT_CONSOLE_CSP_ENABLED`, default
+  `true`, `packages/server-config/src/sections/{admin,account}-console/schema.ts`):
+  the console shell sends a script `Content-Security-Policy`. Never applied
+  while `theme.fragmentsEnabled` is on. In combined mode the server process
+  serves the consoles, so the keys go to `server.config`.
+- Provisioning binds a realm's relations after its entities (#3892); entities
+  an earlier boot created under `createOnly` keep their old assignments.
+
+## beta.73 to beta.76
 
 Verified against tag commit `bea4803fc692c78b5d971a0e31fe4deb7763401c`.
 beta.73 to beta.76 changed one contract the chart owns, health (#3841, #3842),
