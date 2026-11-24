@@ -4,6 +4,47 @@ entries:
   - annotations:
       artifacthub.io/changes: |
         - kind: changed
+          description: Track Authup v1.0.0-beta.77; no image entrypoint, CLI role, port or migration change
+        - kind: changed
+          description: The admin and account console shells send a script Content-Security-Policy; ADMIN_CONSOLE_CSP_ENABLED / ACCOUNT_CONSOLE_CSP_ENABLED (default true) turn it off through the config values
+      artifacthub.io/license: Apache-2.0
+      artifacthub.io/links: |
+        - name: Documentation
+          url: https://authup.org
+        - name: Source
+          url: https://github.com/authup/helm
+    apiVersion: v2
+    appVersion: 1.0.0-beta.77
+    created: "2026-11-24T08:11:33.723184863Z"
+    description: Authup is an authentication & authorization system. This chart deploys
+      its combined or split API, console and worker roles, with optional built-in
+      PostgreSQL, MySQL and Valkey instances.
+    digest: d920fa6a4c5d32849fc9926737b9bfe3aecef003c4f1c8d1804aadbe34298d3c
+    home: https://authup.org
+    icon: https://raw.githubusercontent.com/authup/helm/master/assets/icon.svg
+    keywords:
+    - authup
+    - authentication
+    - authorization
+    - oauth2
+    - oidc
+    - identity
+    - sso
+    kubeVersion: '>=1.25.0-0'
+    maintainers:
+    - name: tada5hi
+      url: https://github.com/tada5hi
+    name: authup
+    sources:
+    - https://github.com/authup/helm
+    - https://github.com/authup/authup
+    type: application
+    urls:
+    - https://github.com/authup/helm/releases/download/authup-0.5.7/authup-0.5.7.tgz
+    version: 0.5.7
+  - annotations:
+      artifacthub.io/changes: |
+        - kind: changed
           description: Track Authup v1.0.0-beta.76
         - kind: changed
           description: Server and console probes use GET /livez (startup, liveness) and GET /readyz (readiness); readiness now fails while the database is unreachable
@@ -690,4 +731,4 @@ entries:
     urls:
     - https://github.com/authup/helm/releases/download/authup-0.1.0/authup-0.1.0.tgz
     version: 0.1.0
-generated: "2026-11-19T13:38:28.722132316Z"
+generated: "2026-11-24T08:11:33.723297984Z"
